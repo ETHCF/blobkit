@@ -1,0 +1,210 @@
+import {
+  blobToKZGCommitment,
+  computeKZGProof,
+  verifyKZGProof,
+  loadTrustedSetup,
+  getTrustedSetup,
+  createMockSetup
+} from '../../src/kzg';
+import { BYTES_PER_BLOB } from '../../src/kzg/constants';
+
+describe('KZG Coverage Tests', () => {
+  describe('Edge Cases for Uncovered Lines', () => {
+    it('should handle getTrustedSetup when null', () => {
+      // Clear setup
+      loadTrustedSetup(null as any);
+      
+      const setup = getTrustedSetup();
+      expect(setup).toBeNull();
+      
+      // Restore for other tests
+      loadTrustedSetup(createMockSetup());
+    });
+
+    it('should handle proof generation without setup', async () => {
+      const currentSetup = getTrustedSetup();
+      loadTrustedSetup(null as any);
+      
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      
+      await expect(computeKZGProof(blob, 1n))
+        .rejects.toThrow('Trusted setup not loaded');
+      
+      // Restore
+      loadTrustedSetup(currentSetup!);
+    });
+
+    it('should handle verification without setup', async () => {
+      const currentSetup = getTrustedSetup();
+      loadTrustedSetup(null as any);
+      
+      const commitment = new Uint8Array(48);
+      const proof = new Uint8Array(48);
+      
+      await expect(verifyKZGProof(commitment, 1n, 1n, proof))
+        .rejects.toThrow('Trusted setup not loaded');
+      
+      // Restore
+      loadTrustedSetup(currentSetup!);
+    });
+
+    it('should handle constant polynomial division edge case', async () => {
+      const mockSetup = createMockSetup();
+      loadTrustedSetup(mockSetup);
+      
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      blob[31] = 5; // p(x) = 5
+      
+      // For constant polynomial p(x) = 5:
+      // At any z, p(z) = 5
+      // Quotient (p(x) - p(z)) / (x - z) = (5 - 5) / (x - z) = 0
+      const { proof, claimedValue } = await computeKZGProof(blob, 10n);
+      
+      expect(claimedValue).toBe(5n);
+      // Proof should be identity for zero quotient
+      expect(proof[0]).toBe(0xc0); // Compressed identity point
+    });
+
+    it('should handle polynomial evaluation at specific points', async () => {
+      const mockSetup = createMockSetup();
+      loadTrustedSetup(mockSetup);
+      
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      // Create simple quadratic p(x) = x^2
+      blob[95] = 1; // coefficient of x^2
+      
+      // Evaluate at z = 5: p(5) = 25
+      const { proof, claimedValue } = await computeKZGProof(blob, 5n);
+      
+      expect(claimedValue).toBe(25n);
+      
+      // Verify the proof
+      const commitment = await blobToKZGCommitment(blob);
+      const isValid = await verifyKZGProof(commitment, 5n, claimedValue, proof);
+      expect(isValid).toBe(true);
+    });
+
+    it('should handle verification with both sides zero', async () => {
+      const mockSetup = createMockSetup();
+      loadTrustedSetup(mockSetup);
+      
+      // Zero blob
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      
+      const commitment = await blobToKZGCommitment(blob);
+      const { proof, claimedValue } = await computeKZGProof(blob, 0n);
+      
+      // Both commitment and proof should be identity
+      expect(commitment[0]).toBe(0xc0);
+      expect(proof[0]).toBe(0xc0);
+      expect(claimedValue).toBe(0n);
+      
+      // This triggers the special case where both sides are zero
+      const isValid = await verifyKZGProof(commitment, 0n, claimedValue, proof);
+      expect(isValid).toBe(true);
+    });
+
+    it('should handle mismatched proof and commitment', async () => {
+      const mockSetup = createMockSetup();
+      loadTrustedSetup(mockSetup);
+      
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      blob[31] = 5; // p(x) = 5
+      
+      const commitment = await blobToKZGCommitment(blob);
+      await computeKZGProof(blob, 1n); // Generate correct proof (not used)
+      
+      // Create a different blob and get its proof
+      const blob2 = new Uint8Array(BYTES_PER_BLOB);
+      blob2[31] = 10; // p(x) = 10
+      const { proof: wrongProof } = await computeKZGProof(blob2, 1n);
+      
+      // Try to verify first blob's commitment with second blob's proof
+      const isValid = await verifyKZGProof(commitment, 1n, 5n, wrongProof);
+      expect(isValid).toBe(false);
+    });
+
+    it('should handle full pairing computation', async () => {
+      const mockSetup = createMockSetup();
+      loadTrustedSetup(mockSetup);
+      
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      // Create non-trivial polynomial p(x) = 1 + 2x + 3x^2
+      blob[31] = 1;
+      blob[63] = 2;
+      blob[95] = 3;
+      
+      const commitment = await blobToKZGCommitment(blob);
+      
+      // Evaluate at z = 4: p(4) = 1 + 2*4 + 3*16 = 1 + 8 + 48 = 57
+      const { proof, claimedValue } = await computeKZGProof(blob, 4n);
+      expect(claimedValue).toBe(57n);
+      
+      // This should trigger full pairing computation
+      const isValid = await verifyKZGProof(commitment, 4n, claimedValue, proof);
+      expect(isValid).toBe(true);
+      
+      // Try with wrong value to ensure pairing fails
+      const wrongValid = await verifyKZGProof(commitment, 4n, 58n, proof);
+      expect(wrongValid).toBe(false);
+    });
+
+    it('should handle catch block in verification', async () => {
+      const mockSetup = createMockSetup();
+      loadTrustedSetup(mockSetup);
+      
+      // Create completely invalid commitment data
+      const invalidCommitment = new Uint8Array(48);
+      invalidCommitment.fill(0xFF); // Invalid point
+      
+      const validProof = new Uint8Array(48);
+      validProof[0] = 0xc0; // Valid identity point
+      
+      // This should trigger the catch block
+      const isValid = await verifyKZGProof(invalidCommitment, 1n, 1n, validProof);
+      expect(isValid).toBe(false);
+    });
+  });
+
+  describe('Polynomial Division Edge Cases', () => {
+    it('should handle simple polynomial division', async () => {
+      const mockSetup = createMockSetup();
+      loadTrustedSetup(mockSetup);
+      
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      
+      // Create simple linear polynomial p(x) = x
+      blob[63] = 1; // coefficient of x
+      
+      // Evaluate at z = 0, should give p(0) = 0
+      const { proof, claimedValue } = await computeKZGProof(blob, 0n);
+      expect(claimedValue).toBe(0n);
+      
+      const commitment = await blobToKZGCommitment(blob);
+      const isValid = await verifyKZGProof(commitment, 0n, claimedValue, proof);
+      expect(isValid).toBe(true);
+    });
+
+    it('should handle non-zero constant term', async () => {
+      const mockSetup = createMockSetup();
+      loadTrustedSetup(mockSetup);
+      
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      
+      // p(x) = 42
+      blob[31] = 42;
+      
+      // Should work for any evaluation point
+      const points = [0n, 1n, 10n, 100n];
+      const commitment = await blobToKZGCommitment(blob);
+      
+      for (const z of points) {
+        const { proof, claimedValue } = await computeKZGProof(blob, z);
+        expect(claimedValue).toBe(42n);
+        
+        const isValid = await verifyKZGProof(commitment, z, claimedValue, proof);
+        expect(isValid).toBe(true);
+      }
+    });
+  });
+});

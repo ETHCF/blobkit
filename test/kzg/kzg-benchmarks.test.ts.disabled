@@ -1,0 +1,249 @@
+import {
+  blobToKZGCommitment,
+  computeKZGProof,
+  verifyKZGProof,
+  loadTrustedSetup,
+  createMockSetup
+} from '../../src/kzg';
+import { BYTES_PER_BLOB } from '../../src/kzg/constants';
+
+describe('KZG Performance Benchmarks', () => {
+  let mockSetup: any;
+
+  beforeAll(() => {
+    mockSetup = createMockSetup();
+    loadTrustedSetup(mockSetup);
+  });
+
+  describe('Large Blob Operations', () => {
+    it('should benchmark commitment generation for full blob', async () => {
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      
+      // Fill with realistic data (random but valid field elements)
+      for (let i = 0; i < 4096; i++) {
+        const offset = i * 32;
+        blob[offset] = 0; // First byte must be 0
+        
+        // Fill rest with pseudo-random data
+        for (let j = 1; j < 32; j++) {
+          blob[offset + j] = (i * j) % 256;
+        }
+      }
+      
+      const iterations = 10;
+      const times: number[] = [];
+      
+      // Warm up
+      await blobToKZGCommitment(blob);
+      
+      // Benchmark
+      for (let i = 0; i < iterations; i++) {
+        const start = performance.now();
+        await blobToKZGCommitment(blob);
+        const end = performance.now();
+        times.push(end - start);
+      }
+      
+      const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+      const minTime = Math.min(...times);
+      const maxTime = Math.max(...times);
+      
+      console.log(`Commitment generation (${iterations} iterations):`);
+      console.log(`  Average: ${avgTime.toFixed(2)}ms`);
+      console.log(`  Min: ${minTime.toFixed(2)}ms`);
+      console.log(`  Max: ${maxTime.toFixed(2)}ms`);
+      
+      // Performance assertion - commitment should be reasonably fast
+      expect(avgTime).toBeLessThan(1000); // Should complete in under 1 second
+    });
+
+    it('should benchmark proof generation for various evaluation points', async () => {
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      
+      // Create a more complex polynomial with many non-zero coefficients
+      for (let i = 0; i < 1000; i++) {
+        blob[i * 32 + 31] = (i % 256);
+      }
+      
+      const evaluationPoints = [0n, 1n, 42n, 1000n, 2n ** 100n];
+      const times: Map<string, number[]> = new Map();
+      
+      for (const z of evaluationPoints) {
+        const pointTimes: number[] = [];
+        
+        // Warm up
+        await computeKZGProof(blob, z);
+        
+        // Benchmark
+        for (let i = 0; i < 5; i++) {
+          const start = performance.now();
+          await computeKZGProof(blob, z);
+          const end = performance.now();
+          pointTimes.push(end - start);
+        }
+        
+        times.set(z.toString(), pointTimes);
+      }
+      
+      console.log('\nProof generation times by evaluation point:');
+      for (const [point, pointTimes] of times) {
+        const avg = pointTimes.reduce((a, b) => a + b, 0) / pointTimes.length;
+        console.log(`  z=${point}: ${avg.toFixed(2)}ms`);
+        
+        // All should complete in reasonable time
+        expect(avg).toBeLessThan(2000);
+      }
+    });
+
+    it('should benchmark full KZG workflow', async () => {
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      
+      // Fill with data
+      for (let i = 0; i < 100; i++) {
+        blob[i * 32 + 31] = i;
+      }
+      
+      const iterations = 5;
+      const workflowTimes = {
+        commitment: [] as number[],
+        proof: [] as number[],
+        verify: [] as number[],
+        total: [] as number[]
+      };
+      
+      for (let i = 0; i < iterations; i++) {
+        const totalStart = performance.now();
+        
+        // Commitment
+        const commitStart = performance.now();
+        const commitment = await blobToKZGCommitment(blob);
+        const commitEnd = performance.now();
+        workflowTimes.commitment.push(commitEnd - commitStart);
+        
+        // Proof
+        const proofStart = performance.now();
+        const { proof, claimedValue } = await computeKZGProof(blob, BigInt(i));
+        const proofEnd = performance.now();
+        workflowTimes.proof.push(proofEnd - proofStart);
+        
+        // Verify
+        const verifyStart = performance.now();
+        const isValid = await verifyKZGProof(commitment, BigInt(i), claimedValue, proof);
+        const verifyEnd = performance.now();
+        workflowTimes.verify.push(verifyEnd - verifyStart);
+        
+        const totalEnd = performance.now();
+        workflowTimes.total.push(totalEnd - totalStart);
+        
+        expect(isValid).toBe(true);
+      }
+      
+      console.log('\nFull KZG workflow breakdown:');
+      for (const [stage, times] of Object.entries(workflowTimes)) {
+        const avg = times.reduce((a, b) => a + b, 0) / times.length;
+        console.log(`  ${stage}: ${avg.toFixed(2)}ms`);
+      }
+    });
+
+    it('should benchmark sparse vs dense blob performance', async () => {
+      // Sparse blob (mostly zeros)
+      const sparseBlob = new Uint8Array(BYTES_PER_BLOB);
+      sparseBlob[31] = 1;
+      sparseBlob[63] = 2;
+      sparseBlob[95] = 3;
+      
+      // Dense blob (many non-zero elements)
+      const denseBlob = new Uint8Array(BYTES_PER_BLOB);
+      for (let i = 0; i < 2000; i++) {
+        denseBlob[i * 32 + 31] = (i % 256);
+      }
+      
+      console.log('\nSparse vs Dense blob comparison:');
+      
+      // Benchmark sparse blob
+      const sparseStart = performance.now();
+      const sparseCommitment = await blobToKZGCommitment(sparseBlob);
+      const sparseEnd = performance.now();
+      const sparseTime = sparseEnd - sparseStart;
+      
+      // Benchmark dense blob
+      const denseStart = performance.now();
+      const denseCommitment = await blobToKZGCommitment(denseBlob);
+      const denseEnd = performance.now();
+      const denseTime = denseEnd - denseStart;
+      
+      console.log(`  Sparse blob: ${sparseTime.toFixed(2)}ms`);
+      console.log(`  Dense blob: ${denseTime.toFixed(2)}ms`);
+      console.log(`  Ratio: ${(denseTime / sparseTime).toFixed(2)}x`);
+      
+      // Both should complete, dense might be slower
+      expect(sparseCommitment).toHaveLength(48);
+      expect(denseCommitment).toHaveLength(48);
+    });
+
+    it('should handle multiple operations efficiently', async () => {
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      
+      // Fill half the blob with data
+      for (let i = 0; i < 2048; i++) {
+        blob[i * 32 + 31] = i % 256;
+      }
+      
+      // Perform multiple operations
+      const commitments = [];
+      const commitmentStart = performance.now();
+      for (let i = 0; i < 10; i++) {
+        commitments.push(await blobToKZGCommitment(blob));
+      }
+      const commitmentEnd = performance.now();
+      
+      // Generate proofs
+      const proofs = [];
+      const proofStart = performance.now();
+      for (let i = 0; i < 10; i++) {
+        proofs.push(await computeKZGProof(blob, BigInt(i)));
+      }
+      const proofEnd = performance.now();
+      
+      console.log('\nMultiple operations performance:');
+      console.log(`  10 commitments: ${(commitmentEnd - commitmentStart).toFixed(2)}ms`);
+      console.log(`  10 proofs: ${(proofEnd - proofStart).toFixed(2)}ms`);
+      
+      expect(commitments).toHaveLength(10);
+      expect(proofs).toHaveLength(10);
+    });
+  });
+
+  describe('Scalability Tests', () => {
+    it('should handle rapid successive operations', async () => {
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      blob[31] = 42;
+      
+      const commitment = await blobToKZGCommitment(blob);
+      
+      // Rapid proof generation
+      const proofPromises = [];
+      const points = 100;
+      
+      const start = performance.now();
+      
+      for (let i = 0; i < points; i++) {
+        proofPromises.push(computeKZGProof(blob, BigInt(i)));
+      }
+      
+      const proofs = await Promise.all(proofPromises);
+      const end = performance.now();
+      
+      console.log(`\nGenerated ${points} proofs in ${(end - start).toFixed(2)}ms`);
+      console.log(`Average: ${((end - start) / points).toFixed(2)}ms per proof`);
+      
+      // Verify a sample
+      const sampleSize = 10;
+      for (let i = 0; i < sampleSize; i++) {
+        const { proof, claimedValue } = proofs[i];
+        const isValid = await verifyKZGProof(commitment, BigInt(i), claimedValue, proof);
+        expect(isValid).toBe(true);
+      }
+    });
+  });
+});

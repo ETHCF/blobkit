@@ -1,0 +1,445 @@
+import {
+  blobToKZGCommitment,
+  computeKZGProof,
+  verifyKZGProof,
+  commitmentToVersionedHash,
+  loadTrustedSetup,
+  getTrustedSetup,
+  createMockSetup
+} from '../../src/kzg';
+import { BYTES_PER_BLOB, FIELD_ELEMENTS_PER_BLOB } from '../../src/kzg/constants';
+import { blobToFieldElements } from '../../src/kzg/blob';
+
+describe('KZG End-to-End Workflows', () => {
+  beforeAll(() => {
+    const mockSetup = createMockSetup();
+    loadTrustedSetup(mockSetup);
+  });
+
+  describe('Complete Data Pipeline', () => {
+    it('should handle full workflow: data -> blob -> commitment -> proof -> verification', async () => {
+      // Step 1: Create data
+      const originalData = {
+        message: 'Hello, EIP-4844!',
+        timestamp: Date.now(),
+        values: Array(100).fill(0).map((_, i) => i * i),
+        metadata: {
+          version: '1.0.0',
+          author: 'test'
+        }
+      };
+
+      // Step 2: Create blob with JSON data
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      const jsonStr = JSON.stringify(originalData);
+      const jsonBytes = new TextEncoder().encode(jsonStr);
+      
+      // Simple encoding: put length in first 4 bytes, then data
+      blob[3] = jsonBytes.length & 0xFF;
+      blob[2] = (jsonBytes.length >> 8) & 0xFF;
+      blob[1] = (jsonBytes.length >> 16) & 0xFF;
+      blob[0] = (jsonBytes.length >> 24) & 0xFF;
+      
+      // Copy JSON data (ensure proper field element formatting)
+      for (let i = 0; i < jsonBytes.length && i < BYTES_PER_BLOB - 4; i++) {
+        const fieldIndex = Math.floor((i + 4) / 32);
+        const byteIndex = (i + 4) % 32;
+        if (byteIndex > 0) { // Skip first byte of each field element
+          blob[fieldIndex * 32 + byteIndex] = jsonBytes[i];
+        }
+      }
+
+      // Step 3: Generate KZG commitment
+      const commitment = await blobToKZGCommitment(blob);
+      expect(commitment).toHaveLength(48);
+
+      // Step 4: Generate versioned hash (for EIP-4844)
+      const versionedHash = commitmentToVersionedHash(commitment);
+      expect(versionedHash).toHaveLength(32);
+      expect(versionedHash[0]).toBe(0x01); // KZG version
+
+      // Step 5: Generate proof at multiple points
+      const evaluationPoints = [0n, 1n, 42n, 1337n];
+      const proofs = await Promise.all(
+        evaluationPoints.map(z => computeKZGProof(blob, z))
+      );
+
+      // Step 6: Verify all proofs
+      for (let i = 0; i < evaluationPoints.length; i++) {
+        const { proof, claimedValue } = proofs[i];
+        const isValid = await verifyKZGProof(
+          commitment,
+          evaluationPoints[i],
+          claimedValue,
+          proof
+        );
+        expect(isValid).toBe(true);
+      }
+
+      // Step 7: Read data back from blob (simplified)
+      const length = (blob[0] << 24) | (blob[1] << 16) | (blob[2] << 8) | blob[3];
+      const extractedBytes = new Uint8Array(length);
+      
+      let writeIndex = 0;
+      for (let i = 4; i < 4 + length && i < BYTES_PER_BLOB; i++) {
+        const fieldIndex = Math.floor(i / 32);
+        const byteIndex = i % 32;
+        if (byteIndex > 0) { // Skip first byte of each field element
+          extractedBytes[writeIndex++] = blob[fieldIndex * 32 + byteIndex];
+        }
+      }
+      
+      const readResult = JSON.parse(new TextDecoder().decode(extractedBytes.slice(0, writeIndex)));
+      expect(readResult.message).toBe(originalData.message);
+      expect(readResult.timestamp).toBeDefined();
+    });
+
+    it('should handle multi-blob workflow', async () => {
+      // Create large data that spans multiple blobs
+      const largeData = {
+        bigArray: Array(50000).fill(0).map((_, i) => ({
+          id: i,
+          value: Math.random(),
+          data: 'x'.repeat(100)
+        }))
+      };
+
+      // Create multiple blobs for large data
+      const blobs: Uint8Array[] = [];
+      const jsonStr = JSON.stringify(largeData);
+      const jsonBytes = new TextEncoder().encode(jsonStr);
+      
+      // Split into multiple blobs if needed
+      const maxBytesPerBlob = BYTES_PER_BLOB - 1000; // Leave room for encoding
+      let offset = 0;
+      
+      while (offset < jsonBytes.length) {
+        const blob = new Uint8Array(BYTES_PER_BLOB);
+        const chunkSize = Math.min(maxBytesPerBlob, jsonBytes.length - offset);
+        
+        // Store chunk info
+        blob[3] = chunkSize & 0xFF;
+        blob[2] = (chunkSize >> 8) & 0xFF;
+        blob[7] = offset & 0xFF;
+        blob[6] = (offset >> 8) & 0xFF;
+        blob[5] = (offset >> 16) & 0xFF;
+        blob[4] = (offset >> 24) & 0xFF;
+        
+        // Copy chunk data
+        for (let i = 0; i < chunkSize; i++) {
+          const writePos = i + 8;
+          const fieldIndex = Math.floor(writePos / 32);
+          const byteIndex = writePos % 32;
+          if (byteIndex > 0) {
+            blob[fieldIndex * 32 + byteIndex] = jsonBytes[offset + i];
+          }
+        }
+        
+        blobs.push(blob);
+        offset += chunkSize;
+      }
+      
+      expect(blobs.length).toBeGreaterThan(1);
+      console.log(`Data split into ${blobs.length} blobs`);
+
+      // Process each blob
+      const commitments = [];
+      const versionedHashes = [];
+      const proofsByBlob = [];
+
+      for (let i = 0; i < blobs.length; i++) {
+        const blob = blobs[i];
+        
+        // Generate commitment
+        const commitment = await blobToKZGCommitment(blob);
+        commitments.push(commitment);
+        
+        // Generate versioned hash
+        const versionedHash = commitmentToVersionedHash(commitment);
+        versionedHashes.push(versionedHash);
+        
+        // Generate proofs at different points
+        const proofs = await Promise.all([
+          computeKZGProof(blob, 0n),
+          computeKZGProof(blob, 1n),
+          computeKZGProof(blob, 100n)
+        ]);
+        proofsByBlob.push(proofs);
+      }
+
+      // Verify all proofs
+      for (let i = 0; i < blobs.length; i++) {
+        const commitment = commitments[i];
+        const proofs = proofsByBlob[i];
+        const points = [0n, 1n, 100n];
+        
+        for (let j = 0; j < proofs.length; j++) {
+          const { proof, claimedValue } = proofs[j];
+          const isValid = await verifyKZGProof(
+            commitment,
+            points[j],
+            claimedValue,
+            proof
+          );
+          expect(isValid).toBe(true);
+        }
+      }
+
+      // Verify data can be reconstructed (simplified check)
+      expect(blobs.length).toBeGreaterThan(0);
+      
+      // Check first blob has data
+      const firstBlobSize = (blobs[0][3]) | (blobs[0][2] << 8);
+      expect(firstBlobSize).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Error Recovery Workflows', () => {
+    it('should detect tampered blob data', async () => {
+      // Create and commit to a blob
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      blob[31] = 42;
+      
+      const commitment = await blobToKZGCommitment(blob);
+      const { proof, claimedValue } = await computeKZGProof(blob, 1n);
+      
+      // Verify original is valid
+      let isValid = await verifyKZGProof(commitment, 1n, claimedValue, proof);
+      expect(isValid).toBe(true);
+      
+      // Tamper with blob
+      blob[31] = 43;
+      
+      // Generate new commitment for tampered blob
+      const tamperedCommitment = await blobToKZGCommitment(blob);
+      
+      // Original proof should not verify with tampered commitment
+      isValid = await verifyKZGProof(tamperedCommitment, 1n, claimedValue, proof);
+      expect(isValid).toBe(false);
+    });
+
+    it('should handle proof verification with wrong evaluation point', async () => {
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      blob[31] = 10;
+      blob[63] = 20;
+      
+      const commitment = await blobToKZGCommitment(blob);
+      
+      // Generate proof for z=5
+      const { proof, claimedValue } = await computeKZGProof(blob, 5n);
+      
+      // Try to verify with different z values
+      const wrongPoints = [0n, 1n, 4n, 6n, 100n];
+      
+      for (const wrongZ of wrongPoints) {
+        const isValid = await verifyKZGProof(
+          commitment,
+          wrongZ,
+          claimedValue,
+          proof
+        );
+        expect(isValid).toBe(false);
+      }
+      
+      // Only the correct point should verify
+      const isValid = await verifyKZGProof(commitment, 5n, claimedValue, proof);
+      expect(isValid).toBe(true);
+    });
+  });
+
+  describe('Field Element Validation Workflow', () => {
+    it('should properly validate field elements throughout workflow', async () => {
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      
+      // Create blob with specific field element patterns
+      for (let i = 0; i < 10; i++) {
+        const offset = i * 32;
+        blob[offset] = 0; // Required: first byte must be 0
+        
+        // Create a pattern
+        for (let j = 1; j < 32; j++) {
+          blob[offset + j] = (i + j) % 256;
+        }
+      }
+      
+      // Extract and validate field elements
+      const fieldElements = blobToFieldElements(blob);
+      expect(fieldElements).toHaveLength(FIELD_ELEMENTS_PER_BLOB);
+      
+      // Verify all field elements are valid (< BLS_MODULUS)
+      for (const element of fieldElements) {
+        expect(element).toBeGreaterThanOrEqual(0n);
+      }
+      
+      // Complete KZG workflow
+      const commitment = await blobToKZGCommitment(blob);
+      const { proof, claimedValue } = await computeKZGProof(blob, 123n);
+      const isValid = await verifyKZGProof(commitment, 123n, claimedValue, proof);
+      
+      expect(isValid).toBe(true);
+    });
+
+    it('should handle edge case field elements', async () => {
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      
+      // Test various edge cases
+      // 1. All zeros (except required first bytes)
+      // 2. Maximum valid values
+      // 3. Alternating patterns
+      
+      // Pattern 1: Minimal non-zero values
+      blob[31] = 1;
+      blob[32 * 10 + 31] = 1;
+      blob[32 * 100 + 31] = 1;
+      
+      // Pattern 2: Large but valid values
+      for (let i = 1; i < 31; i++) {
+        blob[32 * 50 + i] = 0x70; // Large but safe value
+      }
+      
+      const commitment = await blobToKZGCommitment(blob);
+      const points = [0n, 1n, 2n, 1000n];
+      
+      for (const z of points) {
+        const { proof, claimedValue } = await computeKZGProof(blob, z);
+        const isValid = await verifyKZGProof(commitment, z, claimedValue, proof);
+        expect(isValid).toBe(true);
+      }
+    });
+  });
+
+  describe('Trusted Setup Management Workflow', () => {
+    it('should handle setup switching workflow', async () => {
+      // Save current setup
+      const originalSetup = getTrustedSetup();
+      expect(originalSetup).not.toBeNull();
+      
+      // Create blob with original setup
+      const blob = new Uint8Array(BYTES_PER_BLOB);
+      blob[31] = 77;
+      
+      const commitment1 = await blobToKZGCommitment(blob);
+      const { proof: proof1, claimedValue: value1 } = await computeKZGProof(blob, 5n);
+      
+      // Create and load new setup
+      const newSetup = createMockSetup();
+      loadTrustedSetup(newSetup);
+      
+      // Same blob should produce different commitment with new setup
+      const commitment2 = await blobToKZGCommitment(blob);
+      const { proof: proof2, claimedValue: value2 } = await computeKZGProof(blob, 5n);
+      
+      // Commitments should be different (different tau values)
+      expect(commitment1).not.toEqual(commitment2);
+      
+      // But evaluation at same point should give same value
+      expect(value1).toBe(value2);
+      
+      // Cross-verification should fail
+      const crossValid = await verifyKZGProof(commitment1, 5n, value2, proof2);
+      expect(crossValid).toBe(false);
+      
+      // Restore original setup
+      loadTrustedSetup(originalSetup!);
+      
+      // Original proof should verify again
+      const isValid = await verifyKZGProof(commitment1, 5n, value1, proof1);
+      expect(isValid).toBe(true);
+    });
+
+    it('should handle concurrent operations with same setup', async () => {
+      const blobs = [];
+      
+      // Create multiple different blobs
+      for (let i = 0; i < 5; i++) {
+        const blob = new Uint8Array(BYTES_PER_BLOB);
+        blob[31] = i + 1;
+        blob[63] = (i + 1) * 10;
+        blobs.push(blob);
+      }
+      
+      // Process all blobs concurrently
+      const commitmentPromises = blobs.map(blob => blobToKZGCommitment(blob));
+      const commitments = await Promise.all(commitmentPromises);
+      
+      // Generate proofs concurrently
+      const proofPromises = blobs.map((blob, i) => 
+        computeKZGProof(blob, BigInt(i))
+      );
+      const proofs = await Promise.all(proofPromises);
+      
+      // Verify all concurrently
+      const verifyPromises = commitments.map((commitment, i) => 
+        verifyKZGProof(
+          commitment,
+          BigInt(i),
+          proofs[i].claimedValue,
+          proofs[i].proof
+        )
+      );
+      const results = await Promise.all(verifyPromises);
+      
+      // All should be valid
+      expect(results.every(r => r === true)).toBe(true);
+    });
+  });
+
+  describe('Performance Validation', () => {
+    it('should maintain consistent performance across blob patterns', async () => {
+      const patterns = {
+        sparse: new Uint8Array(BYTES_PER_BLOB),
+        dense: new Uint8Array(BYTES_PER_BLOB),
+        alternating: new Uint8Array(BYTES_PER_BLOB),
+        random: new Uint8Array(BYTES_PER_BLOB)
+      };
+      
+      // Sparse: few non-zero elements
+      patterns.sparse[31] = 1;
+      patterns.sparse[1023] = 2;
+      
+      // Dense: many non-zero elements
+      for (let i = 0; i < 2000; i++) {
+        patterns.dense[i * 32 + 31] = i % 256;
+      }
+      
+      // Alternating: on/off pattern
+      for (let i = 0; i < 4096; i += 2) {
+        patterns.alternating[i * 32 + 31] = 255;
+      }
+      
+      // Random: pseudo-random data
+      for (let i = 0; i < 4096; i++) {
+        patterns.random[i * 32 + 31] = (i * 7 + 13) % 256;
+      }
+      
+      const results: Record<string, number> = {};
+      
+      for (const [name, blob] of Object.entries(patterns)) {
+        const start = performance.now();
+        
+        const commitment = await blobToKZGCommitment(blob);
+        const { proof, claimedValue } = await computeKZGProof(blob, 42n);
+        const isValid = await verifyKZGProof(commitment, 42n, claimedValue, proof);
+        
+        const end = performance.now();
+        results[name] = end - start;
+        
+        expect(isValid).toBe(true);
+      }
+      
+      console.log('\nPattern performance comparison:');
+      for (const [name, time] of Object.entries(results)) {
+        console.log(`  ${name}: ${time.toFixed(2)}ms`);
+      }
+      
+      // Performance shouldn't vary too wildly
+      const times = Object.values(results);
+      const maxTime = Math.max(...times);
+      const minTime = Math.min(...times);
+      const ratio = maxTime / minTime;
+      
+      console.log(`  Max/Min ratio: ${ratio.toFixed(2)}x`);
+      expect(ratio).toBeLessThan(10); // Reasonable variance
+    });
+  });
+});

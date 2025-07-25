@@ -1,0 +1,90 @@
+```
+░▒▓███████▓▒░░▒▓█▓▒░      ░▒▓██████▓▒░░▒▓███████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░▒▓████████▓▒░ 
+░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░     ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░  ░▒▓█▓▒░     
+░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░     ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░  ░▒▓█▓▒░     
+░▒▓███████▓▒░░▒▓█▓▒░     ░▒▓█▓▒░░▒▓█▓▒░▒▓███████▓▒░░▒▓███████▓▒░░▒▓█▓▒░  ░▒▓█▓▒░     
+░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░     ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░  ░▒▓█▓▒░     
+░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░     ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░  ░▒▓█▓▒░     
+░▒▓███████▓▒░░▒▓████████▓▒░▒▓██████▓▒░░▒▓███████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░  ░▒▓█▓▒░     
+                                                                                     
+```
+
+# BlobKit
+
+TypeScript SDK for Ethereum blob transactions (EIP-4844).
+
+Blob space is useful for temporary data storage with cryptographic guarantees. Think ephemeral messaging, gaming state, proof-of-existence, or any data that doesn't need permanent on-chain storage but benefits from Ethereum's security and availability.
+
+## Installation
+
+```bash
+npm install @blobkit/sdk
+```
+
+## Usage
+
+```typescript
+import { BlobKit, initializeForDevelopment } from '@blobkit/sdk';
+
+// Initialize KZG setup (required)
+await initializeForDevelopment();
+
+// Create client
+const blobkit = new BlobKit({
+  rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY',
+  chainId: 1
+}, 'YOUR_PRIVATE_KEY');
+
+// Write blob
+const receipt = await blobkit.writeBlob({
+  message: 'Hello blob space',
+  timestamp: Date.now()
+});
+
+// Read blob
+const data = await blobkit.readBlob(receipt.blobHash);
+
+// Verify blob
+const isValid = await blobkit.verifyBlob(data, receipt.blobHash);
+```
+
+## KZG Setup
+
+For production, use the official Ethereum KZG ceremony parameters:
+
+```typescript
+import { initializeForProduction } from '@blobkit/sdk';
+
+// Download from: https://github.com/ethereum/kzg-ceremony-sequencer
+await initializeForProduction(
+  '/path/to/g1.point',
+  '/path/to/g2.point',
+  'text'
+);
+```
+
+Development only:
+```typescript
+await initializeForDevelopment(); // Uses mock setup - DO NOT use in production
+```
+
+## Project Structure
+
+- `kzg/` - KZG commitment implementation and trusted setup
+- `blob/` - Blob encoding/decoding utilities 
+- `writer/` - Transaction construction and submission
+- `verifier/` - Blob verification and integrity checks
+- `codecs/` - Data encoding (JSON, raw binary, extensible)
+- `types/` - TypeScript type definitions
+
+## Contributing
+
+```bash
+npm test        # Run tests
+npm run lint    # Lint code  
+npm run build   # Build SDK
+```
+
+## License
+
+Apache 2.0
