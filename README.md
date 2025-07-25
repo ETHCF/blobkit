@@ -112,6 +112,38 @@ For development and testing:
 await initializeForDevelopment(); // Uses mock setup - DO NOT use in production
 ```
 
+## Cost Disclaimer
+
+**Submitting blobs to Ethereum mainnet is not free.** Each blob-bearing transaction incurs two types of cost:
+
+- **Standard gas fees** for the transaction envelope (e.g. ~21,000 gas)
+- **A blob-specific base fee** that fluctuates independently from normal gas, based on network demand
+
+Blob fees operate under a separate EIP-1559-style market. The cost can range from negligible to substantial depending on congestion.
+
+### Blob Cost Formula
+
+```
+Total Cost = L1 Gas Cost + (blob_base_fee_per_blob × number_of_blobs)
+```
+
+- `blob_base_fee_per_blob` is denominated in wei
+- Each blob is 128 kB; transactions can include 1 to 6 blobs
+- This fee is dynamic and recalculated every block
+
+### What You're Responsible For
+
+BlobKit does not manage fee estimation or cost controls for you. You are expected to:
+
+- Monitor blob base fees before sending blobs
+- Implement safeguards for cost spikes
+- Test thoroughly on testnets
+- Query `eth_getBlockByNumber` to track blob fee pressure
+
+**Do not rely on static pricing assumptions.**
+
+*Current metrics: [Blobscan](https://blobscan.com/) | [Ultra Sound Money](https://ultrasound.money/)*
+
 ## API Reference
 
 ### Creating Clients
