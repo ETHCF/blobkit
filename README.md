@@ -40,7 +40,7 @@ ARCHIVE_URL=https://your-blob-archive.com
 ## Usage
 
 ```typescript
-import { BlobKit, initializeForDevelopment } from 'blobkit';
+import { createFromEnv, initializeForDevelopment } from 'blobkit';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -48,11 +48,8 @@ dotenv.config();
 // Initialize KZG setup (required)
 await initializeForDevelopment();
 
-// Create client with environment variables
-const blobkit = new BlobKit({
-  rpcUrl: process.env.RPC_URL!,
-  chainId: parseInt(process.env.CHAIN_ID || '1')
-}, process.env.PRIVATE_KEY);
+// Create client from environment variables
+const blobkit = createFromEnv();
 
 // Write blob
 const receipt = await blobkit.writeBlob({
@@ -87,21 +84,28 @@ Development only:
 await initializeForDevelopment(); // Uses mock setup - DO NOT use in production
 ```
 
-## Alternative Authentication
-
-For browser environments or when using external signers:
+## Alternative Usage Patterns
 
 ```typescript
-// Without private key - read-only operations
-const readOnlyClient = new BlobKit({
-  rpcUrl: process.env.RPC_URL!,
-  chainId: 1
-});
+import { BlobKit, createReadOnlyFromEnv } from 'blobkit';
+
+// Read-only client (no private key needed)
+const readOnlyClient = createReadOnlyFromEnv();
+
+// Manual configuration (when not using .env)
+const blobkit = new BlobKit({
+  rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY',
+  chainId: 1,
+  archiveUrl: 'https://your-archive.com'
+}, 'your-private-key');
 
 // With ethers.js wallet
 import { Wallet } from 'ethers';
 const wallet = new Wallet(process.env.PRIVATE_KEY!);
-const blobkit = new BlobKit({ rpcUrl: process.env.RPC_URL!, chainId: 1 }, wallet.privateKey);
+const blobkitWithWallet = new BlobKit({ 
+  rpcUrl: process.env.RPC_URL!, 
+  chainId: 1 
+}, wallet.privateKey);
 ```
 
 ## Project Structure

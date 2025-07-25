@@ -2,7 +2,12 @@ export { BlobKit } from './client';
 export * from './types';
 
 // Initialization
-export { initializeForDevelopment, initializeForProduction } from './init';
+export { 
+  initializeForDevelopment, 
+  initializeForProduction,
+  createFromEnv,
+  createReadOnlyFromEnv 
+} from './init';
 
 // Codec utilities
 export { registerCodec, hasCodec, listCodecs } from './codecs';
