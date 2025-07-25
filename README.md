@@ -18,13 +18,13 @@ Blob space is useful for temporary data storage with cryptographic guarantees. T
 ## Installation
 
 ```bash
-npm install @blobkit/sdk
+npm install blobkit
 ```
 
 ## Usage
 
 ```typescript
-import { BlobKit, initializeForDevelopment } from '@blobkit/sdk';
+import { BlobKit, initializeForDevelopment } from 'blobkit';
 
 // Initialize KZG setup (required)
 await initializeForDevelopment();
@@ -53,7 +53,7 @@ const isValid = await blobkit.verifyBlob(data, receipt.blobHash);
 For production, use the official Ethereum KZG ceremony parameters:
 
 ```typescript
-import { initializeForProduction } from '@blobkit/sdk';
+import { initializeForProduction } from 'blobkit';
 
 // Download from: https://github.com/ethereum/kzg-ceremony-sequencer
 await initializeForProduction(
