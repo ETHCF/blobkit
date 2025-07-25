@@ -11,9 +11,23 @@
 
 # BlobKit
 
+[![NPM Version](https://img.shields.io/npm/v/blobkit.svg)](https://www.npmjs.com/package/blobkit)
+[![NPM Downloads](https://img.shields.io/npm/dm/blobkit.svg)](https://www.npmjs.com/package/blobkit)
+[![License](https://img.shields.io/npm/l/blobkit.svg)](https://github.com/ETHCF/blobkit/blob/main/LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/ETHCF/blobkit/ci.yml?branch=main)](https://github.com/ETHCF/blobkit/actions)
+
 Enterprise-grade TypeScript SDK for Ethereum blob transactions (EIP-4844).
 
 BlobKit provides a complete solution for using Ethereum's blob space as an ephemeral, verifiable data layer. Perfect for temporary data storage with cryptographic guarantees including ephemeral messaging, gaming state, proof-of-existence, or any data that benefits from Ethereum's security without permanent on-chain storage costs.
+
+## About
+
+Built by [**Zak Cole**](https://x.com/0xzak) ([@zscole](https://github.com/zscole)) at [**Number Group**](https://numbergroup.xyz) for the [**Ethereum Community Foundation**](https://ethcf.org).
+
+**Package**: [blobkit on NPM](https://www.npmjs.com/package/blobkit)
+
+**Contact**: For questions, support, or contributions, reach out to Zak at [zscole@linux.com](mailto:zscole@linux.com) or [@0xzak](https://x.com/0xzak) on X.
 
 ## Features
 
@@ -323,3 +337,25 @@ We welcome contributions! Please see our contributing guidelines and ensure all 
 ## License
 
 Apache 2.0
+
+---
+
+## About the Project
+
+**BlobKit** is developed and maintained by [**Zak Cole**](https://x.com/0xzak) at [**Number Group**](https://numbergroup.xyz) with support from the [**Ethereum Community Foundation**](https://ethcf.org).
+
+### Links
+
+- **NPM Package**: [blobkit](https://www.npmjs.com/package/blobkit)
+- **GitHub Repository**: [ETHCF/blobkit](https://github.com/ETHCF/blobkit)
+- **Number Group**: [numbergroup.xyz](https://numbergroup.xyz)
+- **Ethereum Community Foundation**: [ethcf.org](https://ethcf.org)
+
+### Contact & Support
+
+For questions, bug reports, or contributions:
+
+- **Email**: [zscole@linux.com](mailto:zscole@linux.com)
+- **X/Twitter**: [@0xzak](https://x.com/0xzak)
+- **GitHub**: [@zscole](https://github.com/zscole)
+- **Issues**: [GitHub Issues](https://github.com/ETHCF/blobkit/issues)
