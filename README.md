@@ -21,19 +21,38 @@ Blob space is useful for temporary data storage with cryptographic guarantees. T
 npm install blobkit
 ```
 
+## Setup
+
+Create a `.env` file in your project root:
+
+```bash
+# Required
+RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY
+PRIVATE_KEY=0x...
+
+# Optional
+CHAIN_ID=1
+ARCHIVE_URL=https://your-blob-archive.com
+```
+
+**⚠️ Security Note**: Never commit your `.env` file or private keys to version control. Add `.env` to your `.gitignore`.
+
 ## Usage
 
 ```typescript
 import { BlobKit, initializeForDevelopment } from 'blobkit';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Initialize KZG setup (required)
 await initializeForDevelopment();
 
-// Create client
+// Create client with environment variables
 const blobkit = new BlobKit({
-  rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY',
-  chainId: 1
-}, 'YOUR_PRIVATE_KEY');
+  rpcUrl: process.env.RPC_URL!,
+  chainId: parseInt(process.env.CHAIN_ID || '1')
+}, process.env.PRIVATE_KEY);
 
 // Write blob
 const receipt = await blobkit.writeBlob({
@@ -66,6 +85,23 @@ await initializeForProduction(
 Development only:
 ```typescript
 await initializeForDevelopment(); // Uses mock setup - DO NOT use in production
+```
+
+## Alternative Authentication
+
+For browser environments or when using external signers:
+
+```typescript
+// Without private key - read-only operations
+const readOnlyClient = new BlobKit({
+  rpcUrl: process.env.RPC_URL!,
+  chainId: 1
+});
+
+// With ethers.js wallet
+import { Wallet } from 'ethers';
+const wallet = new Wallet(process.env.PRIVATE_KEY!);
+const blobkit = new BlobKit({ rpcUrl: process.env.RPC_URL!, chainId: 1 }, wallet.privateKey);
 ```
 
 ## Project Structure
