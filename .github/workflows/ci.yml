@@ -38,13 +38,13 @@ jobs:
     - name: Run tests
       run: npm test
       
-        - name: Run tests with coverage
+    - name: Run tests with coverage
       run: npm run test:coverage
       
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       continue-on-error: true
-      if: ${{ secrets.CODECOV_TOKEN != '' }}
+      if: ${{ env.CODECOV_TOKEN != '' }}
       with:
         file: ./coverage/lcov.info
         flags: unittests
@@ -68,13 +68,13 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-        - name: Run security audit
+    - name: Run security audit
       run: npm audit --audit-level=moderate
       
     - name: Run Snyk security scan
       uses: snyk/actions/node@master
       continue-on-error: true
-      if: ${{ secrets.SNYK_TOKEN != '' }}
+      if: ${{ env.SNYK_TOKEN != '' }}
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
