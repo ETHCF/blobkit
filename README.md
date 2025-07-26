@@ -27,7 +27,7 @@ Built by [**Zak Cole**](https://x.com/0xzak) ([@zscole](https://github.com/zscol
 
 **Package**: [blobkit on NPM](https://www.npmjs.com/package/blobkit)
 
-**Contact**: For questions, support, or contributions, reach out to Zak at [zscole@linux.com](mailto:zscole@linux.com) or [@0xzak](https://x.com/0xzak) on X.
+**Contact**: For questions, support, or contributions, reach out to Zak at [zscole@linux.com](mailto:zcole@linux.com) or [@0xzak](https://x.com/0xzak) on X.
 
 ## Features
 
