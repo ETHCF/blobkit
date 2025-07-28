@@ -60,7 +60,8 @@ export async function loadTrustedSetupFromText(
     } catch (e) {
       throw new BlobKitError(
         `Invalid G1 point at line ${i + 1}`,
-        'INVALID_POINT'
+        'INVALID_POINT',
+        e
       );
     }
   });
@@ -71,7 +72,8 @@ export async function loadTrustedSetupFromText(
     } catch (e) {
       throw new BlobKitError(
         `Invalid G2 point at line ${i + 1}`,
-        'INVALID_POINT'
+        'INVALID_POINT',
+        e
       );
     }
   });
