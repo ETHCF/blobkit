@@ -26,7 +26,7 @@ export async function blobToKZGCommitment(blob: Uint8Array): Promise<Uint8Array>
   }
 
   const coefficients = blobToFieldElements(blob);
-  let commitment = bls.G1.ProjectivePoint.ZERO;
+  let commitment = bls.G1.Point.ZERO;
 
   for (let i = 0; i < coefficients.length; i++) {
     if (coefficients[i] === Fr.ZERO) continue;
@@ -35,7 +35,7 @@ export async function blobToKZGCommitment(blob: Uint8Array): Promise<Uint8Array>
     commitment = commitment.add(term);
   }
 
-  return commitment.toRawBytes(true);
+  return commitment.toBytes(true);
 }
 
 /**
@@ -55,7 +55,7 @@ export async function computeKZGProof(
   // Compute quotient polynomial: q(x) = (p(x) - y) / (x - z)
   const quotient = computeQuotient(coefficients, z, y);
 
-  let proof = bls.G1.ProjectivePoint.ZERO;
+  let proof = bls.G1.Point.ZERO;
   for (let i = 0; i < quotient.length; i++) {
     if (quotient[i] === Fr.ZERO) continue;
 
@@ -83,8 +83,8 @@ export async function verifyKZGProof(
   }
 
   try {
-    const C = bls.G1.ProjectivePoint.fromHex(commitment);
-    const pi = bls.G1.ProjectivePoint.fromHex(proof);
+    const C = bls.G1.Point.fromHex(commitment);
+    const pi = bls.G1.Point.fromHex(proof);
 
     const G1 = trustedSetup.g1Powers[0];
     const G2 = trustedSetup.g2Powers[0];
@@ -94,9 +94,9 @@ export async function verifyKZGProof(
     const C_minus_yG1 = y === Fr.ZERO ? C : C.subtract(G1.multiply(y));
     const G2_tau_minus_zG2 = z === Fr.ZERO ? G2_tau : G2_tau.subtract(G2.multiply(z));
 
-    const leftIsZero = C_minus_yG1.equals(bls.G1.ProjectivePoint.ZERO);
-    const rightIsZero = pi.equals(bls.G1.ProjectivePoint.ZERO);
-    
+    const leftIsZero = C_minus_yG1.equals(bls.G1.Point.ZERO);
+    const rightIsZero = pi.equals(bls.G1.Point.ZERO);
+
     if (leftIsZero && rightIsZero) return true;
     if (leftIsZero || rightIsZero) return false;
 

@@ -11,8 +11,8 @@ describe('Trusted Setup', () => {
       expect(setup.g2Powers).toHaveLength(2);
       
       // First elements should be generators
-      expect(setup.g1Powers[0].equals(bls.G1.ProjectivePoint.BASE)).toBe(true);
-      expect(setup.g2Powers[0].equals(bls.G2.ProjectivePoint.BASE)).toBe(true);
+      expect(setup.g1Powers[0].equals(bls.G1.Point.BASE)).toBe(true);
+      expect(setup.g2Powers[0].equals(bls.G2.Point.BASE)).toBe(true);
     });
 
     it('should create powers of tau', () => {

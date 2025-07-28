@@ -28,7 +28,7 @@ describe('KZG Test Vectors', () => {
       expect(commitment.length).toBe(48);
       
       // Zero blob should give zero/identity commitment
-      const zeroPoint = bls.G1.ProjectivePoint.ZERO.toRawBytes(true);
+      const zeroPoint = bls.G1.Point.ZERO.toRawBytes(true);
       expect(commitment).toEqual(zeroPoint);
     });
   });
@@ -42,7 +42,7 @@ describe('KZG Test Vectors', () => {
       expect(commitment).toBeInstanceOf(Uint8Array);
       
       // Should be G1 generator
-      const expected = bls.G1.ProjectivePoint.BASE.toRawBytes(true);
+      const expected = bls.G1.Point.BASE.toRawBytes(true);
       expect(commitment).toEqual(expected);
     });
 
@@ -53,7 +53,7 @@ describe('KZG Test Vectors', () => {
       const commitment = await blobToKZGCommitment(blob);
       
       // Should be 5 * G1
-      const expected = bls.G1.ProjectivePoint.BASE.multiply(5n).toRawBytes(true);
+      const expected = bls.G1.Point.BASE.multiply(5n).toRawBytes(true);
       expect(commitment).toEqual(expected);
     });
 

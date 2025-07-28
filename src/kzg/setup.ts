@@ -5,8 +5,8 @@ import { TrustedSetup } from './types';
 import { FIELD_ELEMENTS_PER_BLOB } from './constants';
 import { Fr } from './field';
 
-type G1Point = ReturnType<typeof bls.G1.ProjectivePoint.fromHex>;
-type G2Point = ReturnType<typeof bls.G2.ProjectivePoint.fromHex>;
+type G1Point = ReturnType<typeof bls.G1.Point.fromHex>;
+type G2Point = ReturnType<typeof bls.G2.Point.fromHex>;
 
 /**
  * Load trusted setup from binary files.
@@ -56,7 +56,7 @@ export async function loadTrustedSetupFromText(
 
   const g1Powers = g1Lines.map((hex, i) => {
     try {
-      return bls.G1.ProjectivePoint.fromHex(hex.trim());
+      return bls.G1.Point.fromHex(hex.trim());
     } catch (e) {
       throw new BlobKitError(
         `Invalid G1 point at line ${i + 1}`,
@@ -67,7 +67,7 @@ export async function loadTrustedSetupFromText(
 
   const g2Powers = g2Lines.map((hex, i) => {
     try {
-      return bls.G2.ProjectivePoint.fromHex(hex.trim());
+      return bls.G2.Point.fromHex(hex.trim());
     } catch (e) {
       throw new BlobKitError(
         `Invalid G2 point at line ${i + 1}`,
@@ -91,9 +91,9 @@ export function createMockSetup(): TrustedSetup {
 
   let power = Fr.ONE;
   for (let i = 0; i < FIELD_ELEMENTS_PER_BLOB; i++) {
-    g1Powers.push(bls.G1.ProjectivePoint.BASE.multiply(power));
+    g1Powers.push(bls.G1.Point.BASE.multiply(power));
     if (i < 2) {
-      g2Powers.push(bls.G2.ProjectivePoint.BASE.multiply(power));
+      g2Powers.push(bls.G2.Point.BASE.multiply(power));
     }
     power = Fr.mul(power, tau);
   }
@@ -114,7 +114,7 @@ function parseG1Points(data: Buffer, count: number): G1Point[] {
   for (let i = 0; i < count; i++) {
     const start = i * pointSize;
     const pointData = data.subarray(start, start + pointSize);
-    points.push(bls.G1.ProjectivePoint.fromHex(pointData));
+    points.push(bls.G1.Point.fromHex(pointData));
   }
   return points;
 }
@@ -132,18 +132,18 @@ function parseG2Points(data: Buffer, count: number): G2Point[] {
   for (let i = 0; i < count; i++) {
     const start = i * pointSize;
     const pointData = data.subarray(start, start + pointSize);
-    points.push(bls.G2.ProjectivePoint.fromHex(pointData));
+    points.push(bls.G2.Point.fromHex(pointData));
   }
   return points;
 }
 
 function validateSetup(g1Powers: G1Point[], g2Powers: G2Point[]): void {
   // First elements should be generators
-  if (!g1Powers[0].equals(bls.G1.ProjectivePoint.BASE)) {
+  if (!g1Powers[0].equals(bls.G1.Point.BASE)) {
     throw new BlobKitError('First G1 power must be generator', 'INVALID_SETUP');
   }
 
-  if (!g2Powers[0].equals(bls.G2.ProjectivePoint.BASE)) {
+  if (!g2Powers[0].equals(bls.G2.Point.BASE)) {
     throw new BlobKitError('First G2 power must be generator', 'INVALID_SETUP');
   }
 }
