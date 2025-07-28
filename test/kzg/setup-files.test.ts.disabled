@@ -21,9 +21,9 @@ describe('Setup File Loading', () => {
   describe('loadTrustedSetupFromBinary', () => {
     it('should load valid binary files', async () => {
       // Create valid binary data
-      const g1Gen = bls.G1.ProjectivePoint.BASE.toRawBytes(true);
-      const g2Gen = bls.G2.ProjectivePoint.BASE.toRawBytes(true);
-      const g2Tau = bls.G2.ProjectivePoint.BASE.multiply(12345n).toRawBytes(true);
+      const g1Gen = bls.G1.Point.BASE.toRawBytes(true);
+      const g2Gen = bls.G2.Point.BASE.toRawBytes(true);
+      const g2Tau = bls.G2.Point.BASE.multiply(12345n).toRawBytes(true);
       
       // Mock G1 data (4096 points)
       const g1Data = Buffer.alloc(4096 * 48);
@@ -42,8 +42,8 @@ describe('Setup File Loading', () => {
       
       expect(setup.g1Powers).toHaveLength(4096);
       expect(setup.g2Powers).toHaveLength(2);
-      expect(setup.g1Powers[0].equals(bls.G1.ProjectivePoint.BASE)).toBe(true);
-      expect(setup.g2Powers[0].equals(bls.G2.ProjectivePoint.BASE)).toBe(true);
+      expect(setup.g1Powers[0].equals(bls.G1.Point.BASE)).toBe(true);
+      expect(setup.g2Powers[0].equals(bls.G2.Point.BASE)).toBe(true);
     });
 
     it('should reject G1 file with wrong size', async () => {
@@ -76,7 +76,7 @@ describe('Setup File Loading', () => {
       // Fill with invalid data (all 0xFF)
       g1Data.fill(0xFF, 0, 48);
       
-      const g2Gen = bls.G2.ProjectivePoint.BASE.toRawBytes(true);
+      const g2Gen = bls.G2.Point.BASE.toRawBytes(true);
       const g2Data = Buffer.concat([g2Gen, g2Gen]);
       
       mockReadFile
@@ -89,8 +89,8 @@ describe('Setup File Loading', () => {
 
     it('should reject setup with non-generator first G1', async () => {
       // First G1 is not the generator
-      const notGen = bls.G1.ProjectivePoint.BASE.multiply(2n).toRawBytes(true);
-      const g1Gen = bls.G1.ProjectivePoint.BASE.toRawBytes(true);
+      const notGen = bls.G1.Point.BASE.multiply(2n).toRawBytes(true);
+      const g1Gen = bls.G1.Point.BASE.toRawBytes(true);
       
       const g1Data = Buffer.alloc(4096 * 48);
       g1Data.set(notGen, 0); // First is not generator
@@ -98,7 +98,7 @@ describe('Setup File Loading', () => {
         g1Data.set(g1Gen, i * 48);
       }
       
-      const g2Gen = bls.G2.ProjectivePoint.BASE.toRawBytes(true);
+      const g2Gen = bls.G2.Point.BASE.toRawBytes(true);
       const g2Data = Buffer.concat([g2Gen, g2Gen]);
       
       mockReadFile
@@ -110,15 +110,15 @@ describe('Setup File Loading', () => {
     });
 
     it('should reject setup with non-generator first G2', async () => {
-      const g1Gen = bls.G1.ProjectivePoint.BASE.toRawBytes(true);
+      const g1Gen = bls.G1.Point.BASE.toRawBytes(true);
       const g1Data = Buffer.alloc(4096 * 48);
       for (let i = 0; i < 4096; i++) {
         g1Data.set(g1Gen, i * 48);
       }
       
       // First G2 is not generator
-      const notGen = bls.G2.ProjectivePoint.BASE.multiply(2n).toRawBytes(true);
-      const g2Gen = bls.G2.ProjectivePoint.BASE.toRawBytes(true);
+      const notGen = bls.G2.Point.BASE.multiply(2n).toRawBytes(true);
+      const g2Gen = bls.G2.Point.BASE.toRawBytes(true);
       const g2Data = Buffer.concat([notGen, g2Gen]);
       
       mockReadFile
@@ -139,9 +139,9 @@ describe('Setup File Loading', () => {
 
   describe('loadTrustedSetupFromText', () => {
     it('should load valid text files', async () => {
-      const g1Hex = bls.G1.ProjectivePoint.BASE.toHex();
-      const g2Hex = bls.G2.ProjectivePoint.BASE.toHex();
-      const g2TauHex = bls.G2.ProjectivePoint.BASE.multiply(12345n).toHex();
+      const g1Hex = bls.G1.Point.BASE.toHex();
+      const g2Hex = bls.G2.Point.BASE.toHex();
+      const g2TauHex = bls.G2.Point.BASE.multiply(12345n).toHex();
       
       // Create text content
       const g1Content = Array(4096).fill(g1Hex).join('\n');
@@ -155,13 +155,13 @@ describe('Setup File Loading', () => {
       
       expect(setup.g1Powers).toHaveLength(4096);
       expect(setup.g2Powers).toHaveLength(2);
-      expect(setup.g1Powers[0].equals(bls.G1.ProjectivePoint.BASE)).toBe(true);
-      expect(setup.g2Powers[0].equals(bls.G2.ProjectivePoint.BASE)).toBe(true);
+      expect(setup.g1Powers[0].equals(bls.G1.Point.BASE)).toBe(true);
+      expect(setup.g2Powers[0].equals(bls.G2.Point.BASE)).toBe(true);
     });
 
     it('should handle empty lines and whitespace', async () => {
-      const g1Hex = bls.G1.ProjectivePoint.BASE.toHex();
-      const g2Hex = bls.G2.ProjectivePoint.BASE.toHex();
+      const g1Hex = bls.G1.Point.BASE.toHex();
+      const g2Hex = bls.G2.Point.BASE.toHex();
       
       // Add empty lines and whitespace
       const g1Lines = [];
@@ -198,7 +198,7 @@ describe('Setup File Loading', () => {
     });
 
     it('should reject file with wrong number of G2 points', async () => {
-      const g1Hex = bls.G1.ProjectivePoint.BASE.toHex();
+      const g1Hex = bls.G1.Point.BASE.toHex();
       const g1Content = Array(4096).fill(g1Hex).join('\n');
       const g2Content = '0x123\n0x456\n0x789'; // 3 points instead of 2
       
@@ -211,11 +211,11 @@ describe('Setup File Loading', () => {
     });
 
     it('should reject invalid hex in G1 file', async () => {
-      const g1Hex = bls.G1.ProjectivePoint.BASE.toHex();
+      const g1Hex = bls.G1.Point.BASE.toHex();
       const g1Lines = Array(4095).fill(g1Hex);
       g1Lines.push('invalid-hex-data'); // Invalid on last line
       
-      const g2Hex = bls.G2.ProjectivePoint.BASE.toHex();
+      const g2Hex = bls.G2.Point.BASE.toHex();
       const g2Content = `${g2Hex}\n${g2Hex}`;
       
       mockReadFile
@@ -227,10 +227,10 @@ describe('Setup File Loading', () => {
     });
 
     it('should reject invalid hex in G2 file', async () => {
-      const g1Hex = bls.G1.ProjectivePoint.BASE.toHex();
+      const g1Hex = bls.G1.Point.BASE.toHex();
       const g1Content = Array(4096).fill(g1Hex).join('\n');
       
-      const g2Hex = bls.G2.ProjectivePoint.BASE.toHex();
+      const g2Hex = bls.G2.Point.BASE.toHex();
       const g2Content = `${g2Hex}\ninvalid-g2-point`;
       
       mockReadFile
@@ -242,8 +242,8 @@ describe('Setup File Loading', () => {
     });
 
     it('should handle various line endings', async () => {
-      const g1Hex = bls.G1.ProjectivePoint.BASE.toHex();
-      const g2Hex = bls.G2.ProjectivePoint.BASE.toHex();
+      const g1Hex = bls.G1.Point.BASE.toHex();
+      const g2Hex = bls.G2.Point.BASE.toHex();
       
       // Mix different line endings
       const g1Lines = Array(4096).fill(g1Hex);
@@ -262,8 +262,8 @@ describe('Setup File Loading', () => {
     });
 
     it('should trim whitespace from hex values', async () => {
-      const g1Hex = bls.G1.ProjectivePoint.BASE.toHex();
-      const g2Hex = bls.G2.ProjectivePoint.BASE.toHex();
+      const g1Hex = bls.G1.Point.BASE.toHex();
+      const g2Hex = bls.G2.Point.BASE.toHex();
       
       // Add spaces and tabs
       const g1Lines = Array(4096).fill(`  ${g1Hex}\t `);
