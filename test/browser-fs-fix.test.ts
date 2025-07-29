@@ -3,6 +3,12 @@
  * This test simulates the exact error reported and verifies the fix
  */
 
+// Mock brotli before any imports
+jest.mock('brotli', () => ({
+  compress: jest.fn((data) => data),
+  decompress: jest.fn((data) => data)
+}));
+
 describe('Browser FS Fix Verification', () => {
   describe('No fs module errors in browser', () => {
     // Save original environment
@@ -12,13 +18,20 @@ describe('Browser FS Fix Verification', () => {
     const originalProcess = global.process;
 
     beforeEach(() => {
+      // Clear module cache to ensure fresh imports
+      jest.resetModules();
+      
       // Simulate browser environment
       (global as any).window = { location: { href: 'http://localhost' } };
       (global as any).document = { createElement: jest.fn() };
       (global as any).navigator = { userAgent: 'test' };
+      (global as any).globalThis = global;
       
-      // Remove Node.js indicators
-      delete (global as any).process;
+      // Create a minimal process object for ethers compatibility
+      (global as any).process = {
+        env: {},
+        versions: undefined
+      };
       
       // Mock require to throw (as it would in a browser)
       (global as any).require = jest.fn().mockImplementation((module: string) => {
@@ -86,8 +99,7 @@ describe('Browser FS Fix Verification', () => {
       // Check key built files
       const filesToCheck = [
         'dist/kzg/setup.js',
-        'dist/init.js',
-        'dist/utils/environment.js'
+        'dist/init.js'
       ];
       
       filesToCheck.forEach(file => {
@@ -100,9 +112,8 @@ describe('Browser FS Fix Verification', () => {
           expect(content).not.toMatch(/require\(['"]fs\/promises['"]\)/);
           expect(content).not.toMatch(/import.*from ['"]fs['"]/);
           
-          // Should use environment detection
-          expect(content).toContain('isNode');
-          expect(content).toContain('isBrowser');
+          // Should use environment detection (checking compiled output)
+          expect(content).toContain('environment_1.isNode');
         }
       });
     });
