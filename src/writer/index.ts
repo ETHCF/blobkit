@@ -6,18 +6,27 @@ import { blobToKZGCommitment, computeKZGProof, commitmentToVersionedHash } from 
 
 export class BlobWriter {
   private provider: ethers.JsonRpcProvider;
-  private wallet?: ethers.Wallet;
+  private signer?: ethers.Signer;
 
-  constructor(private config: BlobKitConfig, privateKey?: string) {
+  constructor(config: BlobKitConfig, privateKey?: string);
+  constructor(config: BlobKitConfig, signer?: ethers.Signer);
+  constructor(private config: BlobKitConfig, signerOrPrivateKey?: string | ethers.Signer) {
     this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
-    if (privateKey) {
-      this.wallet = new ethers.Wallet(privateKey, this.provider);
+    
+    if (signerOrPrivateKey) {
+      if (typeof signerOrPrivateKey === 'string') {
+        // Backward compatibility: private key string
+        this.signer = new ethers.Wallet(signerOrPrivateKey, this.provider);
+      } else {
+        // Modern usage: external signer (MetaMask, WalletConnect, etc.)
+        this.signer = signerOrPrivateKey;
+      }
     }
   }
 
   async writeBlob(payload: unknown, meta: Partial<BlobMeta> = {}): Promise<BlobReceipt> {
-    if (!this.wallet) {
-      throw new BlobKitError('No wallet configured', 'NO_WALLET');
+    if (!this.signer) {
+      throw new BlobKitError('No signer configured', 'NO_SIGNER');
     }
 
     const fullMeta: BlobMeta = {
@@ -89,7 +98,7 @@ export class BlobWriter {
       chainId: this.config.chainId || 1
     };
 
-    return this.wallet!.sendTransaction(tx as any);
+    return this.signer!.sendTransaction(tx as any);
   }
 
   private async estimateBlobGasPrice(): Promise<bigint> {

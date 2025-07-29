@@ -5,6 +5,7 @@ export * from './types';
 export { 
   initializeForDevelopment, 
   initializeForProduction,
+  initializeForBrowser,
   createFromEnv,
   createReadOnlyFromEnv 
 } from './init';

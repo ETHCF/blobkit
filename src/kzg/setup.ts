@@ -1,4 +1,3 @@
-import { readFile } from 'fs/promises';
 import { bls12_381 as bls } from '@noble/curves/bls12-381';
 import { BlobKitError } from '../types';
 import { TrustedSetup } from './types';
@@ -9,16 +8,48 @@ type G1Point = ReturnType<typeof bls.G1.Point.fromHex>;
 type G2Point = ReturnType<typeof bls.G2.Point.fromHex>;
 
 /**
- * Load trusted setup from binary files.
+ * Load trusted setup from binary files or data.
  * G1: 4096 points * 48 bytes = 196,608 bytes
  * G2: 2 points * 96 bytes = 192 bytes
  */
+export async function loadTrustedSetupFromBinary(g1Path: string, g2Path: string): Promise<TrustedSetup>;
+export async function loadTrustedSetupFromBinary(g1Data: Uint8Array, g2Data: Uint8Array): Promise<TrustedSetup>;
 export async function loadTrustedSetupFromBinary(
-  g1Path: string,
-  g2Path: string
+  g1Source: string | Uint8Array,
+  g2Source: string | Uint8Array
 ): Promise<TrustedSetup> {
-  const g1Data = await readFile(g1Path);
-  const g2Data = await readFile(g2Path);
+  let g1Data: Buffer | Uint8Array, g2Data: Buffer | Uint8Array;
+
+  if (typeof g1Source === 'string') {
+    // Dynamic import for Node.js only
+    const { readFile } = await import('fs/promises');
+    g1Data = await readFile(g1Source);
+    g2Data = await readFile(g2Source as string);
+  } else {
+    // Browser raw data
+    g1Data = g1Source;
+    g2Data = g2Source as Uint8Array;
+  }
+
+  // Validate sizes first before attempting to parse points
+  const g1PointSize = 48;
+  const g2PointSize = 96;
+  const expectedG1Size = 4096 * g1PointSize; // 196608
+  const expectedG2Size = 2 * g2PointSize; // 192
+
+  if (g1Data.length !== expectedG1Size) {
+    throw new BlobKitError(
+      `Expected ${expectedG1Size} bytes, got ${g1Data.length}`,
+      'INVALID_SIZE'
+    );
+  }
+
+  if (g2Data.length !== expectedG2Size) {
+    throw new BlobKitError(
+      `Expected ${expectedG2Size} bytes, got ${g2Data.length}`,
+      'INVALID_SIZE'
+    );
+  }
 
   const g1Powers = parseG1Points(g1Data, 4096);
   const g2Powers = parseG2Points(g2Data, 2);
@@ -28,14 +59,34 @@ export async function loadTrustedSetupFromBinary(
 }
 
 /**
- * Load trusted setup from text files (hex strings, one per line).
+ * Load trusted setup from text files or data.
  */
+export async function loadTrustedSetupFromText(g1Path: string, g2Path: string): Promise<TrustedSetup>;
+export async function loadTrustedSetupFromText(g1Data: Uint8Array, g2Data: Uint8Array): Promise<TrustedSetup>;
 export async function loadTrustedSetupFromText(
-  g1Path: string,
-  g2Path: string
+  g1Source: string | Uint8Array,
+  g2Source: string | Uint8Array
 ): Promise<TrustedSetup> {
-  const g1Text = await readFile(g1Path, 'utf-8');
-  const g2Text = await readFile(g2Path, 'utf-8');
+  let g1Text: string, g2Text: string;
+
+  if (typeof g1Source === 'string') {
+    // Dynamic import for Node.js only
+    const { readFile } = await import('fs/promises');
+    g1Text = await readFile(g1Source, 'utf-8');
+    g2Text = await readFile(g2Source as string, 'utf-8');
+  } else {
+    // Safe TextDecoder with error handling
+    try {
+      g1Text = new TextDecoder('utf-8', { fatal: true }).decode(g1Source);
+      g2Text = new TextDecoder('utf-8', { fatal: true }).decode(g2Source as Uint8Array);
+    } catch (e) {
+      throw new BlobKitError(
+        'Invalid UTF-8 encoding in trusted setup text files',
+        'INVALID_ENCODING',
+        e
+      );
+    }
+  }
 
   const g1Lines = g1Text.trim().split('\n').filter(Boolean);
   const g2Lines = g2Text.trim().split('\n').filter(Boolean);
@@ -103,7 +154,7 @@ export function createMockSetup(): TrustedSetup {
   return { g1Powers, g2Powers };
 }
 
-function parseG1Points(data: Buffer, count: number): G1Point[] {
+function parseG1Points(data: Buffer | Uint8Array, count: number): G1Point[] {
   const pointSize = 48;
   if (data.length !== count * pointSize) {
     throw new BlobKitError(
@@ -116,12 +167,27 @@ function parseG1Points(data: Buffer, count: number): G1Point[] {
   for (let i = 0; i < count; i++) {
     const start = i * pointSize;
     const pointData = data.subarray(start, start + pointSize);
-    points.push(bls.G1.Point.fromHex(pointData));
+    
+    // Memory-efficient hex conversion
+    let hexString = '0x';
+    for (let j = 0; j < pointData.length; j++) {
+      hexString += pointData[j].toString(16).padStart(2, '0');
+    }
+    
+    try {
+      points.push(bls.G1.Point.fromHex(hexString));
+    } catch (e) {
+      throw new BlobKitError(
+        `Invalid G1 point at index ${i}`,
+        'INVALID_POINT',
+        e
+      );
+    }
   }
   return points;
 }
 
-function parseG2Points(data: Buffer, count: number): G2Point[] {
+function parseG2Points(data: Buffer | Uint8Array, count: number): G2Point[] {
   const pointSize = 96;
   if (data.length !== count * pointSize) {
     throw new BlobKitError(
@@ -134,7 +200,22 @@ function parseG2Points(data: Buffer, count: number): G2Point[] {
   for (let i = 0; i < count; i++) {
     const start = i * pointSize;
     const pointData = data.subarray(start, start + pointSize);
-    points.push(bls.G2.Point.fromHex(pointData));
+    
+    // Memory-efficient hex conversion
+    let hexString = '0x';
+    for (let j = 0; j < pointData.length; j++) {
+      hexString += pointData[j].toString(16).padStart(2, '0');
+    }
+    
+    try {
+      points.push(bls.G2.Point.fromHex(hexString));
+    } catch (e) {
+      throw new BlobKitError(
+        `Invalid G2 point at index ${i}`,
+        'INVALID_POINT',
+        e
+      );
+    }
   }
   return points;
 }

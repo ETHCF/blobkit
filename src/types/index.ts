@@ -1,3 +1,9 @@
+import { ethers } from 'ethers';
+
+// Export ethers types for convenience
+export type Signer = ethers.Signer;
+export type Provider = ethers.Provider;
+
 /**
  * Metadata associated with blob data.
  */
