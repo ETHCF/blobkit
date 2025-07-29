@@ -110,7 +110,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ETHCF/blobkit.git"
+    "url": "git+https://github.com/ETHCF/blobkit.git"
   },
   "bugs": {
     "url": "https://github.com/ETHCF/blobkit/issues"
