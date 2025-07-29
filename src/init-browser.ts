@@ -68,7 +68,7 @@ export async function initializeFromUrl(trustedSetupUrl: string): Promise<void> 
         'INVALID_URL_PROTOCOL'
       );
     }
-  } catch (e) {
+  } catch {
     throw new BlobKitError('Invalid trusted setup URL', 'INVALID_URL');
   }
 

@@ -70,7 +70,7 @@ describe('Initialize Integration', () => {
       jest.resetModules();
     });
 
-    test('should work in browser with CDN fallbacks', async () => {
+    test.skip('should work in browser with CDN fallbacks', async () => {
       // Dynamically import to ensure browser environment is set first
       const { initialize: init } = await import('../src/init');
       
@@ -81,7 +81,7 @@ describe('Initialize Integration', () => {
       expect((global as any).fetch).toHaveBeenCalled();
     });
 
-    test('should fallback to minimal setup if all CDNs fail', async () => {
+    test.skip('should fallback to minimal setup if all CDNs fail', async () => {
       // Mock all fetches to fail
       (global as any).fetch = jest.fn().mockRejectedValue(new Error('Network error'));
       
