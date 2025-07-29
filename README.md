@@ -310,7 +310,7 @@ BlobKit is optimized for high-throughput applications:
 ## Testing and Development
 
 ```bash
-npm test              # Run comprehensive test suite (91 tests)
+npm test              # Run comprehensive test suite (128 tests)
 npm run lint          # Run ESLint with TypeScript rules
 npm run typecheck     # Run TypeScript type checking
 npm run build         # Build production distribution
@@ -355,7 +355,7 @@ Apache 2.0
 
 For questions, bug reports, or contributions:
 
-- **Email**: [zscole@linux.com](mailto:zscole@linux.com)
+- **Email**: [zcole@linux.com](mailto:zcole@linux.com)
 - **X/Twitter**: [@0xzak](https://x.com/0xzak)
 - **GitHub**: [@zscole](https://github.com/zscole)
 - **Issues**: [GitHub Issues](https://github.com/ETHCF/blobkit/issues)
