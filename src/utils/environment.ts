@@ -7,24 +7,14 @@
  * Check if we're running in a browser environment
  */
 export function isBrowser(): boolean {
-  return (
-    typeof globalThis !== 'undefined' &&
-    'window' in globalThis &&
-    'document' in globalThis &&
-    'navigator' in globalThis
-  );
+  return typeof window !== 'undefined' && typeof window.document !== 'undefined';
 }
 
 /**
  * Check if we're running in Node.js
  */
 export function isNode(): boolean {
-  return (
-    typeof process !== 'undefined' &&
-    process.versions != null &&
-    process.versions.node != null &&
-    typeof require !== 'undefined'
-  );
+  return typeof process !== 'undefined' && process.versions?.node !== undefined;
 }
 
 /**

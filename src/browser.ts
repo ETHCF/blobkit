@@ -16,6 +16,7 @@ export {
   initialize,
   initializeForDevelopment,
   initializeForBrowser,
+  initializeFromUrl,
   // Note: initializeForProduction, createFromEnv, createReadOnlyFromEnv not available in browser
 } from './init-browser';
 

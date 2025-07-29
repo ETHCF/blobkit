@@ -22,7 +22,10 @@ describe('Browser FS Fix Verification', () => {
       jest.resetModules();
       
       // Simulate browser environment
-      (global as any).window = { location: { href: 'http://localhost' } };
+      (global as any).window = { 
+        location: { href: 'http://localhost' },
+        document: { createElement: jest.fn() }
+      };
       (global as any).document = { createElement: jest.fn() };
       (global as any).navigator = { userAgent: 'test' };
       (global as any).globalThis = global;

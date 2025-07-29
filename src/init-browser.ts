@@ -22,7 +22,7 @@ export async function initializeForDevelopment(): Promise<void> {
 
 /**
  * Initialize with Ethereum mainnet trusted setup (auto-download).
- * Works seamlessly in browser environments.
+ * Works seamlessly in browser environments by fetching from CDN.
  * Safe for production use.
  */
 export async function initialize(): Promise<void> {
@@ -46,6 +46,63 @@ export async function initialize(): Promise<void> {
       loadTrustedSetup(minimalSetup);
       console.warn('BlobKit: Using minimal trusted setup - for development only!');
       return;
+    }
+  })();
+
+  return initializationPromise;
+}
+
+/**
+ * Initialize from a specific trusted setup URL.
+ * Recommended for production use with your own CDN.
+ * 
+ * @param trustedSetupUrl - URL to the trusted setup file
+ */
+export async function initializeFromUrl(trustedSetupUrl: string): Promise<void> {
+  // Validate URL
+  try {
+    const url = new URL(trustedSetupUrl);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      throw new BlobKitError(
+        'Trusted setup URL must use HTTP or HTTPS',
+        'INVALID_URL_PROTOCOL'
+      );
+    }
+  } catch (e) {
+    throw new BlobKitError('Invalid trusted setup URL', 'INVALID_URL');
+  }
+
+  // Singleton pattern
+  if (initializationPromise) return initializationPromise;
+  
+  initializationPromise = (async () => {
+    try {
+      const response = await fetch(trustedSetupUrl);
+      
+      if (!response.ok) {
+        throw new BlobKitError(
+          `Failed to fetch trusted setup: HTTP ${response.status}`,
+          'FETCH_ERROR'
+        );
+      }
+      
+      const data = await response.text();
+      const setup = await parseMainnetTrustedSetup(data);
+      loadTrustedSetup(setup);
+      
+    } catch (error) {
+      // Reset singleton on error
+      initializationPromise = null;
+      
+      if (error instanceof BlobKitError) {
+        throw error;
+      }
+      
+      throw new BlobKitError(
+        `Failed to initialize from URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'INIT_ERROR',
+        error instanceof Error ? error : undefined
+      );
     }
   })();
 

@@ -7,14 +7,14 @@
  * Check if we're running in a browser environment
  */
 export function isBrowser(): boolean {
-  return true; // This file is only used in browser builds
+  return typeof window !== 'undefined' && typeof window.document !== 'undefined';
 }
 
 /**
  * Check if we're running in Node.js
  */
 export function isNode(): boolean {
-  return false; // This file is only used in browser builds
+  return false; // This file is only used in browser builds, so always false
 }
 
 /**
