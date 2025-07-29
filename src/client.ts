@@ -1,3 +1,4 @@
+import { ethers } from 'ethers';
 import { BlobWriter } from './writer';
 import { BlobReader } from './blob/reader';
 import { BlobVerifier } from './verifier';
@@ -26,13 +27,26 @@ export class BlobKit {
    * @param config - Configuration for the client
    * @param privateKey - Optional private key for write operations
    */
-  constructor(config: BlobKitConfig, privateKey?: string) {
+  constructor(config: BlobKitConfig, privateKey?: string);
+  /**
+   * Creates a new BlobKit instance.
+   * @param config - Configuration for the client
+   * @param signer - Optional ethers Signer for write operations (MetaMask, WalletConnect, etc.)
+   */
+  constructor(config: BlobKitConfig, signer?: ethers.Signer);
+  /**
+   * Creates a new BlobKit instance.
+   * @param config - Configuration for the client
+   * @param signerOrPrivateKey - Either a private key string or ethers Signer
+   */
+  constructor(config: BlobKitConfig, signerOrPrivateKey?: string | ethers.Signer);
+  constructor(config: BlobKitConfig, signerOrPrivateKey?: string | ethers.Signer) {
     // Validate configuration
     if (!config.rpcUrl) {
       throw new BlobKitError('RPC URL is required', 'INVALID_CONFIG');
     }
 
-    this.writer = new BlobWriter(config, privateKey);
+    this.writer = new BlobWriter(config, signerOrPrivateKey as any);
     this.reader = new BlobReader(config);
     this.verifier = new BlobVerifier(config);
 

@@ -35,8 +35,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "typecheck": "tsc --noEmit",
@@ -94,6 +94,11 @@
     "typescript": "^5.3.3",
     "webpack": "5.101.0",
     "webpack-cli": "^6.0.1"
+  },
+  "browser": {
+    "fs": false,
+    "fs/promises": false,
+    "path": false
   },
   "engines": {
     "node": ">=16.0.0"
