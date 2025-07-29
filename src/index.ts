@@ -3,6 +3,7 @@ export * from './types';
 
 // Initialization
 export { 
+  initialize,
   initializeForDevelopment, 
   initializeForProduction,
   initializeForBrowser,

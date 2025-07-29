@@ -8,38 +8,10 @@ type G1Point = ReturnType<typeof bls.G1.Point.fromHex>;
 type G2Point = ReturnType<typeof bls.G2.Point.fromHex>;
 
 /**
- * Load trusted setup from binary files or data.
- * G1: 4096 points * 48 bytes = 196,608 bytes
- * G2: 2 points * 96 bytes = 192 bytes
+ * Browser-only version: Load trusted setup from binary data.
+ * File paths are not supported in browser environments.
  */
-export async function loadTrustedSetupFromBinary(g1Path: string, g2Path: string): Promise<TrustedSetup>;
-export async function loadTrustedSetupFromBinary(g1Data: Uint8Array, g2Data: Uint8Array): Promise<TrustedSetup>;
-export async function loadTrustedSetupFromBinary(
-  g1Source: string | Uint8Array,
-  g2Source: string | Uint8Array
-): Promise<TrustedSetup> {
-  let g1Data: Buffer | Uint8Array, g2Data: Buffer | Uint8Array;
-
-  if (typeof g1Source === 'string') {
-    // Check if we're in Node.js environment
-    if (typeof process !== 'undefined' && process.versions?.node && typeof require !== 'undefined') {
-      try {
-        // Use eval to prevent bundler from analyzing this code
-        const fs = eval('require')('fs/promises');
-        g1Data = await fs.readFile(g1Source);
-        g2Data = await fs.readFile(g2Source as string);
-      } catch (e) {
-        throw new BlobKitError('Failed to read files. Ensure Node.js fs/promises is available.', 'FILE_READ_ERROR', e);
-      }
-    } else {
-      throw new BlobKitError('File paths not supported in browser environment. Use Uint8Array data instead.', 'BROWSER_FILE_ERROR');
-    }
-  } else {
-    // Browser raw data
-    g1Data = g1Source;
-    g2Data = g2Source as Uint8Array;
-  }
-
+export async function loadTrustedSetupFromBinary(g1Data: Uint8Array, g2Data: Uint8Array): Promise<TrustedSetup> {
   // Validate sizes first before attempting to parse points
   const g1PointSize = 48;
   const g2PointSize = 96;
@@ -68,42 +40,22 @@ export async function loadTrustedSetupFromBinary(
 }
 
 /**
- * Load trusted setup from text files or data.
+ * Browser-only version: Load trusted setup from text data.
+ * File paths are not supported in browser environments.
  */
-export async function loadTrustedSetupFromText(g1Path: string, g2Path: string): Promise<TrustedSetup>;
-export async function loadTrustedSetupFromText(g1Data: Uint8Array, g2Data: Uint8Array): Promise<TrustedSetup>;
-export async function loadTrustedSetupFromText(
-  g1Source: string | Uint8Array,
-  g2Source: string | Uint8Array
-): Promise<TrustedSetup> {
+export async function loadTrustedSetupFromText(g1Data: Uint8Array, g2Data: Uint8Array): Promise<TrustedSetup> {
   let g1Text: string, g2Text: string;
 
-  if (typeof g1Source === 'string') {
-    // Check if we're in Node.js environment
-    if (typeof process !== 'undefined' && process.versions?.node && typeof require !== 'undefined') {
-      try {
-        // Use eval to prevent bundler from analyzing this code
-        const fs = eval('require')('fs/promises');
-        g1Text = await fs.readFile(g1Source, 'utf-8');
-        g2Text = await fs.readFile(g2Source as string, 'utf-8');
-      } catch (e) {
-        throw new BlobKitError('Failed to read files. Ensure Node.js fs/promises is available.', 'FILE_READ_ERROR', e);
-      }
-    } else {
-      throw new BlobKitError('File paths not supported in browser environment. Use Uint8Array data instead.', 'BROWSER_FILE_ERROR');
-    }
-  } else {
-    // Safe TextDecoder with error handling
-    try {
-      g1Text = new TextDecoder('utf-8', { fatal: true }).decode(g1Source);
-      g2Text = new TextDecoder('utf-8', { fatal: true }).decode(g2Source as Uint8Array);
-    } catch (e) {
-      throw new BlobKitError(
-        'Invalid UTF-8 encoding in trusted setup text files',
-        'INVALID_ENCODING',
-        e
-      );
-    }
+  // Safe TextDecoder with error handling
+  try {
+    g1Text = new TextDecoder('utf-8', { fatal: true }).decode(g1Data);
+    g2Text = new TextDecoder('utf-8', { fatal: true }).decode(g2Data);
+  } catch (e) {
+    throw new BlobKitError(
+      'Invalid UTF-8 encoding in trusted setup text files',
+      'INVALID_ENCODING',
+      e
+    );
   }
 
   const g1Lines = g1Text.trim().split('\n').filter(Boolean);
@@ -172,7 +124,7 @@ export function createMockSetup(): TrustedSetup {
   return { g1Powers, g2Powers };
 }
 
-function parseG1Points(data: Buffer | Uint8Array, count: number): G1Point[] {
+function parseG1Points(data: Uint8Array, count: number): G1Point[] {
   const pointSize = 48;
   if (data.length !== count * pointSize) {
     throw new BlobKitError(
@@ -205,7 +157,7 @@ function parseG1Points(data: Buffer | Uint8Array, count: number): G1Point[] {
   return points;
 }
 
-function parseG2Points(data: Buffer | Uint8Array, count: number): G2Point[] {
+function parseG2Points(data: Uint8Array, count: number): G2Point[] {
   const pointSize = 96;
   if (data.length !== count * pointSize) {
     throw new BlobKitError(

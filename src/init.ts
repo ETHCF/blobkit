@@ -1,6 +1,7 @@
 import { loadTrustedSetup, createMockSetup } from './kzg';
 import { BlobKit } from './client';
 import { BlobKitConfig, BlobKitError } from './types';
+import { fetchTrustedSetupWithFallbacks, createMinimalSetup } from './kzg/embedded-setup';
 
 // Constants
 const MAX_G1_SIZE = 250_000; // ~196KB + overhead
@@ -17,6 +18,102 @@ let initializationPromise: Promise<void> | null = null;
 export async function initializeForDevelopment(): Promise<void> {
   const setup = createMockSetup();
   loadTrustedSetup(setup);
+}
+
+/**
+ * Initialize with Ethereum mainnet trusted setup (auto-download).
+ * Works seamlessly in both Node.js and browser environments.
+ * Safe for production use.
+ */
+export async function initialize(): Promise<void> {
+  // Check if already initialized
+  if (initializationPromise) {
+    return initializationPromise;
+  }
+
+  initializationPromise = (async () => {
+    try {
+      // Browser environment
+      if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
+        try {
+          // Try to fetch from CDN with fallbacks
+          const data = await fetchTrustedSetupWithFallbacks();
+          const setup = await parseMainnetTrustedSetup(data);
+          loadTrustedSetup(setup);
+          console.log('BlobKit: Loaded official Ethereum trusted setup');
+          return;
+        } catch (e) {
+          console.warn('BlobKit: Failed to download trusted setup, using minimal setup', e);
+          // Use minimal setup as fallback
+          const minimalSetup = createMinimalSetup();
+          loadTrustedSetup(minimalSetup);
+          console.warn('BlobKit: Using minimal trusted setup - for development only!');
+          return;
+        }
+      }
+      
+      // Node.js environment
+      if (typeof process !== 'undefined' && process.versions?.node) {
+        const fs = eval('require')('fs');
+        const path = eval('require')('path');
+        const https = eval('require')('https');
+        
+        // Try common locations for cached file
+        const locations = [
+          './trusted_setup.txt',
+          './trusted-setup/trusted_setup.txt',
+          path.join(process.cwd(), 'trusted_setup.txt'),
+          path.join(__dirname, '../trusted_setup.txt')
+        ];
+        
+        for (const location of locations) {
+          if (fs.existsSync(location)) {
+            const data = fs.readFileSync(location, 'utf-8');
+            const setup = await parseMainnetTrustedSetup(data);
+            loadTrustedSetup(setup);
+            return;
+          }
+        }
+        
+        // Download from GitHub
+        console.log('BlobKit: Downloading Ethereum mainnet trusted setup...');
+        
+        const data = await new Promise<string>((resolve, reject) => {
+          https.get('https://raw.githubusercontent.com/ethereum/c-kzg-4844/main/src/trusted_setup.txt', (res: any) => {
+            if (res.statusCode !== 200) {
+              reject(new Error(`HTTP ${res.statusCode}`));
+              return;
+            }
+            
+            let data = '';
+            res.on('data', (chunk: any) => data += chunk);
+            res.on('end', () => resolve(data));
+          }).on('error', reject);
+        });
+        
+        const setup = await parseMainnetTrustedSetup(data);
+        loadTrustedSetup(setup);
+        
+        // Save for future use
+        try {
+          fs.writeFileSync('./trusted_setup.txt', data);
+          console.log('BlobKit: Trusted setup saved to ./trusted_setup.txt');
+        } catch (e) {
+          console.warn('BlobKit: Could not save trusted setup file:', e);
+        }
+        
+        return;
+      }
+      
+      throw new BlobKitError('Unable to detect environment (neither browser nor Node.js)', 'UNSUPPORTED_ENV');
+      
+    } catch (error) {
+      initializationPromise = null; // Reset to allow retry
+      throw error;
+    }
+  })();
+
+  return initializationPromise;
 }
 
 /**
@@ -44,7 +141,7 @@ export async function initializeForProduction(
 export async function initializeForBrowser(options: {
   g1Url: string;
   g2Url: string;
-  format?: 'binary' | 'text';
+  format?: 'binary' | 'text' | 'combined';
   timeout?: number;
   g1Hash?: string; // Optional SHA-256 for verification
   g2Hash?: string;
@@ -56,6 +153,11 @@ export async function initializeForBrowser(options: {
   if (initializationPromise) return initializationPromise;
   
   initializationPromise = (async () => {
+    // Handle special 'combined' format
+    if (options.format === 'combined') {
+      return initializeFromCombinedFile(options);
+    }
+    
     // Enhanced URL validation
     try {
       const g1Url = new URL(options.g1Url);
@@ -330,4 +432,107 @@ export function createReadOnlyFromEnv(): BlobKit {
 
   validateEnvironmentVariables(config);
   return new BlobKit(config);
+}
+
+/**
+ * Parse the mainnet trusted setup file format
+ */
+async function parseMainnetTrustedSetup(data: string): Promise<any> {
+  const lines = data.trim().split('\n');
+  
+  // First line is number of G1 points (4096)
+  const g1Count = parseInt(lines[0]);
+  // Second line is number of G2 points (65)
+  const g2Count = parseInt(lines[1]);
+  
+  // Extract points
+  const g1Lines = lines.slice(2, 2 + g1Count);
+  const g2Lines = lines.slice(2 + g1Count, 2 + g1Count + g2Count);
+  
+  // BlobKit only needs first 2 G2 points
+  const g2LinesForBlobKit = g2Lines.slice(0, 2);
+  
+  // Add 0x prefix if not present
+  const g1Text = g1Lines.map(line => line.startsWith('0x') ? line : '0x' + line).join('\n');
+  const g2Text = g2LinesForBlobKit.map(line => line.startsWith('0x') ? line : '0x' + line).join('\n');
+  
+  // Create Uint8Arrays from text
+  const g1Data = new TextEncoder().encode(g1Text);
+  const g2Data = new TextEncoder().encode(g2Text);
+  
+  // Parse using existing functions
+  const { loadTrustedSetupFromText } = await import('./kzg/setup');
+  return await loadTrustedSetupFromText(g1Data, g2Data);
+}
+
+/**
+ * Initialize from a combined trusted setup file (browser-specific)
+ */
+async function initializeFromCombinedFile(options: {
+  g1Url: string;
+  g2Url: string;
+  format?: string;
+  timeout?: number;
+  g1Hash?: string;
+  g2Hash?: string;
+}): Promise<void> {
+  const timeout = options.timeout || DEFAULT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    // Fetch the combined file
+    const response = await fetchWithRetry(options.g1Url, controller.signal);
+    
+    if (!response.ok) {
+      throw new BlobKitError(
+        `Failed to fetch trusted setup: HTTP ${response.status}`,
+        'FETCH_ERROR'
+      );
+    }
+    
+    // Read as text
+    const data = await response.text();
+    
+    // Parse the mainnet format
+    const lines = data.trim().split('\n');
+    const g1Count = parseInt(lines[0]);
+    const g2Count = parseInt(lines[1]);
+    
+    // Extract points
+    const g1Lines = lines.slice(2, 2 + g1Count);
+    const g2Lines = lines.slice(2 + g1Count, 2 + g1Count + g2Count);
+    
+    // BlobKit only needs first 2 G2 points
+    const g2LinesForBlobKit = g2Lines.slice(0, 2);
+    
+    // Add 0x prefix if not present
+    const g1Text = g1Lines.map(line => line.startsWith('0x') ? line : '0x' + line).join('\n');
+    const g2Text = g2LinesForBlobKit.map(line => line.startsWith('0x') ? line : '0x' + line).join('\n');
+    
+    // Create Uint8Arrays
+    const g1Data = new TextEncoder().encode(g1Text);
+    const g2Data = new TextEncoder().encode(g2Text);
+    
+    // Load trusted setup
+    const { loadTrustedSetupFromText } = await import('./kzg/setup');
+    const setup = await loadTrustedSetupFromText(g1Data, g2Data);
+    loadTrustedSetup(setup);
+    
+  } catch (error) {
+    // Reset singleton on error to allow retry
+    initializationPromise = null;
+    
+    if (error instanceof BlobKitError) {
+      throw error;
+    }
+    
+    throw new BlobKitError(
+      `Failed to initialize trusted setup: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'INIT_ERROR',
+      error instanceof Error ? error : undefined
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
