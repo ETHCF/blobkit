@@ -1,4 +1,10 @@
-import { initialize, initializeForDevelopment } from '../src/init';
+// Mock brotli before imports
+jest.mock('brotli', () => ({
+  compress: jest.fn((data) => data),
+  decompress: jest.fn((data) => data)
+}));
+
+import { initializeForDevelopment } from '../src/init';
 import * as fs from 'fs';
 
 describe('Auto Initialize', () => {
@@ -16,6 +22,8 @@ describe('Auto Initialize', () => {
     if (fs.existsSync(trustedSetupPath)) {
       fs.unlinkSync(trustedSetupPath);
     }
+    // Reset module cache
+    jest.resetModules();
   });
 
   describe('Development initialization', () => {
@@ -25,16 +33,35 @@ describe('Auto Initialize', () => {
   });
 
   describe('Browser detection', () => {
-    test('should detect browser environment when window is defined', () => {
+    test('should detect browser environment when window is defined', async () => {
       // Mock browser environment
-      (global as any).window = {};
+      const originalWindow = (global as any).window;
+      const originalDocument = (global as any).document;
+      const originalNavigator = (global as any).navigator;
+      const originalFetch = (global as any).fetch;
       
-      // In a real browser, initialize() would call initializeForBrowser
-      // For this test, we just verify it doesn't throw
-      expect(() => initialize()).not.toThrow();
+      (global as any).window = { location: { href: 'http://localhost' } };
+      (global as any).document = { createElement: jest.fn() };
+      (global as any).navigator = { userAgent: 'test' };
+      (global as any).globalThis = global;
+      
+      // Mock fetch to fail, forcing minimal setup
+      (global as any).fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+      
+      // Clear module cache
+      jest.resetModules();
+      
+      // Re-import to get fresh module with browser detection
+      const { initialize: init } = await import('../src/init');
+      
+      // Should work with minimal setup fallback
+      await expect(init()).resolves.toBeUndefined();
       
       // Clean up
-      delete (global as any).window;
+      (global as any).window = originalWindow;
+      (global as any).document = originalDocument;
+      (global as any).navigator = originalNavigator;
+      (global as any).fetch = originalFetch;
     });
   });
 
@@ -57,8 +84,21 @@ a0413c0dcafec6dbc9f47d66785cf1e8c981044f7d13cfe3e4fcbb71b5408dfde6312493cb3c1d30
 
   describe('Error handling', () => {
     test('should handle initialization gracefully', async () => {
-      // In test environment, initialize should work with either dev setup or minimal fallback
-      await expect(initialize()).resolves.toBeUndefined();
+      // Mock fetch to fail, forcing minimal setup fallback
+      const originalFetch = (global as any).fetch;
+      (global as any).fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+      
+      // Clear module cache to reset singleton
+      jest.resetModules();
+      
+      // Re-import to get fresh module
+      const { initialize: init } = await import('../src/init');
+      
+      // In test environment, should fallback to minimal setup
+      await expect(init()).resolves.toBeUndefined();
+      
+      // Restore
+      (global as any).fetch = originalFetch;
     });
   });
 });
