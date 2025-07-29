@@ -2,6 +2,7 @@ import { loadTrustedSetup, createMockSetup } from './kzg';
 import { BlobKit } from './client';
 import { BlobKitConfig, BlobKitError } from './types';
 import { fetchTrustedSetupWithFallbacks, createMinimalSetup } from './kzg/embedded-setup';
+import { isBrowser, isNode, getNodeFsSync, getNodePath, getNodeHttps } from './utils/environment';
 
 // Constants
 const MAX_G1_SIZE = 250_000; // ~196KB + overhead
@@ -34,13 +35,13 @@ export async function initialize(): Promise<void> {
   initializationPromise = (async () => {
     try {
       // Browser environment
-      if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
+      if (isBrowser()) {
         try {
           // Try to fetch from CDN with fallbacks
           const data = await fetchTrustedSetupWithFallbacks();
           const setup = await parseMainnetTrustedSetup(data);
           loadTrustedSetup(setup);
-          console.log('BlobKit: Loaded official Ethereum trusted setup');
+          // Successfully loaded official Ethereum trusted setup
           return;
         } catch (e) {
           console.warn('BlobKit: Failed to download trusted setup, using minimal setup', e);
@@ -53,10 +54,14 @@ export async function initialize(): Promise<void> {
       }
       
       // Node.js environment
-      if (typeof process !== 'undefined' && process.versions?.node) {
-        const fs = eval('require')('fs');
-        const path = eval('require')('path');
-        const https = eval('require')('https');
+      if (isNode()) {
+        const fsSync = getNodeFsSync();
+        const path = getNodePath();
+        const https = getNodeHttps();
+        
+        if (!fsSync || !path || !https) {
+          throw new BlobKitError('Node.js modules not available', 'NODE_MODULES_NOT_AVAILABLE');
+        }
         
         // Try common locations for cached file
         const locations = [
@@ -67,8 +72,8 @@ export async function initialize(): Promise<void> {
         ];
         
         for (const location of locations) {
-          if (fs.existsSync(location)) {
-            const data = fs.readFileSync(location, 'utf-8');
+          if (fsSync.existsSync(location)) {
+            const data = fsSync.readFileSync(location, 'utf-8');
             const setup = await parseMainnetTrustedSetup(data);
             loadTrustedSetup(setup);
             return;
@@ -76,7 +81,6 @@ export async function initialize(): Promise<void> {
         }
         
         // Download from GitHub
-        console.log('BlobKit: Downloading Ethereum mainnet trusted setup...');
         
         const data = await new Promise<string>((resolve, reject) => {
           https.get('https://raw.githubusercontent.com/ethereum/c-kzg-4844/main/src/trusted_setup.txt', (res: any) => {
@@ -96,8 +100,7 @@ export async function initialize(): Promise<void> {
         
         // Save for future use
         try {
-          fs.writeFileSync('./trusted_setup.txt', data);
-          console.log('BlobKit: Trusted setup saved to ./trusted_setup.txt');
+          fsSync.writeFileSync('./trusted_setup.txt', data);
         } catch (e) {
           console.warn('BlobKit: Could not save trusted setup file:', e);
         }
@@ -105,7 +108,10 @@ export async function initialize(): Promise<void> {
         return;
       }
       
-      throw new BlobKitError('Unable to detect environment (neither browser nor Node.js)', 'UNSUPPORTED_ENV');
+      // If neither browser nor Node.js, use minimal setup
+      console.warn('BlobKit: Unknown environment, using minimal setup');
+      const minimalSetup = createMinimalSetup();
+      loadTrustedSetup(minimalSetup);
       
     } catch (error) {
       initializationPromise = null; // Reset to allow retry
@@ -452,9 +458,9 @@ async function parseMainnetTrustedSetup(data: string): Promise<any> {
   // BlobKit only needs first 2 G2 points
   const g2LinesForBlobKit = g2Lines.slice(0, 2);
   
-  // Add 0x prefix if not present
-  const g1Text = g1Lines.map(line => line.startsWith('0x') ? line : '0x' + line).join('\n');
-  const g2Text = g2LinesForBlobKit.map(line => line.startsWith('0x') ? line : '0x' + line).join('\n');
+  // Keep original format without 0x prefix
+  const g1Text = g1Lines.join('\n');
+  const g2Text = g2LinesForBlobKit.join('\n');
   
   // Create Uint8Arrays from text
   const g1Data = new TextEncoder().encode(g1Text);
@@ -506,9 +512,9 @@ async function initializeFromCombinedFile(options: {
     // BlobKit only needs first 2 G2 points
     const g2LinesForBlobKit = g2Lines.slice(0, 2);
     
-    // Add 0x prefix if not present
-    const g1Text = g1Lines.map(line => line.startsWith('0x') ? line : '0x' + line).join('\n');
-    const g2Text = g2LinesForBlobKit.map(line => line.startsWith('0x') ? line : '0x' + line).join('\n');
+    // Keep original format without 0x prefix
+    const g1Text = g1Lines.join('\n');
+    const g2Text = g2LinesForBlobKit.join('\n');
     
     // Create Uint8Arrays
     const g1Data = new TextEncoder().encode(g1Text);

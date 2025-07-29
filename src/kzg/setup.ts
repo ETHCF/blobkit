@@ -3,6 +3,7 @@ import { BlobKitError } from '../types';
 import { TrustedSetup } from './types';
 import { FIELD_ELEMENTS_PER_BLOB } from './constants';
 import { Fr } from './field';
+import { isNode, getNodeFs } from '../utils/environment';
 
 type G1Point = ReturnType<typeof bls.G1.Point.fromHex>;
 type G2Point = ReturnType<typeof bls.G2.Point.fromHex>;
@@ -21,15 +22,18 @@ export async function loadTrustedSetupFromBinary(
   let g1Data: Buffer | Uint8Array, g2Data: Buffer | Uint8Array;
 
   if (typeof g1Source === 'string') {
-    // Check if we're in Node.js environment
-    if (typeof process !== 'undefined' && process.versions?.node && typeof require !== 'undefined') {
+    // Only attempt file operations in Node.js
+    if (isNode()) {
+      const fs = await getNodeFs();
+      if (!fs) {
+        throw new BlobKitError('Node.js fs module not available', 'FS_NOT_AVAILABLE');
+      }
+      
       try {
-        // Use eval to prevent bundler from analyzing this code
-        const fs = eval('require')('fs/promises');
         g1Data = await fs.readFile(g1Source);
         g2Data = await fs.readFile(g2Source as string);
       } catch (e) {
-        throw new BlobKitError('Failed to read files. Ensure Node.js fs/promises is available.', 'FILE_READ_ERROR', e);
+        throw new BlobKitError('Failed to read files', 'FILE_READ_ERROR', e);
       }
     } else {
       throw new BlobKitError('File paths not supported in browser environment. Use Uint8Array data instead.', 'BROWSER_FILE_ERROR');
@@ -79,15 +83,18 @@ export async function loadTrustedSetupFromText(
   let g1Text: string, g2Text: string;
 
   if (typeof g1Source === 'string') {
-    // Check if we're in Node.js environment
-    if (typeof process !== 'undefined' && process.versions?.node && typeof require !== 'undefined') {
+    // Only attempt file operations in Node.js
+    if (isNode()) {
+      const fs = await getNodeFs();
+      if (!fs) {
+        throw new BlobKitError('Node.js fs module not available', 'FS_NOT_AVAILABLE');
+      }
+      
       try {
-        // Use eval to prevent bundler from analyzing this code
-        const fs = eval('require')('fs/promises');
         g1Text = await fs.readFile(g1Source, 'utf-8');
         g2Text = await fs.readFile(g2Source as string, 'utf-8');
       } catch (e) {
-        throw new BlobKitError('Failed to read files. Ensure Node.js fs/promises is available.', 'FILE_READ_ERROR', e);
+        throw new BlobKitError('Failed to read files', 'FILE_READ_ERROR', e);
       }
     } else {
       throw new BlobKitError('File paths not supported in browser environment. Use Uint8Array data instead.', 'BROWSER_FILE_ERROR');
@@ -125,7 +132,9 @@ export async function loadTrustedSetupFromText(
 
   const g1Powers = g1Lines.map((hex, i) => {
     try {
-      return bls.G1.Point.fromHex(hex.trim());
+      // Remove 0x prefix if present
+      const cleanHex = hex.trim().replace(/^0x/i, '');
+      return bls.G1.Point.fromHex(cleanHex);
     } catch (e) {
       throw new BlobKitError(
         `Invalid G1 point at line ${i + 1}`,
@@ -137,7 +146,9 @@ export async function loadTrustedSetupFromText(
 
   const g2Powers = g2Lines.map((hex, i) => {
     try {
-      return bls.G2.Point.fromHex(hex.trim());
+      // Remove 0x prefix if present
+      const cleanHex = hex.trim().replace(/^0x/i, '');
+      return bls.G2.Point.fromHex(cleanHex);
     } catch (e) {
       throw new BlobKitError(
         `Invalid G2 point at line ${i + 1}`,
