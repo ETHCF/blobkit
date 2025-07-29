@@ -1,15 +1,23 @@
-// Browser-specific entry point
-// This file is used when importing BlobKit in browser environments
+/**
+ * Browser entry point for BlobKit
+ * This file uses browser-specific modules that contain NO Node.js imports
+ */
 
+// Re-export all public APIs
 export { BlobKit } from './client';
 export * from './types';
+export * from './writer';
+export * from './verifier';
+export * from './blob/reader';
+export * from './blob/utils';
 
-// Browser-specific initialization
-export { 
+// Export browser-specific initialization functions
+export {
   initialize,
   initializeForDevelopment,
-  initializeForBrowser
-} from './init';
+  initializeForBrowser,
+  // Note: initializeForProduction, createFromEnv, createReadOnlyFromEnv not available in browser
+} from './init-browser';
 
 // Codec utilities
 export { registerCodec, hasCodec, listCodecs } from './codecs';
@@ -19,8 +27,18 @@ export {
   blobToKZGCommitment,
   computeKZGProof,
   verifyKZGProof,
-  commitmentToVersionedHash
+  commitmentToVersionedHash,
+  loadTrustedSetup,
+  createMockSetup
 } from './kzg';
 
-// Note: createFromEnv and createReadOnlyFromEnv are not exported in browser
-// as they rely on process.env which is not available in browsers
+// Export browser-specific environment utilities
+export {
+  isBrowser,
+  isNode,
+  nodeOnlyImport,
+  getNodeFs,
+  getNodeFsSync,
+  getNodePath,
+  getNodeHttps,
+} from './utils/environment-browser';
