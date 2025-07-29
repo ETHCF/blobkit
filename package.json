@@ -1,6 +1,6 @@
 {
   "name": "blobkit",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "A complete SDK for using Ethereum blob space (EIP-4844) as an ephemeral, verifiable data layer",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,8 +11,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "browser": "./dist/browser.js",
+      "node": "./dist/index.js",
       "require": "./dist/index.js",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
     },
     "./kzg": {
       "types": "./dist/kzg/index.d.ts",
@@ -103,7 +109,15 @@
     "fs": false,
     "fs/promises": false,
     "path": false,
-    "./dist/kzg/setup.js": "./dist/kzg/setup-browser.js"
+    "https": false,
+    "process": false,
+    "buffer": false,
+    "brotli": false,
+    "./dist/index.js": "./dist/browser.js",
+    "./dist/init.js": "./dist/init-browser.js",
+    "./dist/utils/environment.js": "./dist/utils/environment-browser.js",
+    "./dist/kzg/setup.js": "./dist/kzg/setup-browser.js",
+    "./dist/blob/utils.js": "./dist/blob/utils-browser.js"
   },
   "engines": {
     "node": ">=16.0.0"

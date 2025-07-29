@@ -31,7 +31,9 @@ describe('Browser Module Loading', () => {
 
     beforeEach(() => {
       // Mock browser environment
-      (global as any).window = {};
+      (global as any).window = {
+        document: {}
+      };
       (global as any).document = {};
       (global as any).navigator = {};
       delete (global as any).process;
