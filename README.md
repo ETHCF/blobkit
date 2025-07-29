@@ -64,13 +64,13 @@ COMPRESSION_LEVEL=3
 **Security Note**: Never commit your `.env` file or private keys to version control. Add `.env` to your `.gitignore`.
 
 ```typescript
-import { createFromEnv, initializeForDevelopment } from 'blobkit';
+import { createFromEnv, initialize } from 'blobkit';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Initialize KZG setup (required)
-await initializeForDevelopment();
+// Initialize with Ethereum mainnet trusted setup (auto-downloads)
+await initialize();
 
 // Create client from environment variables with automatic validation
 const blobkit = createFromEnv();
@@ -108,22 +108,25 @@ COMPRESSION_LEVEL=3               # Brotli compression level 0-11 (default: 3)
 
 ### KZG Setup
 
-For production environments, use the official Ethereum KZG ceremony parameters:
+BlobKit handles all the complexity of KZG trusted setup for you:
 
 ```typescript
-import { initializeForProduction } from 'blobkit';
+import { initialize } from 'blobkit';
 
-// Download from: https://github.com/ethereum/kzg-ceremony-sequencer
-await initializeForProduction(
-  '/path/to/g1.point',
-  '/path/to/g2.point',
-  'text'
-);
+// That's it! Works everywhere - browser, Node.js, serverless
+await initialize();
 ```
 
-For development and testing:
+**What happens under the hood:**
+- **Browser**: Downloads from CDN with automatic fallbacks (jsDelivr → Cloudflare → GitHub)
+- **Node.js**: Checks for cached file, downloads if needed, saves for next time
+- **Serverless**: Works immediately with minimal memory footprint
+- **Offline**: Falls back to minimal setup with console warning
+
+For development/testing (instant, no download):
 ```typescript
-await initializeForDevelopment(); // Uses mock setup - DO NOT use in production
+import { initializeForDevelopment } from 'blobkit';
+await initializeForDevelopment(); // Mock setup - DO NOT use in production
 ```
 
 ## Cost Disclaimer

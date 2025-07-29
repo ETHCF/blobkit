@@ -10,21 +10,25 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "browser": "./dist/browser.js",
       "require": "./dist/index.js",
       "import": "./dist/index.js"
     },
     "./kzg": {
       "types": "./dist/kzg/index.d.ts",
+      "browser": "./dist/kzg/index.js",
       "require": "./dist/kzg/index.js",
       "import": "./dist/kzg/index.js"
     },
     "./blob": {
       "types": "./dist/blob/index.d.ts",
+      "browser": "./dist/blob/index.js",
       "require": "./dist/blob/index.js",
       "import": "./dist/blob/index.js"
     },
     "./codecs": {
       "types": "./dist/codecs/index.d.ts",
+      "browser": "./dist/codecs/index.js",
       "require": "./dist/codecs/index.js",
       "import": "./dist/codecs/index.js"
     }
@@ -98,7 +102,8 @@
   "browser": {
     "fs": false,
     "fs/promises": false,
-    "path": false
+    "path": false,
+    "./dist/kzg/setup.js": "./dist/kzg/setup-browser.js"
   },
   "engines": {
     "node": ">=16.0.0"
