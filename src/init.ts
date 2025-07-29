@@ -41,7 +41,7 @@ export async function initialize(): Promise<void> {
           const data = await fetchTrustedSetupWithFallbacks();
           const setup = await parseMainnetTrustedSetup(data);
           loadTrustedSetup(setup);
-          console.log('BlobKit: Loaded official Ethereum trusted setup');
+          // Successfully loaded official Ethereum trusted setup
           return;
         } catch (e) {
           console.warn('BlobKit: Failed to download trusted setup, using minimal setup', e);
@@ -81,7 +81,6 @@ export async function initialize(): Promise<void> {
         }
         
         // Download from GitHub
-        console.log('BlobKit: Downloading Ethereum mainnet trusted setup...');
         
         const data = await new Promise<string>((resolve, reject) => {
           https.get('https://raw.githubusercontent.com/ethereum/c-kzg-4844/main/src/trusted_setup.txt', (res: any) => {
@@ -102,7 +101,6 @@ export async function initialize(): Promise<void> {
         // Save for future use
         try {
           fsSync.writeFileSync('./trusted_setup.txt', data);
-          console.log('BlobKit: Trusted setup saved to ./trusted_setup.txt');
         } catch (e) {
           console.warn('BlobKit: Could not save trusted setup file:', e);
         }

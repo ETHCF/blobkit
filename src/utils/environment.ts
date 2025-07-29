@@ -43,6 +43,7 @@ export async function nodeOnlyImport<T>(moduleName: string): Promise<T | null> {
   } catch {
     try {
       // Fallback to require for CommonJS
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       return require(moduleName);
     } catch {
       return null;
@@ -61,6 +62,7 @@ export async function getNodeFs() {
   try {
     // Create a dynamic reference that bundlers can't analyze
     const moduleId = ['fs', 'promises'].join('/');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require(moduleId);
   } catch {
     return null;
@@ -78,6 +80,7 @@ export function getNodeFsSync() {
   try {
     // Create a dynamic reference that bundlers can't analyze
     const moduleId = 'fs';
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require(moduleId);
   } catch {
     return null;
@@ -95,6 +98,7 @@ export function getNodePath() {
   try {
     // Create a dynamic reference that bundlers can't analyze
     const moduleId = 'path';
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require(moduleId);
   } catch {
     return null;
@@ -112,6 +116,7 @@ export function getNodeHttps() {
   try {
     // Create a dynamic reference that bundlers can't analyze
     const moduleId = 'https';
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require(moduleId);
   } catch {
     return null;
