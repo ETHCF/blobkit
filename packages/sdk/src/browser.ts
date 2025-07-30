@@ -37,5 +37,5 @@ export const connectMetaMask = async () => {
 export const createWithMetaMask = async (config: any) => {
   const { BlobKit } = await import('./blobkit.js');
   const signer = await connectMetaMask();
-  return new BlobKit(config, signer);
+  return new BlobKit(config, signer as any);
 }; 

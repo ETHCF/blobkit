@@ -438,7 +438,7 @@ export class BlobKit {
       contractRunner = this.signer as unknown as ethers.Signer;
     } else if (this.signer.provider) {
       // Use the signer's provider
-      contractRunner = this.signer.provider as ethers.Provider;
+      contractRunner = (this.signer.provider as unknown) as ethers.Provider;
     } else {
       // Fallback to creating a new provider
       contractRunner = new ethers.JsonRpcProvider(this.config.rpcUrl);
