@@ -22,15 +22,15 @@ import {
   formatEther,
   parseEther,
   isValidAddress,
-  validateEnvironmentConfig
+  validateEnvironmentConfig,
+  bytesToHex
 } from './utils.js';
 import {
   initializeKzg,
   encodeBlob,
   blobToKzgCommitment,
   computeKzgProof,
-  commitmentToVersionedHash,
-  bytesToHex
+  commitmentToVersionedHash
 } from './kzg.js';
 
 /**

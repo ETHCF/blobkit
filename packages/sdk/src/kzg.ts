@@ -79,9 +79,6 @@ export async function parseTrustedSetupFile(filePath: string): Promise<TrustedSe
     };
 }
 
-
-
-
 /**
  * Initialize KZG with trusted setup
  * Must be called before any KZG operations
