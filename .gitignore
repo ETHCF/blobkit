@@ -46,3 +46,5 @@ lerna-debug.log*
 .tmp/
 *.bak
 *.origtest/**/*benchmark*.test.ts
+
+/packages/contracts/deployments/

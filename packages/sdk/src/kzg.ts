@@ -40,35 +40,41 @@ export async function parseTrustedSetupFile(filePath: string): Promise<TrustedSe
     let index = 0;
 
     // Read the number of g1 points
-    const numG1Points = parseInt(lines[index++], 10);
+    const numG1Points = parseInt(lines[0], 10);
     if (numG1Points !== NUM_G1_POINTS) {
         throw new Error(`Expected ${NUM_G1_POINTS} G1 points, got ${numG1Points}`);
     }
 
     // Read the number of g2 points
-    const numG2Points = parseInt(lines[index++], 10);
+    const numG2Points = parseInt(lines[1], 10);
     if (numG2Points !== NUM_G2_POINTS) {
         throw new Error(`Expected ${NUM_G2_POINTS} G2 points, got ${numG2Points}`);
     }
 
+    let dataIn = lines.slice(2).join('').replace(/\s/, '');
+    console.log( dataIn.length)
+
     // Read all G1 points (hex bytes)
     let g1Hex = '';
+    index = 0;
     for (let i = 0; i < NUM_G1_POINTS * BYTES_PER_G1; i++) {
-        const hexByte = lines[index++];
-        if (!hexByte || hexByte.length !== 2) {
-            throw new Error(`Invalid hex byte at G1 position ${i}: ${hexByte}`);
+        // now we read the hex bytes one by one
+        const nextHexByte = dataIn.substring(i * 2, i * 2 + 2);
+        if (!nextHexByte || nextHexByte.length !== 2) {
+            throw new Error(`Invalid hex byte at G1 position ${i}: '${nextHexByte}'`);
         }
-        g1Hex += hexByte;
+        g1Hex += nextHexByte;
+        index += 2;
     }
 
     // Read all G2 points (hex bytes)
     let g2Hex = '';
     for (let i = 0; i < NUM_G2_POINTS * BYTES_PER_G2; i++) {
-        const hexByte = lines[index++];
-        if (!hexByte || hexByte.length !== 2) {
-            throw new Error(`Invalid hex byte at G2 position ${i}: ${hexByte}`);
+        const nextHexByte = dataIn.substring(index + i * 2, index + i * 2 + 2);
+        if (!nextHexByte || nextHexByte.length !== 2) {
+            throw new Error(`Invalid hex byte at G2 position ${i}: ${nextHexByte}`);
         }
-        g2Hex += hexByte;
+        g2Hex += nextHexByte;
     }
 
     return {
@@ -117,6 +123,7 @@ export async function initializeKzg(): Promise<void> {
     //kzg.loadTrustedSetup(trustedSetupPath);
     isSetupLoaded = true;
   } catch (error) {
+    console.error('Failed to initialize KZG:', error);
     if (error instanceof BlobKitError) {
       throw error;
     }

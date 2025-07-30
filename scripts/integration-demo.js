@@ -93,7 +93,9 @@ class IntegrationDemo {
       process.env.PRIVATE_KEY = CONFIG.userPrivateKey;
       process.env.RPC_URL = CONFIG.rpcUrl;
       process.env.ESCROW_OWNER = CONFIG.escrowOwner;
-      
+      await execAsync('mkdir -p deployments', {
+        cwd: path.join(rootDir, 'packages/contracts')
+      });
       const { stdout } = await execAsync('forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --private-key $PRIVATE_KEY --broadcast', {
         cwd: path.join(rootDir, 'packages/contracts')
       });
@@ -126,21 +128,23 @@ class IntegrationDemo {
       process.env.PRIVATE_KEY = CONFIG.userPrivateKey;
       process.env.LOG_LEVEL = 'info';
       
-      // Start proxy in background
+
       const { spawn } = await import('child_process');
       this.proxyProcess = spawn('node', ['dist/index.js'], {
         cwd: path.join(rootDir, 'packages/proxy-server'),
         env: process.env,
-        stdio: 'pipe'
+        stdio: 'pipe',
       });
+      console.log('✓ Proxy server started');
       
       // Wait for server to start
       await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Proxy server failed to start')), 10000);
+        const timeout = setTimeout(() => reject(new Error('Proxy server failed to start')), 100000);
         
         this.proxyProcess.stdout.on('data', (data) => {
+          console.log(data.toString());
           const output = data.toString();
-          if (output.includes(`Server running on port ${CONFIG.proxyPort}`)) {
+          if (output.includes(`Proxy server running`)) {
             clearTimeout(timeout);
             resolve();
           }
@@ -156,13 +160,13 @@ class IntegrationDemo {
         });
       });
       
-      console.log(`✓ Proxy server running on port ${CONFIG.proxyPort}`);
-      console.log('');
+      console.log(`✓ Proxy server running on port ${CONFIG.proxyPort}\n`);
     } catch (error) {
       console.error('Error starting proxy server:', error);
       throw new Error(`Proxy server failed to start: ${error.message}`);
     }
   }
+
 
   async testBlobWrite() {
     console.log('📝 Testing blob write operation...');
