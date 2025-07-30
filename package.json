@@ -1,133 +1,55 @@
 {
-  "name": "blobkit",
-  "version": "1.0.8",
-  "description": "A complete SDK for using Ethereum blob space (EIP-4844) as an ephemeral, verifiable data layer",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "browser": "./dist/browser.js",
-      "node": "./dist/index.js",
-      "require": "./dist/index.js",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    },
-    "./browser": {
-      "types": "./dist/browser.d.ts",
-      "default": "./dist/browser.js"
-    },
-    "./kzg": {
-      "types": "./dist/kzg/index.d.ts",
-      "browser": "./dist/kzg/index.js",
-      "require": "./dist/kzg/index.js",
-      "import": "./dist/kzg/index.js"
-    },
-    "./blob": {
-      "types": "./dist/blob/index.d.ts",
-      "browser": "./dist/blob/index.js",
-      "require": "./dist/blob/index.js",
-      "import": "./dist/blob/index.js"
-    },
-    "./codecs": {
-      "types": "./dist/codecs/index.d.ts",
-      "browser": "./dist/codecs/index.js",
-      "require": "./dist/codecs/index.js",
-      "import": "./dist/codecs/index.js"
+  "name": "blobkit-monorepo",
+  "version": "1.0.0",
+  "description": "BlobKit monorepo - comprehensive blob storage solution for Ethereum",
+  "type": "module",
+  "private": true,
+  "author": {
+    "name": "Zak Cole",
+    "email": "zcole@linux.com",
+    "url": "https://x.com/0xzak"
+  },
+  "contributors": [
+    {
+      "name": "Zak Cole",
+      "email": "zcole@linux.com",
+      "url": "https://x.com/0xzak"
     }
-  },
-  "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "clean": "rm -rf dist",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
-    "typecheck": "tsc --noEmit",
-    "benchmark": "node test/benchmarks/run.js",
-    "build:browser": "webpack --mode=production",
-    "prepublishOnly": "npm run clean && npm run build && npm run test"
-  },
-  "keywords": [
-    "ethereum",
-    "blob",
-    "eip-4844",
-    "kzg",
-    "ephemeral",
-    "verifiable",
-    "sdk",
-    "web3",
-    "typescript",
-    "blockchain"
   ],
-  "author": "BlobKit Team",
-  "license": "Apache-2.0",
-  "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/ETHCF"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "dependencies": {
-    "@noble/curves": "^1.3.0",
-    "@noble/hashes": "^1.3.3",
-    "brotli": "^1.3.3",
-    "ethers": "^6.15.0"
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
+    "clean": "npm run clean --workspaces",
+    "type-check": "npm run type-check --workspaces",
+    "docs:lint": "markdownlint docs/**/*.md README.md",
+    "docs:lint:fix": "markdownlint docs/**/*.md README.md --fix",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "npm run build && changeset publish",
+    "demo": "node scripts/integration-demo.js",
+    "dev:anvil": "anvil --host 0.0.0.0 --port 8545",
+    "dev:setup": "npm run dev:anvil & sleep 3 && npm run demo"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.32.0",
-    "@types/brotli": "^1.3.4",
-    "@types/jest": "30.0.0",
-    "@types/node": "24.1.0",
-    "@typescript-eslint/eslint-plugin": "8.38.0",
-    "@typescript-eslint/parser": "8.38.0",
-    "buffer": "^6.0.3",
-    "crypto-browserify": "^3.12.1",
-    "dotenv": "^17.2.1",
-    "eslint": "9.32.0",
-    "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-prettier": "^5.1.0",
-    "globals": "^16.3.0",
-    "jest": "30.0.5",
-    "prettier": "^3.1.1",
-    "stream-browserify": "^3.0.0",
-    "ts-jest": "^29.1.1",
-    "ts-loader": "^9.5.2",
-    "typescript": "^5.3.3",
-    "webpack": "5.101.0",
-    "webpack-cli": "^6.0.1"
-  },
-  "browser": {
-    "fs": false,
-    "fs/promises": false,
-    "path": false,
-    "https": false,
-    "process": false,
-    "buffer": false,
-    "brotli": false,
-    "./dist/index.js": "./dist/browser.js",
-    "./dist/init.js": "./dist/init-browser.js",
-    "./dist/utils/environment.js": "./dist/utils/environment-browser.js",
-    "./dist/kzg/setup.js": "./dist/kzg/setup-browser.js",
-    "./dist/blob/utils.js": "./dist/blob/utils-browser.js"
+    "@changesets/cli": "^2.27.0",
+    "markdownlint-cli": "^0.37.0"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ETHCF/blobkit.git"
+    "url": "https://github.com/blobkit/blobkit.git"
   },
+  "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ETHCF/blobkit/issues"
+    "url": "https://github.com/blobkit/blobkit/issues"
   },
-  "homepage": "https://github.com/ETHCF/blobkit#readme"
+  "homepage": "https://github.com/blobkit/blobkit#readme"
 }

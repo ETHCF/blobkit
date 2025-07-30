@@ -1,0 +1,54 @@
+{
+  "name": "@blobkit/contracts",
+  "version": "0.0.1",
+  "description": "Smart contracts for BlobKit escrow and payment system",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "artifacts",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "forge build && tsc",
+    "test": "forge test",
+    "test:coverage": "forge coverage",
+    "deploy:local": "forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast",
+    "deploy:sepolia": "forge script script/Deploy.s.sol --rpc-url $SEPOLIA_RPC_URL --broadcast --verify",
+    "deploy:mainnet": "forge script script/Deploy.s.sol --rpc-url $MAINNET_RPC_URL --broadcast --verify",
+    "lint": "forge fmt --check",
+    "lint:fix": "forge fmt",
+    "clean": "forge clean && rm -rf dist",
+    "compile": "forge build",
+    "size": "forge build --sizes"
+  },
+  "keywords": [
+    "ethereum",
+    "solidity",
+    "smart-contracts",
+    "escrow",
+    "blob",
+    "eip-4844"
+  ],
+  "author": {
+    "name": "Zak Cole",
+    "email": "zcole@linux.com",
+    "url": "https://x.com/0xzak"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "typescript": "^5.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blobkit/blobkit.git",
+    "directory": "packages/contracts"
+  },
+  "bugs": {
+    "url": "https://github.com/blobkit/blobkit/issues"
+  },
+  "homepage": "https://github.com/blobkit/blobkit/tree/main/packages/contracts#readme"
+} 

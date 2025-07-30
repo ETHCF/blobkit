@@ -1,71 +1,89 @@
-const typescriptEslint = require("@typescript-eslint/eslint-plugin");
-const typescriptParser = require("@typescript-eslint/parser");
-const js = require("@eslint/js");
+import js from '@eslint/js';
+import tsEslint from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
+import prettier from 'eslint-config-prettier';
 
-module.exports = [
+export default [
+  js.configs.recommended,
   {
-    ignores: ["**/dist", "**/node_modules", "**/coverage", "**/*.js"]
-  },
-  {
-    files: ["**/*.ts"],
+    files: ['**/*.ts', '**/*.tsx', '**/*.js'],
     languageOptions: {
-      parser: typescriptParser,
-      ecmaVersion: 2020,
-      sourceType: "module",
+      parser: tsParser,
       parserOptions: {
-        project: "./tsconfig.json",
+        ecmaVersion: 2020,
+        sourceType: 'module',
       },
       globals: {
         // Node.js globals
-        console: "readonly",
-        process: "readonly",
-        Buffer: "readonly",
-        __dirname: "readonly",
-        __filename: "readonly",
-        global: "writable",
-        module: "readonly",
-        require: "readonly",
-        exports: "writable",
-        setTimeout: "readonly",
-        clearTimeout: "readonly",
-        crypto: "readonly",
+        global: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        console: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        exports: 'readonly',
+        
         // Browser globals
-        fetch: "readonly",
-        Response: "readonly",
-        AbortController: "readonly",
-        AbortSignal: "readonly",
-        URL: "readonly",
-        TextEncoder: "readonly",
-        TextDecoder: "readonly",
-        // Jest globals
-        jest: "readonly",
-        describe: "readonly",
-        test: "readonly",
-        expect: "readonly",
-        beforeEach: "readonly",
-        afterEach: "readonly",
-        beforeAll: "readonly",
-        afterAll: "readonly"
+        window: 'readonly',
+        document: 'readonly',
+        fetch: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        Location: 'readonly',
+        navigator: 'readonly',
+        HTMLElement: 'readonly',
+        Event: 'readonly',
+        EventTarget: 'readonly',
+        
+        // Common globals
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        AbortController: 'readonly',
+        AbortSignal: 'readonly',
+        crypto: 'readonly',
+        globalThis: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly'
       }
     },
     plugins: {
-      "@typescript-eslint": typescriptEslint,
+      '@typescript-eslint': tsEslint,
     },
     rules: {
-      ...js.configs.recommended.rules,
-      ...typescriptEslint.configs.recommended.rules,
-      "@typescript-eslint/explicit-function-return-type": "off",
-      "@typescript-eslint/explicit-module-boundary-types": "off",
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unused-vars": ["error", {
-        argsIgnorePattern: "^_",
-      }],
-      "no-console": ["warn", {
-        allow: ["warn", "error"],
-      }],
-      "prefer-const": "error",
-      "no-redeclare": "off", // TypeScript handles this better
-      "no-undef": "off", // TypeScript handles this better
+      ...tsEslint.configs.recommended.rules,
+      'no-undef': 'off', // TypeScript handles this
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      'eqeqeq': ['error', 'always'],
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
     },
   },
+  {
+    files: ['**/*.test.ts', '**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-console': 'off'
+    }
+  },
+  {
+    files: ['packages/contracts/**/*.ts'],
+    rules: {
+      'no-console': 'off'
+    }
+  },
+  {
+    files: ['packages/proxy-server/**/*.ts'],
+    rules: {
+      'no-console': 'off'
+    }
+  },
+  prettier
 ];

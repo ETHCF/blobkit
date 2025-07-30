@@ -1,0 +1,74 @@
+{
+  "name": "@blobkit/sdk",
+  "version": "1.1.0",
+  "description": "TypeScript SDK for blob storage with EIP-4844 support and browser compatibility",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.esm.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./browser": {
+      "import": "./dist/browser.esm.js",
+      "require": "./dist/browser.js",
+      "types": "./dist/browser.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "ethereum",
+    "blob",
+    "eip-4844",
+    "web3",
+    "storage",
+    "typescript"
+  ],
+  "author": {
+    "name": "Zak Cole",
+    "email": "zcole@linux.com",
+    "url": "https://x.com/0xzak"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "ethers": "^6.7.1",
+    "axios": "^1.5.0",
+    "c-kzg": "^2.1.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "rollup": "^4.9.1",
+    "rollup-plugin-dts": "^6.1.0",
+    "typescript": "^5.3.3",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.8",
+    "eslint": "^8.54.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blobkit/blobkit.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/blobkit/blobkit/issues"
+  },
+  "homepage": "https://github.com/blobkit/blobkit/tree/main/packages/sdk#readme"
+} 

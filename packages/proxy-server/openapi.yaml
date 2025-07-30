@@ -1,0 +1,333 @@
+openapi: 3.1.0
+info:
+  title: BlobKit Proxy Server API
+  description: |
+    BlobKit proxy server provides trustless blob transaction execution for browser environments.
+    Users pay into an escrow contract and the proxy executes blob transactions on their behalf.
+  version: 0.0.1
+  contact:
+    name: Zak Cole
+    email: zcole@linux.com
+    url: https://github.com/blobkit/blobkit
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://proxy.blobkit.org
+    description: Production proxy server
+
+paths:
+  /:
+    get:
+      summary: Get server information
+      description: Returns basic information about the proxy server
+      responses:
+        '200':
+          description: Server information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: "@blobkit/proxy-server"
+                  version:
+                    type: string
+                    example: "0.0.1"
+                  description:
+                    type: string
+                  endpoints:
+                    type: object
+
+  /api/v1/health:
+    get:
+      summary: Health check
+      description: Returns the health status of the proxy server and blockchain connectivity
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Server is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/blob/write:
+    post:
+      summary: Execute blob transaction
+      description: |
+        Executes a blob transaction after verifying payment in the escrow contract.
+        The request must include a valid job ID and payment transaction hash.
+      tags:
+        - Blob Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlobWriteRequest'
+            example:
+              jobId: "abc123def456"
+              paymentTxHash: "0x1234567890123456789012345678901234567890123456789012345678901234"
+              payload: [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100]
+              meta:
+                appId: "my-app"
+                codec: "text"
+                filename: "hello.txt"
+                tags: ["example"]
+      responses:
+        '200':
+          description: Blob transaction executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlobWriteResponse'
+        '400':
+          description: Invalid request or payment verification failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_payment:
+                  summary: Invalid payment
+                  value:
+                    error: "PAYMENT_INVALID"
+                    message: "Job payment not found in escrow contract"
+                blob_too_large:
+                  summary: Blob too large
+                  value:
+                    error: "BLOB_TOO_LARGE"
+                    message: "Blob size exceeds 128KB limit"
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    BlobWriteRequest:
+      type: object
+      required:
+        - jobId
+        - paymentTxHash
+        - payload
+        - meta
+      properties:
+        jobId:
+          type: string
+          description: Unique job identifier
+          minLength: 1
+          maxLength: 100
+        paymentTxHash:
+          type: string
+          description: Transaction hash of escrow payment
+          pattern: '^0x[a-fA-F0-9]{64}$'
+        payload:
+          type: array
+          description: Blob data as array of bytes (0-255)
+          items:
+            type: integer
+            minimum: 0
+            maximum: 255
+          minItems: 1
+          maxItems: 131072
+        meta:
+          $ref: '#/components/schemas/BlobMetadata'
+
+    BlobMetadata:
+      type: object
+      required:
+        - appId
+        - codec
+      properties:
+        appId:
+          type: string
+          description: Application identifier
+          minLength: 1
+          maxLength: 50
+        codec:
+          type: string
+          description: Data encoding format
+          minLength: 1
+          maxLength: 50
+          enum: ["json", "text", "raw", "application/json", "text/plain", "application/octet-stream"]
+        contentHash:
+          type: string
+          description: SHA-256 hash of content
+          pattern: '^[a-fA-F0-9]{64}$'
+        ttlBlocks:
+          type: integer
+          description: Time-to-live in blocks
+          minimum: 1
+          maximum: 1000000
+        timestamp:
+          type: integer
+          description: Unix timestamp of creation
+          minimum: 0
+        filename:
+          type: string
+          description: Optional filename
+          maxLength: 255
+        contentType:
+          type: string
+          description: MIME content type
+          maxLength: 100
+        tags:
+          type: array
+          description: Categorization tags
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+
+    BlobWriteResponse:
+      type: object
+      required:
+        - success
+        - blobTxHash
+        - blockNumber
+        - blobHash
+        - commitment
+        - proof
+        - blobIndex
+        - completionTxHash
+        - jobId
+      properties:
+        success:
+          type: boolean
+          const: true
+        blobTxHash:
+          type: string
+          description: Transaction hash containing the blob
+          pattern: '^0x[a-fA-F0-9]{64}$'
+        blockNumber:
+          type: integer
+          description: Block number where blob was included
+          minimum: 0
+        blobHash:
+          type: string
+          description: Blob hash identifier
+          pattern: '^0x[a-fA-F0-9]{64}$'
+        commitment:
+          type: string
+          description: KZG commitment
+          pattern: '^0x[a-fA-F0-9]{96}$'
+        proof:
+          type: string
+          description: KZG proof
+          pattern: '^0x[a-fA-F0-9]{96}$'
+        blobIndex:
+          type: integer
+          description: Index of blob within transaction
+          minimum: 0
+        completionTxHash:
+          type: string
+          description: Transaction hash of job completion
+          pattern: '^0x[a-fA-F0-9]{64}$'
+        jobId:
+          type: string
+          description: Original job identifier
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+        - chainId
+        - escrowContract
+        - proxyFeePercent
+        - maxBlobSize
+        - uptime
+      properties:
+        status:
+          type: string
+          enum: ["healthy", "unhealthy"]
+        version:
+          type: string
+          example: "0.0.1"
+        chainId:
+          type: integer
+          description: Ethereum chain ID
+          example: 1
+        escrowContract:
+          type: string
+          description: Escrow contract address
+          pattern: '^0x[a-fA-F0-9]{40}$'
+        proxyFeePercent:
+          type: integer
+          description: Proxy fee percentage (0-10)
+          minimum: 0
+          maximum: 10
+        maxBlobSize:
+          type: integer
+          description: Maximum blob size in bytes
+          example: 131072
+        uptime:
+          type: integer
+          description: Server uptime in seconds
+          minimum: 0
+        blocksLag:
+          type: integer
+          description: Number of blocks behind latest
+          minimum: 0
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+          enum: 
+            - "INVALID_REQUEST"
+            - "PAYMENT_INVALID"
+            - "PAYMENT_NOT_FOUND"
+            - "JOB_ALREADY_COMPLETED"
+            - "JOB_EXPIRED"
+            - "BLOB_TOO_LARGE"
+            - "BLOB_EXECUTION_FAILED"
+            - "RATE_LIMIT_EXCEEDED"
+            - "NETWORK_ERROR"
+            - "INTERNAL_ERROR"
+            - "CONTRACT_ERROR"
+        message:
+          type: string
+          description: Human-readable error description
+        details:
+          type: object
+          description: Additional error details
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Optional API key for authenticated requests
+
+tags:
+  - name: Health
+    description: Server health and status endpoints
+  - name: Blob Operations
+    description: Blob transaction execution endpoints 

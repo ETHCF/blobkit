@@ -4,11 +4,11 @@
 
 We actively support and provide security updates for the following versions:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.3.x   | :white_check_mark: |
-| 0.2.x   | :white_check_mark: |
-| 0.1.x   | :x:                |
+| Version | Supported |
+| ------- | --------- |
+| 0.3.x   | Yes       |
+| 0.2.x   | Yes       |
+| 0.1.x   | No        |
 
 ## Reporting a Vulnerability
 
@@ -66,11 +66,11 @@ BlobKit implements comprehensive input validation:
 ### Environment Variables
 
 ```bash
-# ✅ DO: Use environment variables for sensitive data
+# DO: Use environment variables for sensitive data
 RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY
 PRIVATE_KEY=0x1234567890abcdef...
 
-# ❌ DON'T: Hardcode sensitive information in code
+# DON'T: Hardcode sensitive information in code
 const privateKey = "0x1234567890abcdef..."; // Never do this
 ```
 
@@ -161,6 +161,6 @@ Our security testing includes:
 
 ## Contact
 
-For security-related questions or concerns, please contact the maintainers directly rather than opening public issues.
+For security-related questions or concerns, please contact Zak Cole directly at zcole@linux.com rather than opening public issues.
 
-Thank you for helping keep BlobKit secure! 
+Thank you for helping keep BlobKit secure. 

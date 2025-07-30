@@ -4,7 +4,7 @@ Thank you for your interest in contributing to BlobKit! This document provides g
 
 ## Code of Conduct
 
-By participating in this project, you agree to abide by our Code of Conduct. Please report any unacceptable behavior to the maintainers.
+By participating in this project, you agree to abide by our Code of Conduct. Please report any unacceptable behavior to Zak Cole at zcole@linux.com.
 
 ## Getting Started
 
@@ -235,7 +235,7 @@ Do not open public issues for security vulnerabilities. Instead:
 
 - Open an issue for bugs or feature requests
 - Join discussions for questions about implementation
-- Contact maintainers for security concerns
+- Contact Zak Cole at zcole@linux.com for security concerns or direct support
 
 ## Recognition
 
