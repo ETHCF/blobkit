@@ -4,6 +4,10 @@ out = "out"
 libs = ["lib"]
 test = "test"
 cache_path = "cache"
+fs_permissions = [
+    { access = "read", path = "./" },
+    { access = "write", path = "./" }
+]
 
 # Compiler settings
 solc_version = "0.8.20"
@@ -44,3 +48,4 @@ remappings = [
     "@forge-std/=lib/forge-std/src/",
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
 ]
+

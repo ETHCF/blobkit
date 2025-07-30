@@ -69,6 +69,7 @@ class IntegrationDemo {
       await provider.getBlockNumber();
       console.log('✓ Local Ethereum node is running');
     } catch (error) {
+      console.error(error);
       throw new Error(`Local Ethereum node not accessible at ${CONFIG.rpcUrl}. Please start Anvil with: anvil --host 0.0.0.0`);
     }
 
@@ -77,6 +78,7 @@ class IntegrationDemo {
       await import(path.join(rootDir, 'packages/sdk/dist/index.js'));
       console.log('✓ SDK package is built');
     } catch (error) {
+      console.error(error);
       throw new Error('SDK package not built. Run: npm run build --workspace=packages/sdk');
     }
 
@@ -92,7 +94,7 @@ class IntegrationDemo {
       process.env.RPC_URL = CONFIG.rpcUrl;
       process.env.ESCROW_OWNER = CONFIG.escrowOwner;
       
-      const { stdout } = await execAsync('forge script Deploy --rpc-url http://localhost:8545 --private-key $PRIVATE_KEY --broadcast', {
+      const { stdout } = await execAsync('forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --private-key $PRIVATE_KEY --broadcast', {
         cwd: path.join(rootDir, 'packages/contracts')
       });
       
@@ -157,6 +159,7 @@ class IntegrationDemo {
       console.log(`✓ Proxy server running on port ${CONFIG.proxyPort}`);
       console.log('');
     } catch (error) {
+      console.error('Error starting proxy server:', error);
       throw new Error(`Proxy server failed to start: ${error.message}`);
     }
   }

@@ -3,7 +3,7 @@ import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import dts from 'rollup-plugin-dts';
 
-const external = ['ethers', 'axios', 'crypto'];
+const external = ['c-kzg', 'ethers', 'axios', 'crypto'];
 
 export default [
   // Main build
