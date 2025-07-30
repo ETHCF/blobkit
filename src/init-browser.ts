@@ -9,7 +9,7 @@ import { BlobKitError } from './types';
 import { fetchTrustedSetupWithFallbacks, createMinimalSetup } from './kzg/embedded-setup';
 
 // Singleton tracking for browser initialization
-let initializationPromise: Promise<void> | null = null;
+let initializationPromise: Promise<{ success: boolean; setupType: 'mainnet' | 'minimal' }> | null = null;
 
 /**
  * Initialize with mock trusted setup for development.
@@ -25,10 +25,10 @@ export async function initializeForDevelopment(): Promise<void> {
  * Works seamlessly in browser environments by fetching from CDN.
  * Safe for production use.
  */
-export async function initialize(): Promise<void> {
+export async function initialize(): Promise<{ success: boolean; setupType: 'mainnet' | 'minimal' }> {
   // Check if already initialized
   if (initializationPromise) {
-    return initializationPromise;
+    return initializationPromise as Promise<{ success: boolean; setupType: 'mainnet' | 'minimal' }>;
   }
 
   initializationPromise = (async () => {
@@ -37,19 +37,20 @@ export async function initialize(): Promise<void> {
       const data = await fetchTrustedSetupWithFallbacks();
       const setup = await parseMainnetTrustedSetup(data);
       loadTrustedSetup(setup);
-      // Successfully loaded official Ethereum trusted setup
-      return;
+      console.log('BlobKit: Successfully loaded official Ethereum mainnet trusted setup');
+      return { success: true, setupType: 'mainnet' as const };
     } catch (e) {
       console.warn('BlobKit: Failed to download trusted setup, using minimal setup', e);
       // Use minimal setup as fallback
       const minimalSetup = createMinimalSetup();
       loadTrustedSetup(minimalSetup);
       console.warn('BlobKit: Using minimal trusted setup - for development only!');
-      return;
+      console.warn('BlobKit: This is NOT suitable for production use!');
+      return { success: true, setupType: 'minimal' as const };
     }
   })();
 
-  return initializationPromise;
+  return initializationPromise as Promise<{ success: boolean; setupType: 'mainnet' | 'minimal' }>;
 }
 
 /**
@@ -72,10 +73,8 @@ export async function initializeFromUrl(trustedSetupUrl: string): Promise<void> 
     throw new BlobKitError('Invalid trusted setup URL', 'INVALID_URL');
   }
 
-  // Singleton pattern
-  if (initializationPromise) return initializationPromise;
-  
-  initializationPromise = (async () => {
+  // Don't use singleton for explicit URL loading
+  const localInitPromise = (async () => {
     try {
       const response = await fetch(trustedSetupUrl);
       
@@ -106,7 +105,7 @@ export async function initializeFromUrl(trustedSetupUrl: string): Promise<void> 
     }
   })();
 
-  return initializationPromise;
+  await localInitPromise;
 }
 
 /**
@@ -139,10 +138,8 @@ export async function initializeForBrowser(options: {
   const format = options.format || 'text';
   const timeout = options.timeout || 30000;
 
-  // Singleton pattern to prevent concurrent initialization
-  if (initializationPromise) return initializationPromise;
-  
-  initializationPromise = (async () => {
+  // Don't use singleton for explicit URL loading
+  const localInitPromise = (async () => {
     // Handle special 'combined' format
     if (options.format === 'combined') {
       return initializeFromCombinedFile(options);
@@ -239,7 +236,7 @@ export async function initializeForBrowser(options: {
     }
   })();
 
-  return initializationPromise;
+  await localInitPromise;
 }
 
 /**

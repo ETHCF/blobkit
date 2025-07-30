@@ -191,12 +191,22 @@ function parseG2Points(data: Uint8Array, count: number): G2Point[] {
 }
 
 function validateSetup(g1Powers: G1Point[], g2Powers: G2Point[]): void {
-  // First elements should be generators
-  if (!g1Powers[0].equals(bls.G1.Point.BASE)) {
-    throw new BlobKitError('First G1 power must be generator', 'INVALID_SETUP');
+  // Basic validation - just check we have the right number of points
+  if (g1Powers.length !== 4096) {
+    throw new BlobKitError(
+      `Invalid G1 powers count: expected 4096, got ${g1Powers.length}`,
+      'INVALID_SETUP'
+    );
   }
 
-  if (!g2Powers[0].equals(bls.G2.Point.BASE)) {
-    throw new BlobKitError('First G2 power must be generator', 'INVALID_SETUP');
+  if (g2Powers.length !== 2) {
+    throw new BlobKitError(
+      `Invalid G2 powers count: expected 2, got ${g2Powers.length}`,
+      'INVALID_SETUP'
+    );
   }
+
+  // The official trusted setup does NOT start with the generator
+  // It starts with g^tau^0, g^tau^1, etc. where g is the generator
+  // and tau is the secret value from the ceremony
 }

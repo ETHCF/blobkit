@@ -9,8 +9,8 @@ const MAX_G1_SIZE = 250_000; // ~196KB + overhead
 const MAX_G2_SIZE = 1_000; // ~192 bytes + overhead
 const DEFAULT_TIMEOUT_MS = 30_000;
 
-// Singleton tracking for browser initialization
-let initializationPromise: Promise<void> | null = null;
+// Singleton tracking for initialization
+let initializationPromise: Promise<{ success: boolean; setupType: 'mainnet' | 'minimal' }> | null = null;
 
 /**
  * Initialize with mock trusted setup for development.
@@ -26,10 +26,10 @@ export async function initializeForDevelopment(): Promise<void> {
  * Works seamlessly in both Node.js and browser environments.
  * Safe for production use.
  */
-export async function initialize(): Promise<void> {
+export async function initialize(): Promise<{ success: boolean; setupType: 'mainnet' | 'minimal' }> {
   // Check if already initialized
   if (initializationPromise) {
-    return initializationPromise;
+    return initializationPromise as Promise<{ success: boolean; setupType: 'mainnet' | 'minimal' }>;
   }
 
   initializationPromise = (async () => {
@@ -42,14 +42,15 @@ export async function initialize(): Promise<void> {
           const setup = await parseMainnetTrustedSetup(data);
           loadTrustedSetup(setup);
           // Successfully loaded official Ethereum trusted setup
-          return;
+          return { success: true, setupType: 'mainnet' as const };
         } catch (e) {
           console.warn('BlobKit: Failed to download trusted setup, using minimal setup', e);
           // Use minimal setup as fallback
           const minimalSetup = createMinimalSetup();
           loadTrustedSetup(minimalSetup);
           console.warn('BlobKit: Using minimal trusted setup - for development only!');
-          return;
+          console.warn('BlobKit: This is NOT suitable for production use!');
+          return { success: true, setupType: 'minimal' as const };
         }
       }
       
@@ -76,7 +77,7 @@ export async function initialize(): Promise<void> {
             const data = fsSync.readFileSync(location, 'utf-8');
             const setup = await parseMainnetTrustedSetup(data);
             loadTrustedSetup(setup);
-            return;
+            return { success: true, setupType: 'mainnet' as const };
           }
         }
         
@@ -105,13 +106,16 @@ export async function initialize(): Promise<void> {
           console.warn('BlobKit: Could not save trusted setup file:', e);
         }
         
-        return;
+        console.log('BlobKit: Successfully downloaded and loaded official Ethereum mainnet trusted setup');
+        return { success: true, setupType: 'mainnet' as const };
       }
       
       // If neither browser nor Node.js, use minimal setup
       console.warn('BlobKit: Unknown environment, using minimal setup');
       const minimalSetup = createMinimalSetup();
       loadTrustedSetup(minimalSetup);
+      console.warn('BlobKit: This is NOT suitable for production use!');
+      return { success: true, setupType: 'minimal' as const };
       
     } catch (error) {
       initializationPromise = null; // Reset to allow retry
@@ -119,7 +123,7 @@ export async function initialize(): Promise<void> {
     }
   })();
 
-  return initializationPromise;
+  return initializationPromise as Promise<{ success: boolean; setupType: 'mainnet' | 'minimal' }>;
 }
 
 /**
@@ -155,10 +159,9 @@ export async function initializeForBrowser(options: {
   const format = options.format || 'text';
   const timeout = options.timeout || DEFAULT_TIMEOUT_MS;
 
-  // Singleton pattern to prevent concurrent initialization
-  if (initializationPromise) return initializationPromise;
+  // This function doesn't use the singleton pattern as it's for explicit URL loading
   
-  initializationPromise = (async () => {
+  const localInitPromise = (async () => {
     // Handle special 'combined' format
     if (options.format === 'combined') {
       return initializeFromCombinedFile(options);
@@ -268,7 +271,7 @@ export async function initializeForBrowser(options: {
     }
   })();
 
-  return initializationPromise;
+  await localInitPromise;
 }
 
 // Helper function for response validation

@@ -52,7 +52,7 @@ export class BlobReader {
       throw new BlobKitError(`Blob not found: ${blobHash}`, 'BLOB_NOT_FOUND');
     }
 
-    return this.decodeBlobData(blob);
+    return await this.decodeBlobData(blob);
   }
 
   private async fetchBlobFromNode(blobHash: string): Promise<Uint8Array | null> {
@@ -80,8 +80,8 @@ export class BlobReader {
     return null;
   }
 
-  private decodeBlobData(blob: Uint8Array): BlobData {
-    const decodedData = decodeBlob(blob, true);
+  private async decodeBlobData(blob: Uint8Array): Promise<BlobData> {
+    const decodedData = await decodeBlob(blob, true);
     const dataView = new DataView(decodedData.buffer);
     const metaLength = dataView.getUint32(0, false);
 

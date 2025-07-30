@@ -65,7 +65,7 @@ export class BlobVerifier {
     try {
       const commitment = await blobToKZGCommitment(data);
       const versionedHash = commitmentToVersionedHash(commitment);
-      const computedBlobHash = '0x' + Buffer.from(versionedHash).toString('hex');
+      const computedBlobHash = '0x' + Array.from(versionedHash).map(b => b.toString(16).padStart(2, '0')).join('');
       return computedBlobHash === blobHash;
     } catch {
       return false;
