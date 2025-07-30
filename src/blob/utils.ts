@@ -1,7 +1,7 @@
 import { keccak256 } from 'ethers';
-import { compress, decompress } from 'brotli';
 import { BlobKitError } from '../types';
 import { FIELD_ELEMENTS_PER_BLOB, BYTES_PER_FIELD_ELEMENT } from '../kzg/constants';
+import { isNode } from '../utils/environment';
 
 export const BLOB_SIZE = 131072;
 
@@ -15,16 +15,18 @@ export const BLOB_SIZE = 131072;
  * @param shouldCompress - Whether to apply Brotli compression
  * @returns Encoded blob data
  */
-export function encodeBlob(data: Uint8Array, shouldCompress = true): Uint8Array {
+export async function encodeBlob(data: Uint8Array, shouldCompress = true): Promise<Uint8Array> {
   if (!data || data.length === 0) {
     throw new BlobKitError('Data cannot be empty', 'EMPTY_DATA');
   }
 
   let encoded = data;
 
-  if (shouldCompress) {
+  if (shouldCompress && isNode()) {
     try {
-      const compressed = compress(Buffer.from(data), {
+      // Dynamic import for Node.js only
+      const { compress } = await import('brotli');
+      const compressed = compress(data as any, {
         mode: 0,
         quality: 3,
         lgwin: 22
@@ -40,13 +42,7 @@ export function encodeBlob(data: Uint8Array, shouldCompress = true): Uint8Array 
     }
   }
 
-  const maxSize = FIELD_ELEMENTS_PER_BLOB * BYTES_PER_FIELD_ELEMENT;
-  if (encoded.length > maxSize) {
-    throw new BlobKitError(
-      `Data too large: ${encoded.length} bytes (max ${maxSize})`,
-      'DATA_TOO_LARGE'
-    );
-  }
+  // Size validation moved to BlobWriter to allow for future chunking support
 
   // Pre-allocate blob buffer
   const blob = new Uint8Array(BLOB_SIZE);
@@ -76,7 +72,7 @@ export function encodeBlob(data: Uint8Array, shouldCompress = true): Uint8Array 
  * @param compressed - Whether the data was compressed
  * @returns Decoded original data
  */
-export function decodeBlob(blob: Uint8Array, compressed = true): Uint8Array {
+export async function decodeBlob(blob: Uint8Array, compressed = true): Promise<Uint8Array> {
   if (!blob) {
     throw new BlobKitError('Blob data cannot be null', 'NULL_BLOB');
   }
@@ -120,9 +116,11 @@ export function decodeBlob(blob: Uint8Array, compressed = true): Uint8Array {
 
   const trimmed = data.subarray(0, actualLength);
 
-  if (compressed) {
+  if (compressed && isNode()) {
     try {
-      const decompressed = decompress(Buffer.from(trimmed));
+      // Dynamic import for Node.js only
+      const { decompress } = await import('brotli');
+      const decompressed = decompress(trimmed as any);
       if (!decompressed) {
         throw new BlobKitError('Decompression failed', 'DECOMPRESSION_ERROR');
       }

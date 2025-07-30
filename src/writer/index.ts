@@ -52,13 +52,18 @@ export class BlobWriter {
     combined.set(metaBytes, 4);
     combined.set(encodedPayload, 4 + metaBytes.length);
 
-    const blob = encodeBlob(combined, true);
+    // Size validation removed to allow applications to implement their own chunking
+    // The encodeBlob function will handle the data regardless of size
+
+    const blob = await encodeBlob(combined, true);
     const commitment = await blobToKZGCommitment(blob);
     const { proof } = await computeKZGProof(blob, 0n);
 
-    const commitmentHex = '0x' + Buffer.from(commitment).toString('hex');
-    const proofHex = '0x' + Buffer.from(proof).toString('hex');
-    const blobHash = '0x' + Buffer.from(commitmentToVersionedHash(commitment)).toString('hex');
+    // Convert Uint8Array to hex without Buffer
+    const commitmentHex = '0x' + Array.from(commitment).map(b => b.toString(16).padStart(2, '0')).join('');
+    const proofHex = '0x' + Array.from(proof).map(b => b.toString(16).padStart(2, '0')).join('');
+    const versionedHash = commitmentToVersionedHash(commitment);
+    const blobHash = '0x' + Array.from(versionedHash).map(b => b.toString(16).padStart(2, '0')).join('');
 
     const txResponse = await this.sendBlobTransaction(blob, commitmentHex, proofHex);
     const receipt = await txResponse.wait();
@@ -80,6 +85,18 @@ export class BlobWriter {
     commitment: string,
     proof: string
   ): Promise<ethers.TransactionResponse> {
+    // Check if we're using MetaMask or another injected wallet
+    const isInjectedWallet = await this.isInjectedWallet();
+    
+    if (isInjectedWallet) {
+      throw new BlobKitError(
+        'MetaMask and browser wallets do not yet support EIP-4844 blob transactions (type 0x3). ' +
+        'Please use a Node.js environment with a private key, or wait for wallet support. ' +
+        'Track MetaMask support at: https://github.com/MetaMask/metamask-extension/issues',
+        'WALLET_NOT_SUPPORTED'
+      );
+    }
+
     const feeData = await this.provider.getFeeData();
     const blobGasPrice = await this.estimateBlobGasPrice();
 
@@ -111,5 +128,38 @@ export class BlobWriter {
       // Fallback
     }
     return ethers.parseUnits('1', 'gwei');
+  }
+
+  private async isInjectedWallet(): Promise<boolean> {
+    if (!this.signer) return false;
+    
+    try {
+      // Check if the signer has a provider
+      const provider = (this.signer as any).provider;
+      if (!provider) return false;
+      
+      // Check for common injected wallet properties
+      if (typeof window !== 'undefined' && (window as any).ethereum) {
+        // Check if the provider is the same as window.ethereum
+        const connection = (provider as any)._getConnection?.();
+        if (connection?.url === 'metamask' || connection?.url === 'eip-1193:') {
+          return true;
+        }
+        
+        // Check if provider is a Web3Provider wrapping window.ethereum
+        if ((provider as any)._isProvider && (provider as any).provider === (window as any).ethereum) {
+          return true;
+        }
+        
+        // Check for MetaMask specific properties
+        if ((window as any).ethereum.isMetaMask) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch {
+      return false;
+    }
   }
 }

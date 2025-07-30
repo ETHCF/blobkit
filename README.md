@@ -292,6 +292,34 @@ registerCodec('application/protobuf', {
 });
 ```
 
+## Browser Support
+
+BlobKit v1.0.8 supports:
+- Reading blobs in browsers (full support)
+- KZG trusted setup initialization in browsers  
+- All cryptographic operations in browsers
+
+❌ Writing blobs in browsers requires a proxy service (see below)
+
+### Browser Blob Uploads
+
+Browser wallets (MetaMask, WalletConnect, etc.) do not yet support EIP-4844 blob transactions.
+
+For browser blob uploads, you need to set up a proxy service:
+
+1. **Backend service** with BlobKit + private key
+2. **Browser sends data** to your service  
+3. **Service creates blob transactions** and returns hash
+4. **Browser receives transaction hash** for downloads
+
+### Future Versions
+BlobKit v1.1.x will include built-in proxy service support with:
+- Automatic proxy detection and routing
+- Ready-to-deploy service templates  
+- Simplified browser integration
+
+Until then, browser apps require custom proxy implementation.
+  
 ## Performance
 
 BlobKit is optimized for high-throughput applications:

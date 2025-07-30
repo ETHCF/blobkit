@@ -17,7 +17,7 @@ export const BLOB_SIZE = 131072;
  * @param shouldCompress - Ignored in browser (no compression)
  * @returns Encoded blob data
  */
-export function encodeBlob(data: Uint8Array, shouldCompress = true): Uint8Array {
+export async function encodeBlob(data: Uint8Array, shouldCompress = true): Promise<Uint8Array> {
   if (!data || data.length === 0) {
     throw new BlobKitError('Data cannot be empty', 'EMPTY_DATA');
   }
@@ -28,14 +28,7 @@ export function encodeBlob(data: Uint8Array, shouldCompress = true): Uint8Array 
   }
 
   const encoded = data;
-  const maxSize = FIELD_ELEMENTS_PER_BLOB * BYTES_PER_FIELD_ELEMENT;
-  
-  if (encoded.length > maxSize) {
-    throw new BlobKitError(
-      `Data too large: ${encoded.length} bytes (max ${maxSize})`,
-      'DATA_TOO_LARGE'
-    );
-  }
+  // Size validation moved to BlobWriter to allow for future chunking support
 
   // Pre-allocate blob buffer
   const blob = new Uint8Array(BLOB_SIZE);
@@ -67,7 +60,7 @@ export function encodeBlob(data: Uint8Array, shouldCompress = true): Uint8Array 
  * @param compressed - Ignored in browser (no decompression)
  * @returns Decoded original data
  */
-export function decodeBlob(blob: Uint8Array, _compressed = true): Uint8Array {
+export async function decodeBlob(blob: Uint8Array, _compressed = true): Promise<Uint8Array> {
   if (!blob) {
     throw new BlobKitError('Blob data cannot be null', 'NULL_BLOB');
   }

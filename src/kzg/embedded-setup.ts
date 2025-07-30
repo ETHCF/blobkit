@@ -30,11 +30,15 @@ export function createMinimalSetup() {
   const g1Powers = [];
   const g2Powers = [];
   
-  // Generate minimal points (32 instead of 4096)
-  let power = Fr.ONE;
-  for (let i = 0; i < 32; i++) {
+  // First point must be exactly the generator
+  g1Powers.push(bls.G1.Point.BASE);
+  g2Powers.push(bls.G2.Point.BASE);
+  
+  // Generate remaining points
+  let power = tau;
+  for (let i = 1; i < 4096; i++) {
     g1Powers.push(bls.G1.Point.BASE.multiply(power));
-    if (i < 2) {
+    if (i === 1) {
       g2Powers.push(bls.G2.Point.BASE.multiply(power));
     }
     power = Fr.mul(power, tau);
