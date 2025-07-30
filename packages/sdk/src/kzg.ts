@@ -3,8 +3,11 @@
  * This module provides EIP-4844 compatible KZG commitments and proofs
  */
 
-import * as kzg from 'c-kzg';
+//import * as kzg from 'c-kzg';
+import * as wkzg from 'kzg-wasm';
 import { BlobKitError, BlobKitErrorCode } from './types.js';
+import { TrustedSetup } from 'kzg-wasm';
+import { hexToBytes, bytesToHex } from './utils.js';
 
 // EIP-4844 constants
 export const FIELD_ELEMENTS_PER_BLOB = 4096;
@@ -13,6 +16,71 @@ export const BLOB_SIZE = 131072; // 128KB
 export const VERSIONED_HASH_VERSION_KZG = 0x01;
 
 let isSetupLoaded = false;
+let kzg: {
+    loadTrustedSetup: (trustedSetup?: TrustedSetup) => number;
+    freeTrustedSetup: () => void;
+    blobToKZGCommitment: (blob: string) => string;
+    computeBlobKZGProof: (blob: string, commitment: string) => string;
+    verifyBlobKZGProofBatch: (blobs: string[], commitments: string[], proofs: string[]) => boolean;
+    verifyKZGProof: (commitment: string, z: string, y: string, proof: string) => boolean;
+    verifyBlobKZGProof: (blob: string, commitment: string, proof: string) => boolean;
+};
+
+
+// Constants from the C implementation
+const BYTES_PER_G1 = 48;
+const BYTES_PER_G2 = 96;
+const NUM_G1_POINTS = 4096; 
+const NUM_G2_POINTS = 65;
+
+export async function parseTrustedSetupFile(filePath: string): Promise<TrustedSetup> {
+    const fs = await import('fs');
+    const content = fs.readFileSync(filePath, 'utf8');
+    const lines = content.trim().split(/\s+/);
+    let index = 0;
+
+    // Read the number of g1 points
+    const numG1Points = parseInt(lines[index++], 10);
+    if (numG1Points !== NUM_G1_POINTS) {
+        throw new Error(`Expected ${NUM_G1_POINTS} G1 points, got ${numG1Points}`);
+    }
+
+    // Read the number of g2 points
+    const numG2Points = parseInt(lines[index++], 10);
+    if (numG2Points !== NUM_G2_POINTS) {
+        throw new Error(`Expected ${NUM_G2_POINTS} G2 points, got ${numG2Points}`);
+    }
+
+    // Read all G1 points (hex bytes)
+    let g1Hex = '';
+    for (let i = 0; i < NUM_G1_POINTS * BYTES_PER_G1; i++) {
+        const hexByte = lines[index++];
+        if (!hexByte || hexByte.length !== 2) {
+            throw new Error(`Invalid hex byte at G1 position ${i}: ${hexByte}`);
+        }
+        g1Hex += hexByte;
+    }
+
+    // Read all G2 points (hex bytes)
+    let g2Hex = '';
+    for (let i = 0; i < NUM_G2_POINTS * BYTES_PER_G2; i++) {
+        const hexByte = lines[index++];
+        if (!hexByte || hexByte.length !== 2) {
+            throw new Error(`Invalid hex byte at G2 position ${i}: ${hexByte}`);
+        }
+        g2Hex += hexByte;
+    }
+
+    return {
+        g1: g1Hex,
+        n1: NUM_G1_POINTS,
+        g2: g2Hex,
+        n2: NUM_G2_POINTS,
+    };
+}
+
+
+
 
 /**
  * Initialize KZG with trusted setup
@@ -47,8 +115,9 @@ export async function initializeKzg(): Promise<void> {
         `Trusted setup file not found at path: ${trustedSetupPath}`
       );
     }
-
-    kzg.loadTrustedSetup(trustedSetupPath);
+    const trustedSetup = await parseTrustedSetupFile(trustedSetupPath);
+    kzg = await wkzg.loadKZG(trustedSetup);
+    //kzg.loadTrustedSetup(trustedSetupPath);
     isSetupLoaded = true;
   } catch (error) {
     if (error instanceof BlobKitError) {
@@ -117,7 +186,7 @@ export function blobToKzgCommitment(blob: Uint8Array): Uint8Array {
   }
 
   try {
-    return kzg.blobToKzgCommitment(blob);
+    return hexToBytes(kzg.blobToKZGCommitment(bytesToHex(blob)));
   } catch (error) {
     throw new BlobKitError(
       BlobKitErrorCode.KZG_ERROR,
@@ -146,7 +215,7 @@ export function computeKzgProof(blob: Uint8Array, commitment: Uint8Array): Uint8
   }
 
   try {
-    return kzg.computeBlobKzgProof(blob, commitment);
+    return hexToBytes(kzg.computeBlobKZGProof(bytesToHex(blob), bytesToHex(commitment)));
   } catch (error) {
     throw new BlobKitError(
       BlobKitErrorCode.KZG_ERROR,
@@ -169,7 +238,7 @@ export function verifyKzgProof(blob: Uint8Array, commitment: Uint8Array, proof: 
   }
 
   try {
-    return kzg.verifyBlobKzgProof(blob, commitment, proof);
+    return kzg.verifyBlobKZGProof(bytesToHex(blob), bytesToHex(commitment), bytesToHex(proof));
   } catch (error) {
     throw new BlobKitError(
       BlobKitErrorCode.KZG_ERROR,
@@ -202,11 +271,3 @@ export async function commitmentToVersionedHash(commitment: Uint8Array): Promise
   return hashArray;
 }
 
-/**
- * Convert bytes to hex string
- * @param bytes Byte array
- * @returns Hex string with 0x prefix
- */
-export function bytesToHex(bytes: Uint8Array): string {
-  return '0x' + Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-} 

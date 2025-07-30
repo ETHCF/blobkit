@@ -53,7 +53,8 @@ export {
   formatEther,
   parseEther,
   isValidAddress,
-  validateBlobSize
+  validateBlobSize,
+  bytesToHex,
 } from './utils.js';
 
 // KZG utilities (production-grade implementations)
@@ -63,7 +64,7 @@ export {
   blobToKzgCommitment,
   computeKzgProof,
   commitmentToVersionedHash,
-  bytesToHex,
+  // bytesToHex,
   FIELD_ELEMENTS_PER_BLOB,
   BYTES_PER_FIELD_ELEMENT,
   BLOB_SIZE
