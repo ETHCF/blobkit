@@ -51,7 +51,5 @@
   "bugs": {
     "url": "https://github.com/blobkit/blobkit/issues"
   },
-  "homepage": "https://github.com/blobkit/blobkit#readme",
-  "dependencies": {
-  }
+  "homepage": "https://github.com/blobkit/blobkit#readme"
 }

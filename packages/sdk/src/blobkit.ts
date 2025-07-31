@@ -30,7 +30,8 @@ import {
   encodeBlob,
   blobToKzgCommitment,
   computeKzgProof,
-  commitmentToVersionedHash
+  commitmentToVersionedHash,
+  kzgLibrary,
 } from './kzg.js';
 
 /**
@@ -549,7 +550,8 @@ export class BlobKit {
       blobs: [blob],
       kzgCommitments: [commitment],
       kzgProofs: [proof],
-      chainId: this.config.chainId
+      chainId: this.config.chainId,
+      kzg: kzgLibrary,
     };
 
     return this.signer.sendTransaction(tx);

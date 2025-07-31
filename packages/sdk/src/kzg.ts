@@ -5,7 +5,7 @@
 
 //import * as kzg from 'c-kzg';
 import * as wkzg from 'kzg-wasm';
-import { BlobKitError, BlobKitErrorCode } from './types.js';
+import { BlobKitError, BlobKitErrorCode, KzgLibrary } from './types.js';
 import { TrustedSetup } from 'kzg-wasm';
 import { hexToBytes, bytesToHex } from './utils.js';
 
@@ -26,6 +26,24 @@ let kzg: {
     verifyBlobKZGProof: (blob: string, commitment: string, proof: string) => boolean;
 };
 
+
+
+class EthersKzgLibrary implements KzgLibrary {
+    blobToKzgCommitment(blob: Uint8Array): Uint8Array {
+        return hexToBytes(kzg.blobToKZGCommitment(bytesToHex(blob)));
+    }
+
+    computeBlobKzgProof(blob: Uint8Array, commitment: Uint8Array): Uint8Array {
+        return hexToBytes(kzg.computeBlobKZGProof(bytesToHex(blob), bytesToHex(commitment)));
+    }
+}
+
+export const kzgLibrary: KzgLibrary = new EthersKzgLibrary();
+
+// export interface KzgLibrary {
+//     blobToKzgCommitment: (blob: Uint8Array) => Uint8Array;
+//     computeBlobKzgProof: (blob: Uint8Array, commitment: Uint8Array) => Uint8Array;
+// }  
 
 // Constants from the C implementation
 const BYTES_PER_G1 = 48;
