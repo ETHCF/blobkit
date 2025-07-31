@@ -43,7 +43,7 @@ export const validateBlobWrite = [
   body('meta.contentHash')
     .optional()
     .isString()
-    .matches(/^[a-fA-F0-9]{64}$/)
+    .matches(/^(0x)?[a-fA-F0-9]{64}$/)
     .withMessage('meta.contentHash must be a valid SHA-256 hash'),
   
   body('meta.ttlBlocks')
