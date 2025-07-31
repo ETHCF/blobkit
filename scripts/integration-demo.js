@@ -93,6 +93,7 @@ class IntegrationDemo {
       process.env.PRIVATE_KEY = CONFIG.userPrivateKey;
       process.env.RPC_URL = CONFIG.rpcUrl;
       process.env.ESCROW_OWNER = CONFIG.escrowOwner;
+      process.env.CHAIN_ID = CONFIG.chainId.toString();
       await execAsync('mkdir -p deployments', {
         cwd: path.join(rootDir, 'packages/contracts')
       });
@@ -108,6 +109,7 @@ class IntegrationDemo {
       
       this.contractAddress = addressMatch[1];
       process.env.BLOBKIT_ESCROW_31337 = this.contractAddress;
+      process.env.BLOBKIT_ESCROW = this.contractAddress;
       
       console.log(`✓ Contract deployed at: ${this.contractAddress}`);
       console.log('');
