@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
-    "markdownlint-cli": "^0.37.0"
+    "markdownlint-cli": "0.45.0"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -53,6 +53,5 @@
   },
   "homepage": "https://github.com/blobkit/blobkit#readme",
   "dependencies": {
-    "kzg-wasm": "^0.5.0"
   }
 }

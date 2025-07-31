@@ -29,7 +29,7 @@ export default [
         exclude: ['**/*.test.ts', '**/*.spec.ts']
       })
     ],
-    external
+    external,
   },
   // Browser build
   {

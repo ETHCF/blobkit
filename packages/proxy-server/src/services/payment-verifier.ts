@@ -111,25 +111,30 @@ export class PaymentVerifier {
     try {
       const receipt = await this.provider.getTransactionReceipt(paymentTxHash);
       if (!receipt) {
+        console.warn(`Payment transaction ${paymentTxHash} not found`);
         return false;
       }
 
       // Check if the transaction was successful
       if (receipt.status !== 1) {
+        console.warn(`Payment transaction ${paymentTxHash} failed`);
         return false;
       }
 
       // Parse logs to find JobCreated event
       const jobCreatedEvent = this.contract.interface.getEvent('JobCreated');
       const jobCreatedTopic = jobCreatedEvent?.topicHash || ethers.id('JobCreated(bytes32,address,uint256)');
-      const jobIdBytes32 = ethers.keccak256(ethers.toUtf8Bytes(jobId));
 
       for (const log of receipt.logs) {
-        if (log.topics[0] === jobCreatedTopic && log.topics[1] === jobIdBytes32) {
-          return true;
+        if (log.topics[0] === jobCreatedTopic) {
+          console.warn(`Found JobCreated event for job ${jobId} in payment transaction ${paymentTxHash}`);
+          if (log.topics[1] === jobId) {
+            return true;
+          }
         }
+        
       }
-
+      console.warn(`Payment transaction not found in tx receipt${paymentTxHash} does not match job ${jobId}`);
       return false;
     } catch (error) {
       logger.error(`Failed to verify payment transaction ${paymentTxHash}:`, error);
