@@ -5,6 +5,9 @@ import { BlobKitEnvironment } from './types.js';
  * @returns The detected environment type
  */
 export const detectEnvironment = (): BlobKitEnvironment => {
+  if (process.env.OVERRIDE_BLOBKIT_ENVIRONMENT) {
+    return process.env.OVERRIDE_BLOBKIT_ENVIRONMENT as BlobKitEnvironment;
+  }
   // Check for Node.js environment
   if (typeof process !== 'undefined' && process.versions && process.versions.node) {
     // Check for serverless environments

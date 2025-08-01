@@ -3,7 +3,6 @@
  * This module provides EIP-4844 compatible KZG commitments and proofs
  */
 
-//import * as kzg from 'c-kzg';
 import * as wkzg from 'kzg-wasm';
 import { BlobKitError, BlobKitErrorCode, KzgLibrary } from './types.js';
 import { TrustedSetup } from 'kzg-wasm';
@@ -14,6 +13,12 @@ export const FIELD_ELEMENTS_PER_BLOB = 4096;
 export const BYTES_PER_FIELD_ELEMENT = 31;
 export const BLOB_SIZE = 131072; // 128KB
 export const VERSIONED_HASH_VERSION_KZG = 0x01;
+
+// Constants from the C implementation
+const BYTES_PER_G1 = 48;
+const BYTES_PER_G2 = 96;
+const NUM_G1_POINTS = 4096; 
+const NUM_G2_POINTS = 65;
 
 let isSetupLoaded = false;
 let kzg: {
@@ -39,17 +44,6 @@ class EthersKzgLibrary implements KzgLibrary {
 }
 
 export const kzgLibrary: KzgLibrary = new EthersKzgLibrary();
-
-// export interface KzgLibrary {
-//     blobToKzgCommitment: (blob: Uint8Array) => Uint8Array;
-//     computeBlobKzgProof: (blob: Uint8Array, commitment: Uint8Array) => Uint8Array;
-// }  
-
-// Constants from the C implementation
-const BYTES_PER_G1 = 48;
-const BYTES_PER_G2 = 96;
-const NUM_G1_POINTS = 4096; 
-const NUM_G2_POINTS = 65;
 
 export async function parseTrustedSetupFile(filePath: string): Promise<TrustedSetup> {
     const fs = await import('fs');
