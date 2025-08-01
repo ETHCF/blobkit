@@ -128,10 +128,10 @@ class IntegrationDemo {
       const { ethers } = await import('ethers');
       const provider = new ethers.JsonRpcProvider(CONFIG.rpcUrl);
       const signer = new ethers.Wallet(CONFIG.userPrivateKey, provider);
-      const { default: abi } = await import("./abi.json", {with:{ type: "json" }});
+      const { EscrowContractABI } = await import(path.join(rootDir, 'packages/sdk/dist/index.js'));
       this.escrowContract = new ethers.Contract(
         this.contractAddress,
-        abi,
+        EscrowContractABI,
         signer
       );
       await this.escrowContract.setProxyAuthorization(await signer.getAddress(), true);

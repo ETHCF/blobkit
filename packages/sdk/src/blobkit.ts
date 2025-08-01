@@ -34,6 +34,8 @@ import {
   kzgLibrary,
 } from './kzg.js';
 
+import { EscrowContractABI } from './abi/index.js';
+
 /**
  * BlobKit SDK - Main class for blob storage operations
  */
@@ -419,17 +421,6 @@ export class BlobKit {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Provider required for contract interaction');
     }
 
-    // Simple ABI for escrow contract
-    const abi = [
-      'function depositForBlob(bytes32 jobId) external payable',
-      'function getJobTimeout() external view returns (uint256)',
-      'function isJobExpired(bytes32 jobId) external view returns (bool)',
-      'function refundExpiredJob(bytes32 jobId) external',
-      'function getJob(bytes32 jobId) external view returns (tuple(address user, uint256 amount, bool completed, uint256 timestamp, bytes32 blobTxHash))',
-      'event JobCreated(bytes32 indexed jobId, address indexed user, uint256 amount)',
-      'event JobCompleted(bytes32 indexed jobId, bytes32 blobTxHash, uint256 proxyFee)',
-      'event JobRefunded(bytes32 indexed jobId, string reason)'
-    ];
 
     // Use signer if it's compatible with ethers.Signer, otherwise use provider
     let contractRunner: ethers.ContractRunner;
@@ -447,7 +438,7 @@ export class BlobKit {
     
     this.escrowContract = new ethers.Contract(
       this.config.escrowContract,
-      abi,
+      EscrowContractABI,
       contractRunner
     );
 

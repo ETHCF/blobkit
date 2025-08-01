@@ -70,6 +70,10 @@ export {
   BLOB_SIZE
 } from './kzg.js';
 
+export {
+  EscrowContractABI
+} from './abi/index.js';
+
 /**
  * Convenience function to create BlobKit instance from environment variables
  * @param signer Optional signer for transactions
