@@ -155,12 +155,13 @@ export class PaymentVerifier {
       // Create proof (simple signature for now)
       const message = ethers.solidityPackedKeccak256(
         ['bytes32', 'bytes32'],
-        [ethers.keccak256(hexToBytes(jobId)), blobTxHash]
+        [jobId, blobTxHash]
       );
+
       const proof = await signer.signMessage(ethers.getBytes(message));
 
       const tx = await (contractWithSigner as any).completeJob(
-        hexToBytes(jobId), // We don't hash it when depositing //ethers.keccak256(ethers.toUtf8Bytes(jobId)),
+        hexToBytes(jobId),
         blobTxHash,
         proof
       );
