@@ -1,38 +1,5 @@
 # BlobKit v2 TODO
 
-## Critical Production Blocker
-
-### KZG Native Module Bundling Issue
-**Status:** Blocks all production deployment  
-**Error:** `Could not dynamically require "/Users/zak/blobkit/build/kzg.node"`
-
-The `c-kzg` native module cannot be bundled by Rollup. SDK imports fail in browser environments.
-
-**Fix Options:**
-1. **Externalize c-kzg in rollup.config.js** (recommended)
-   ```javascript
-   // packages/sdk/rollup.config.js
-   export default {
-     external: ['c-kzg', 'ethers'],
-     // ...
-   }
-   ```
-   Update package.json to mark c-kzg as peerDependency.
-
-2. **Runtime dynamic import with fallback**
-   ```typescript
-   // packages/sdk/src/kzg.ts
-   let kzg;
-   try {
-     kzg = await import('c-kzg');
-   } catch (error) {
-     throw new BlobKitError(BlobKitErrorCode.KZG_ERROR, 'c-kzg not available');
-   }
-   ```
-
-3. **Browser WASM alternative**
-   Use different KZG implementation for browser vs Node.js.
-
 ## Integration Testing
 
 ### End-to-End Verification
@@ -131,40 +98,6 @@ These type warnings don't break functionality but should be cleaned up.
 6. **Prepare for security audit**
 
 The codebase architecture is solid. All business logic is implemented. This is purely a build/bundling issue preventing deployment.
-
-## Reproducing the KZG Error
-
-### Current Error
-```
-Error: Could not dynamically require "/Users/zak/blobkit/build/kzg.node". 
-Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option 
-of @rollup/plugin-commonjs appropriately for this require call to work.
-```
-
-### How to Reproduce
-1. **Build the SDK:**
-   ```bash
-   npm run build --workspace=packages/sdk
-   ```
-   This succeeds with warnings but produces bundled files.
-
-2. **Try to import SDK in Node.js:**
-   ```bash
-   node -e "import('./packages/sdk/dist/index.js').then(console.log).catch(console.error)"
-   ```
-   This fails with the KZG native module error.
-
-3. **Run integration demo:**
-   ```bash
-   npm run demo
-   ```
-   Fails at "SDK package not built" because dynamic import fails.
-
-### Root Cause
-- Rollup bundles all dependencies including native modules
-- `c-kzg` contains native Node.js bindings (`kzg.node`) that cannot be bundled
-- Browser environments cannot load native modules anyway
-- Need separate build strategy for Node.js vs browser
 
 ## Complete Production Readiness Checklist
 
