@@ -4,6 +4,7 @@
  */
 
 import { keccak256 } from 'ethers';
+import * as ethersUtils from 'ethers/utils';
 import { BlobKitError, BlobKitErrorCode, ProcessEnv } from './types.js';
 
 // Size constraints
@@ -165,8 +166,7 @@ export function getDefaultEscrowContract(chainId: number): string {
  * @returns ETH amount as string
  */
 export function formatEther(wei: bigint): string {
-  const ether = Number(wei) / 1e18;
-  return ether.toFixed(18).replace(/\.?0+$/, '');
+  return ethersUtils.formatUnits(wei, 18);
 }
 
 /**
@@ -175,8 +175,7 @@ export function formatEther(wei: bigint): string {
  * @returns Amount in Wei
  */
 export function parseEther(ether: string): bigint {
-  const weiFloat = parseFloat(ether) * 1e18;
-  return BigInt(Math.floor(weiFloat));
+  return ethersUtils.parseEther(ether);
 }
 
 /**
