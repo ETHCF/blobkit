@@ -184,10 +184,9 @@ node -e "console.log(Object.keys(require('./packages/sdk/dist/index.js')))"
 ## Installation
 
 ```bash
-npm install @blobkit/sdk c-kzg ethers
+npm install @blobkit/sdk  ethers
 ```
 
-Note: c-kzg is required for KZG operations but must be installed separately due to native module bundling constraints.
 ```
 
 **Test all code examples in docs:**
