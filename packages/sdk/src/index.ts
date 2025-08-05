@@ -55,6 +55,7 @@ export {
   isValidAddress,
   validateBlobSize,
   bytesToHex,
+  hexToBytes,
 } from './utils.js';
 
 // KZG utilities (production-grade implementations)
