@@ -168,76 +168,7 @@ of @rollup/plugin-commonjs appropriately for this require call to work.
 
 ## Complete Production Readiness Checklist
 
-### 1. Fix KZG Bundling (Critical)
-**Current Status:** Blocks all usage  
-**Expected Fix Time:** 2-4 hours
-
-**Option A: External Dependencies (Recommended)**
-```javascript
-// packages/sdk/rollup.config.js
-export default {
-  external: ['c-kzg', 'ethers'],
-  output: {
-    globals: {
-      'c-kzg': 'kzg',
-      'ethers': 'ethers'
-    }
-  }
-}
-```
-
-Update package.json:
-```json
-{
-  "peerDependencies": {
-    "c-kzg": "^2.1.2",
-    "ethers": "^6.7.1"
-  }
-}
-```
-
-**Option B: Dynamic Import with Environment Detection**
-```typescript
-// packages/sdk/src/kzg.ts
-export async function initializeKzg(): Promise<void> {
-  let kzg;
-  
-  if (typeof window !== 'undefined') {
-    // Browser environment - use WASM alternative or fail gracefully
-    throw new BlobKitError(BlobKitErrorCode.KZG_ERROR, 'KZG not supported in browser');
-  } else {
-    // Node.js environment
-    try {
-      kzg = await import('c-kzg');
-    } catch (error) {
-      throw new BlobKitError(BlobKitErrorCode.KZG_ERROR, 'c-kzg not installed. Run: npm install c-kzg');
-    }
-  }
-  
-  // Rest of implementation...
-}
-```
-
-### 2. Verify E2E Integration
-**After KZG fix:**
-
-```bash
-# 1. Install dependencies fresh
-rm -rf node_modules package-lock.json
-npm install
-
-# 2. Build all packages
-npm run build
-
-# 3. Start Anvil
-npm run dev:anvil
-
-# 4. Run integration test (in new terminal)
-export BLOBKIT_KZG_TRUSTED_SETUP_PATH=$(pwd)/trusted_setup.txt
-npm run demo
-```
-
-### 3. Performance Testing
+### 1. Performance Testing
 ```bash
 # Load test proxy server
 npm install -g autocannon
@@ -247,7 +178,7 @@ autocannon -c 10 -d 30 http://localhost:3001/health
 
 Expected: >1000 req/sec, <100ms latency
 
-### 4. Security Review Items
+### 2. Security Review Items
 
 **Type Safety Audit:**
 ```bash
@@ -269,7 +200,7 @@ grep -r "secret" packages/ | grep -v ".d.ts"
 grep -r "mnemonic" packages/ | grep -v ".d.ts"
 ```
 
-### 5. Browser Compatibility Testing
+### 3. Browser Compatibility Testing
 
 After KZG fix, test browser SDK:
 
@@ -298,7 +229,7 @@ After KZG fix, test browser SDK:
 </html>
 ```
 
-### 6. Package Publishing Preparation
+### 4. Package Publishing Preparation
 
 **Test publishability:**
 ```bash
@@ -332,7 +263,7 @@ Note: c-kzg is required for KZG operations but must be installed separately due 
 # (Manual verification needed)
 ```
 
-### 8. CI/CD Pipeline Updates
+### 5. CI/CD Pipeline Updates
 
 **Add KZG test to GitHub Actions:**
 ```yaml
@@ -343,7 +274,7 @@ Note: c-kzg is required for KZG operations but must be installed separately due 
     node -e "import('./packages/sdk/dist/index.js').then(() => console.log('✓ SDK import successful')).catch(err => { console.error('✗ SDK import failed:', err.message); process.exit(1); })"
 ```
 
-### 9. Production Environment Setup
+### 6. Production Environment Setup
 
 **Environment Variables Needed:**
 ```bash
@@ -370,7 +301,7 @@ export BLOBKIT_LOG_LEVEL="info"
 - [ ] Monitoring and alerting setup
 - [ ] Error tracking (Sentry, etc.)
 
-### 10. Final Verification Script
+### 7. Final Verification Script
 
 ```bash
 #!/bin/bash
