@@ -47,6 +47,7 @@ class IntegrationDemo {
     try {
       await this.checkPrerequisites();
       await this.deployContract();
+      await this.configureEscrowContract();
       await this.startProxy();
       await this.testBlobWrite();
       await this.cleanup();
@@ -94,6 +95,10 @@ class IntegrationDemo {
       process.env.RPC_URL = CONFIG.rpcUrl;
       process.env.ESCROW_OWNER = CONFIG.escrowOwner;
       process.env.CHAIN_ID = CONFIG.chainId.toString();
+      const { ethers } = await import('ethers');
+      const provider = new ethers.JsonRpcProvider(CONFIG.rpcUrl);
+      const signer = new ethers.Wallet(CONFIG.userPrivateKey, provider);
+      process.env.ESCROW_OWNER = await signer.getAddress();
       await execAsync('mkdir -p deployments', {
         cwd: path.join(rootDir, 'packages/contracts')
       });
@@ -117,6 +122,25 @@ class IntegrationDemo {
       throw new Error(`Contract deployment failed: ${error.message}`);
     }
   }
+
+  async configureEscrowContract() {
+    try {
+      const { ethers } = await import('ethers');
+      const provider = new ethers.JsonRpcProvider(CONFIG.rpcUrl);
+      const signer = new ethers.Wallet(CONFIG.userPrivateKey, provider);
+      const { EscrowContractABI } = await import(path.join(rootDir, 'packages/sdk/dist/index.js'));
+      this.escrowContract = new ethers.Contract(
+        this.contractAddress,
+        EscrowContractABI,
+        signer
+      );
+      await this.escrowContract.setProxyAuthorization(await signer.getAddress(), true);
+    } catch (error) {
+      console.error(error);
+      throw new Error(`Failed to configure escrow contract: ${error.message}`);
+    }
+  }
+
 
   async startProxy() {
     console.log('🖥️  Starting proxy server...');

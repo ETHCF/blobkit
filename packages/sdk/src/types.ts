@@ -18,6 +18,11 @@ export interface ProcessEnv {
   readonly BLOBKIT_KZG_TRUSTED_SETUP_PATH?: string;
 }
 
+export interface KzgLibrary {
+    blobToKzgCommitment: (blob: Uint8Array) => Uint8Array;
+    computeBlobKzgProof: (blob: Uint8Array, commitment: Uint8Array) => Uint8Array;
+}  
+
 /**
  * Environment types supported by BlobKit
  */
@@ -210,6 +215,7 @@ export interface TransactionRequest {
   kzgCommitments?: string[];
   kzgProofs?: string[];
   chainId?: number;
+  kzg?: KzgLibrary;
 }
 
 /**

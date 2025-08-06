@@ -55,6 +55,7 @@ export {
   isValidAddress,
   validateBlobSize,
   bytesToHex,
+  hexToBytes,
 } from './utils.js';
 
 // KZG utilities (production-grade implementations)
@@ -69,6 +70,10 @@ export {
   BYTES_PER_FIELD_ELEMENT,
   BLOB_SIZE
 } from './kzg.js';
+
+export {
+  EscrowContractABI
+} from './abi/index.js';
 
 /**
  * Convenience function to create BlobKit instance from environment variables

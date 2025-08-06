@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { JobVerification, ProxyError, ProxyErrorCode } from '../types.js';
 import { createLogger } from '../utils/logger.js';
+import { hexToBytes } from '@blobkit/sdk';
 
 const logger = createLogger('PaymentVerifier');
 
@@ -154,12 +155,13 @@ export class PaymentVerifier {
       // Create proof (simple signature for now)
       const message = ethers.solidityPackedKeccak256(
         ['bytes32', 'bytes32'],
-        [ethers.keccak256(ethers.toUtf8Bytes(jobId)), blobTxHash]
+        [jobId, blobTxHash]
       );
+
       const proof = await signer.signMessage(ethers.getBytes(message));
 
       const tx = await (contractWithSigner as any).completeJob(
-        ethers.keccak256(ethers.toUtf8Bytes(jobId)),
+        hexToBytes(jobId),
         blobTxHash,
         proof
       );

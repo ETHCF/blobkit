@@ -36,7 +36,7 @@
     "dev:setup": "npm run dev:anvil & sleep 3 && npm run demo"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.0",
+    "@changesets/cli": "^2.29.5",
     "markdownlint-cli": "0.45.0"
   },
   "engines": {
@@ -51,7 +51,5 @@
   "bugs": {
     "url": "https://github.com/blobkit/blobkit/issues"
   },
-  "homepage": "https://github.com/blobkit/blobkit#readme",
-  "dependencies": {
-  }
+  "homepage": "https://github.com/blobkit/blobkit#readme"
 }
