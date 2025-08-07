@@ -603,11 +603,11 @@ jobs:
       - name: Notify on success
         if: needs.production-readiness.result == 'success'
         run: |
-          echo "✅ BlobKit v2 is ready for production!"
-          echo "All tests passed and production readiness verified."
+          echo "BlobKit is ready for production"
+          echo "All tests passed and production readiness verified"
 
       - name: Notify on failure
         if: needs.production-readiness.result != 'success'
         run: |
-          echo "❌ BlobKit v2 production readiness check failed."
-          echo "Please review the test results and fix issues before deployment."
+          echo "BlobKit production readiness check failed"
+          echo "Review the test results and fix issues before deployment"

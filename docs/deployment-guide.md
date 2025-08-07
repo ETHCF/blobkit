@@ -41,7 +41,7 @@ npx ts-node scripts/deploy-mainnet.ts
 
 The script will:
 
-1. Connect to mainnet via Alchemy RPC
+1. Connect to mainnet via your configured RPC (Flashbots recommended)
 2. Check wallet balance
 3. Verify gas prices are reasonable
 4. Estimate deployment cost
@@ -61,18 +61,13 @@ npx hardhat verify --network mainnet CONTRACT_ADDRESS
 
 ## Step 6: Update Configuration
 
-1. Add to `.env`:
+Add to `.env`:
 
 ```bash
 BLOBKIT_ESCROW_1=0x_deployed_contract_address
 ```
 
-2. Update SDK configuration in `/packages/sdk/src/utils.ts`:
-
-```typescript
-case 1: // Mainnet
-  return '0x_deployed_contract_address';
-```
+The SDK reads escrow addresses from environment variables; no code changes required.
 
 ## Step 7: Deploy Proxy Servers
 

@@ -33,12 +33,13 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "npm run build && changeset publish",
-    "demo": "node scripts/demo.js",
-    "demo:integration": "cd scripts && npm run integration",
-    "dev": "./dev.sh",
+    "dev": "bash scripts/dev.sh",
     "dev:anvil": "anvil --host 0.0.0.0 --port 8545",
-    "dev:setup": "npm run dev:anvil & sleep 3 && npm run demo",
-    "precommit": "npm run format:check && npm run lint && npm run type-check"
+    "precommit": "npm run format:check && npm run lint && npm run type-check",
+    "hooks:setup": "git config core.hooksPath .githooks",
+    "env:check": "node scripts/check-env.mjs",
+    "env:check:sdk": "node scripts/check-env.mjs sdk",
+    "env:check:proxy": "node scripts/check-env.mjs proxy"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.5",
@@ -61,8 +62,5 @@
     "url": "https://github.com/blobkit/blobkit/issues"
   },
   "homepage": "https://github.com/blobkit/blobkit#readme",
-  "dependencies": {
-    "kzg-wasm": "^0.5.0",
-    "viem": "^2.33.3"
-  }
+  "dependencies": {}
 }

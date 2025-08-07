@@ -30,8 +30,9 @@
 
 - [Secure Deployment](secure-deployment.md) - Security best practices
 - [Distributed Tracing](distributed-tracing.md) - Monitoring and observability
+- [Contributing](../CONTRIBUTING.md) - How to develop and contribute
 
-## ⚡ Quick Start
+## Quick Start
 
 ### 1. Choose Your RPC
 

@@ -5,8 +5,8 @@
   "description": "BlobKit demo and utility scripts",
   "type": "module",
   "scripts": {
-    "demo": "node demo.js",
-    "integration": "tsx integration-demo.ts"
+    "demo": "echo 'demo scripts removed' && exit 0",
+    "integration": "echo 'integration demo removed' && exit 0"
   },
   "dependencies": {
     "@blobkit/sdk": "file:../packages/sdk",
