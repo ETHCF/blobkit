@@ -12,15 +12,13 @@
 
 ### Getting Started
 
-- [**Infrastructure Requirements**](infrastructure.md) - **READ THIS FIRST** - RPC setup for blob support
+- [Quick Start](quick-start.md) - Development setup and basics
+- [Infrastructure Requirements](infrastructure.md) - RPC setup for blob support
 - [Architecture Overview](architecture.md) - System design and components
-- [Getting Started Guide](getting-started.md) - Quick start tutorial
 
 ### Deployment & Operations
 
-- [Mainnet Deployment Guide](../MAINNET_DEPLOYMENT_GUIDE.md) - Deploy contracts to mainnet
-- [Production Audit Report](../PRODUCTION_AUDIT_REPORT.md) - Security and readiness audit
-- [Deployment Success Report](../MAINNET_DEPLOYMENT_SUCCESS.md) - Mainnet deployment verification
+- [Deployment Guide](deployment-guide.md) - Deploy contracts to mainnet and production hardening
 
 ### Component Documentation
 
@@ -32,7 +30,6 @@
 
 - [Secure Deployment](secure-deployment.md) - Security best practices
 - [Distributed Tracing](distributed-tracing.md) - Monitoring and observability
-- [Zero Setup Guide](zero-setup.md) - Minimal configuration deployment
 
 ## ⚡ Quick Start
 

@@ -1,4 +1,4 @@
-# BlobKit Mainnet Deployment Guide
+# BlobKit Deployment Guide
 
 ## Prerequisites
 
@@ -89,7 +89,7 @@ For each proxy server:
 node test-mainnet-production.mjs
 ```
 
-## Security Checklist
+## Security Checklist (Production)
 
 - [ ] Private key secured (use hardware wallet for production)
 - [ ] Contract code audited
