@@ -83,6 +83,7 @@ contract BlobKitEscrow is Ownable, ReentrancyGuard, Pausable {
     error JobAlreadyExists();
     error JobNotFound();
     error JobAlreadyCompleted();
+    error JobExpired();
     error JobNotExpired();
     error UnauthorizedProxy();
     error InvalidProxyFee();
@@ -144,7 +145,7 @@ contract BlobKitEscrow is Ownable, ReentrancyGuard, Pausable {
 
         // Check if job is still valid (not expired)
         if (block.timestamp > job.timestamp + jobTimeout) {
-            revert JobNotExpired();
+            revert JobExpired();
         }
 
         // Verify proof (simple signature verification)
@@ -159,19 +160,10 @@ contract BlobKitEscrow is Ownable, ReentrancyGuard, Pausable {
         // Calculate proxy fee
         uint256 proxyFeePercent = proxyFees[msg.sender];
         uint256 proxyFee = (job.amount * proxyFeePercent) / 100;
-        uint256 remainingAmount = job.amount - proxyFee;
 
-        // Transfer proxy fee to proxy
-        if (proxyFee > 0) {
-            (bool success,) = payable(msg.sender).call{value: proxyFee}("");
-            if (!success) revert TransferFailed();
-        }
-
-        // Transfer remaining amount back to user
-        if (remainingAmount > 0) {
-            (bool success,) = payable(job.user).call{value: remainingAmount}("");
-            if (!success) revert TransferFailed();
-        }
+        // Transfer entire amount to proxy (proxy covers blob costs)
+        (bool success,) = payable(msg.sender).call{value: job.amount}("");
+        if (!success) revert TransferFailed();
 
         emit JobCompleted(jobId, blobTxHash, proxyFee);
     }
@@ -312,6 +304,15 @@ contract BlobKitEscrow is Ownable, ReentrancyGuard, Pausable {
         return proxyFees[proxy];
     }
 
+    /**
+     * @notice Check if a proxy is authorized
+     * @param proxy Proxy address
+     * @return True if proxy is authorized
+     */
+    function isProxyAuthorized(address proxy) external view returns (bool) {
+        return authorizedProxies[proxy];
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -323,21 +324,17 @@ contract BlobKitEscrow is Ownable, ReentrancyGuard, Pausable {
      * @param proof Signature proof
      * @param signer Expected signer address
      * @return True if proof is valid
-     * @dev Simple signature verification - can be enhanced in future versions
+     * @dev Verifies signature includes proxy address to prevent cross-proxy claims
      */
     function _verifyProof(bytes32 jobId, bytes32 blobTxHash, bytes calldata proof, address signer)
         internal
         pure
         returns (bool)
     {
-        // For now, we'll do basic proof verification
-        // In production, this would verify a signature over jobId + blobTxHash
-        // signed by the proxy's private key
-
         if (proof.length != 65) return false;
 
-        // Create message hash
-        bytes32 messageHash = keccak256(abi.encodePacked(jobId, blobTxHash));
+        // Create message hash that includes the proxy address
+        bytes32 messageHash = keccak256(abi.encodePacked(jobId, blobTxHash, signer));
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
         // Extract signature components

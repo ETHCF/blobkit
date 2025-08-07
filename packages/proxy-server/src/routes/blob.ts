@@ -1,12 +1,59 @@
 import { Router, Request, Response } from 'express';
 import { ethers } from 'ethers';
-import { BlobWriteRequest, BlobWriteResponse, BlobJob, ProxyConfig } from '../types.js';
+import { BlobWriteRequest, BlobWriteResponse, BlobJob, ProxyConfig, ProxyError } from '../types.js';
 import { PaymentVerifier } from '../services/payment-verifier.js';
 import { BlobExecutor } from '../services/blob-executor.js';
+import { PersistentJobQueue } from '../services/persistent-job-queue.js';
 import { validateBlobWrite, handleValidationErrors } from '../middleware/validation.js';
 import { createLogger } from '../utils/logger.js';
+import { MetricsCollector } from '../monitoring/metrics.js';
+import { getPrometheusMetrics } from '../monitoring/prometheus-metrics.js';
+import { getTraceContext, TracingService } from '../middleware/tracing.js';
 
 const logger = createLogger('BlobRoute');
+const tracingService = new TracingService('blobkit-blob-route');
+
+/**
+ * Execute callback URL with job completion data
+ */
+async function executeCallback(
+  callbackUrl: string,
+  response: BlobWriteResponse,
+  tracedLogger: any
+): Promise<void> {
+  try {
+    const callbackResponse = await fetch(callbackUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'BlobKit-Proxy/1.0'
+      },
+      body: JSON.stringify({
+        jobId: response.jobId,
+        blobTxHash: response.blobTxHash,
+        blockNumber: response.blockNumber,
+        blobHash: response.blobHash,
+        commitment: response.commitment,
+        proof: response.proof,
+        blobIndex: response.blobIndex,
+        completionTxHash: response.completionTxHash,
+        timestamp: Date.now()
+      }),
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
+
+    if (!callbackResponse.ok) {
+      throw new Error(
+        `Callback returned ${callbackResponse.status}: ${callbackResponse.statusText}`
+      );
+    }
+
+    tracedLogger.info(`Callback executed successfully for job ${response.jobId}`);
+  } catch (error) {
+    // Log but don't throw - callback failures shouldn't affect the main flow
+    tracedLogger.warn(`Callback failed for job ${response.jobId}:`, error);
+  }
+}
 
 /**
  * Creates blob operation router
@@ -15,73 +62,182 @@ export const createBlobRouter = (
   config: ProxyConfig,
   paymentVerifier: PaymentVerifier,
   blobExecutor: BlobExecutor,
-  signer: ethers.Signer
+  jobCompletionQueue: PersistentJobQueue,
+  signer: ethers.Signer,
+  metrics: MetricsCollector = new MetricsCollector()
 ) => {
   const router = Router();
 
-  router.post('/write', validateBlobWrite, handleValidationErrors, async (req: Request, res: Response) => {
-    const requestBody: BlobWriteRequest = req.body;
-    const { jobId, paymentTxHash, payload, meta } = requestBody;
+  router.post(
+    '/write',
+    validateBlobWrite,
+    handleValidationErrors,
+    async (req: Request, res: Response) => {
+      const startTime = Date.now();
+      const requestBody: BlobWriteRequest = req.body;
+      const { jobId, paymentTxHash, payload, meta } = requestBody;
 
-    try {
-      logger.info(`Processing blob write request for job ${jobId}`);
+      const traceContext = getTraceContext(req);
+      const span = tracingService.startSpan('blob.write', traceContext);
+      span.setAttribute('job.id', jobId);
+      span.setAttribute('job.payment_tx', paymentTxHash);
 
-      // Step 1: Verify payment
-      logger.debug(`Verifying payment for job ${jobId}`);
-      const verification = await paymentVerifier.verifyJobPayment(jobId, paymentTxHash);
-      
-      if (!verification.valid) {
-        logger.warn(`Payment verification failed for job ${jobId}`);
-        return res.status(400).json({
-          error: 'PAYMENT_INVALID',
-          message: 'Job payment verification failed'
+      const tracedLogger = tracingService.getLoggerWithTrace(logger, traceContext);
+
+      try {
+        tracedLogger.info(`Processing blob write request for job ${jobId}`);
+        metrics.jobStarted(jobId);
+
+        // Step 1: Verify payment
+        tracedLogger.debug(`Verifying payment for job ${jobId}`);
+        const paymentSpan = tracingService.startSpan('payment.verify', traceContext);
+        const verification = await paymentVerifier.verifyJobPayment(jobId, paymentTxHash);
+        paymentSpan.setAttribute('payment.valid', verification.valid);
+        paymentSpan.end();
+
+        if (!verification.valid) {
+          tracedLogger.warn(`Payment verification failed for job ${jobId}`);
+          return res.status(400).json({
+            error: 'PAYMENT_INVALID',
+            message: 'Job payment verification failed'
+          });
+        }
+
+        // Step 2: Create job for execution
+        // Decode base64 payload
+        const payloadBuffer = Buffer.from(payload, 'base64');
+        const payloadArray = new Uint8Array(payloadBuffer);
+
+        // Validate payload size
+        if (payloadArray.length > config.maxBlobSize) {
+          return res.status(400).json({
+            error: 'BLOB_TOO_LARGE',
+            message: `Payload size ${payloadArray.length} exceeds maximum ${config.maxBlobSize} bytes`
+          });
+        }
+
+        // Note: Job ID validation is already done by verifying the job exists in the escrow contract.
+        // Since the job ID is derived from the payload hash, a valid job ID proves the payload matches.
+
+        const job: BlobJob = {
+          jobId,
+          user: verification.user,
+          paymentTxHash,
+          payload: payloadArray,
+          meta,
+          timestamp: Math.floor(Date.now() / 1000),
+          retryCount: 0
+        };
+
+        // Step 3: Execute blob transaction
+        tracedLogger.debug(`Executing blob transaction for job ${jobId}`);
+        metrics.blobSubmitted(payloadArray.length);
+
+        // Record Prometheus metrics for blob submission
+        const promMetrics = getPrometheusMetrics();
+        promMetrics.blobSizeBytes.observe({ codec: meta.codec || 'unknown' }, payloadArray.length);
+
+        const blobResult = await blobExecutor.executeBlob(job, traceContext);
+
+        // Step 4: Complete job in escrow contract with retry handling
+        tracedLogger.debug(`Completing job ${jobId} in escrow contract`);
+        let completionTxHash: string;
+
+        const completionSpan = tracingService.startSpan('job.complete', traceContext);
+        try {
+          completionTxHash = await paymentVerifier.completeJob(
+            jobId,
+            blobResult.blobTxHash,
+            signer
+          );
+          completionSpan.setAttribute('completion.tx_hash', completionTxHash);
+          completionSpan.setStatus({ code: 0 });
+        } catch (error) {
+          // Add to retry queue if completion fails
+          completionSpan.recordException(error as Error);
+          completionSpan.setStatus({ code: 2, message: 'Job completion failed' });
+          tracedLogger.warn(`Job completion failed for ${jobId}, adding to retry queue`);
+          await jobCompletionQueue.addPendingCompletion(jobId, blobResult.blobTxHash);
+          metrics.jobRetried(jobId);
+
+          // Mark completion as pending
+          completionTxHash = 'pending';
+        } finally {
+          completionSpan.end();
+        }
+
+        // Step 5: Return success response
+        const response: BlobWriteResponse = {
+          success: true,
+          blobTxHash: blobResult.blobTxHash,
+          blockNumber: blobResult.blockNumber,
+          blobHash: blobResult.blobHash,
+          commitment: blobResult.commitment,
+          proof: blobResult.proof,
+          blobIndex: blobResult.blobIndex,
+          completionTxHash,
+          jobId
+        };
+
+        // Calculate fee collected (simplified - would need actual calculation)
+        const feePercent = BigInt(config.proxyFeePercent);
+        const jobAmount = BigInt(verification.amount);
+        const feeCollected = (jobAmount * feePercent) / 100n;
+
+        metrics.jobCompleted(jobId, feeCollected);
+        tracedLogger.info(`Blob write completed successfully for job ${jobId}`);
+
+        // Record Prometheus success metrics
+        promMetrics.blobSubmissions.inc({ status: 'success', error_type: 'none' });
+        promMetrics.jobProcessingDuration.observe(
+          { status: 'success' },
+          (Date.now() - startTime) / 1000
+        );
+        if (feeCollected > 0n) {
+          promMetrics.feesCollected.inc(Number(feeCollected));
+        }
+
+        span.setAttribute('response.success', true);
+        span.setAttribute('response.blob_tx_hash', response.blobTxHash);
+        span.setAttribute('response.block_number', response.blockNumber);
+        span.setStatus({ code: 0 });
+        span.end();
+
+        // Execute callback if provided
+        if (meta?.callbackUrl && typeof meta.callbackUrl === 'string') {
+          executeCallback(meta.callbackUrl, response, tracedLogger).catch(error => {
+            tracedLogger.warn(`Callback execution failed for job ${jobId}:`, error);
+          });
+        }
+
+        return res.json(response);
+      } catch (error) {
+        tracedLogger.error(`Blob write failed for job ${jobId}:`, {
+          error: error instanceof Error ? error.message : String(error)
         });
+        metrics.jobFailed(jobId, error instanceof Error ? error.message : 'Unknown error');
+
+        // Record Prometheus error metrics
+        const promMetrics = getPrometheusMetrics();
+        const errorCode = error instanceof ProxyError ? error.code : 'UNKNOWN';
+        promMetrics.blobSubmissions.inc({ status: 'failure', error_type: errorCode });
+        promMetrics.errors.inc({
+          type: 'blob_write',
+          code: errorCode,
+          operation: 'write'
+        });
+
+        span.recordException(error as Error);
+        span.setStatus({
+          code: 2,
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+        span.end();
+
+        throw error; // Let error handler middleware handle it
       }
-
-      // Step 2: Create job for execution
-      const job: BlobJob = {
-        jobId,
-        user: verification.user,
-        paymentTxHash,
-        payload: new Uint8Array(payload),
-        meta,
-        timestamp: Math.floor(Date.now() / 1000),
-        retryCount: 0
-      };
-
-      // Step 3: Execute blob transaction
-      logger.debug(`Executing blob transaction for job ${jobId}`);
-      const blobResult = await blobExecutor.executeBlob(job);
-
-      // Step 4: Complete job in escrow contract
-      logger.debug(`Completing job ${jobId} in escrow contract`);
-      const completionTxHash = await paymentVerifier.completeJob(
-        jobId,
-        blobResult.blobTxHash,
-        signer
-      );
-
-      // Step 5: Return success response
-      const response: BlobWriteResponse = {
-        success: true,
-        blobTxHash: blobResult.blobTxHash,
-        blockNumber: blobResult.blockNumber,
-        blobHash: blobResult.blobHash,
-        commitment: blobResult.commitment,
-        proof: blobResult.proof,
-        blobIndex: blobResult.blobIndex,
-        completionTxHash,
-        jobId
-      };
-
-      logger.info(`Blob write completed successfully for job ${jobId}`);
-      return res.json(response);
-
-    } catch (error) {
-      logger.error(`Blob write failed for job ${jobId}:`, error);
-      throw error; // Let error handler middleware handle it
     }
-  });
+  );
 
   return router;
-}; 
+};

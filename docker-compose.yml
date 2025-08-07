@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # Local Ethereum node (Anvil)
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    command: anvil --host 0.0.0.0 --port 8545 --chain-id 31337 --accounts 10 --balance 10000 --block-time 1
+    ports:
+      - '8545:8545'
+    healthcheck:
+      test: ['CMD', 'cast', 'block-number', '--rpc-url', 'http://localhost:8545']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Redis for job queues (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # BlobKit Proxy Server
+  proxy:
+    build: .
+    ports:
+      - '3000:3000'
+      - '9090:9090'
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - HOST=0.0.0.0
+      - RPC_URL=http://anvil:8545
+      - CHAIN_ID=31337
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=debug
+      - RATE_LIMIT_REQUESTS=1000
+      - RATE_LIMIT_WINDOW_MS=60000
+      - PROXY_FEE_PERCENT=0
+      - MAX_BLOB_SIZE=131072
+      - JOB_TIMEOUT_SECONDS=300
+      - METRICS_ENABLED=true
+      - METRICS_PORT=9090
+    env_file:
+      - .env
+    depends_on:
+      anvil:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:3000/api/v1/health'
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  redis-data:

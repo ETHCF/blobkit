@@ -1,6 +1,6 @@
-# Getting Started with BlobKit
+# Getting Started
 
-BlobKit enables EIP-4844 blob storage on Ethereum through a production-ready SDK with automatic environment detection and trustless proxy support for browser wallets.
+BlobKit provides TypeScript tools for EIP-4844 blob storage on Ethereum, including browser support via proxy servers.
 
 ## Installation
 
@@ -12,25 +12,22 @@ npm install @blobkit/sdk ethers
 
 ```typescript
 import { BlobKit } from '@blobkit/sdk';
+import { ethers } from 'ethers';
 
-// Connect MetaMask
 const provider = new ethers.BrowserProvider(window.ethereum);
 const signer = await provider.getSigner();
 
-// Create BlobKit instance
-const blobkit = new BlobKit({
-  rpcUrl: 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
-  chainId: 1,
-  proxyUrl: 'https://proxy.blobkit.dev'
-}, signer);
+const blobkit = new BlobKit(
+  {
+    rpcUrl: process.env.BLOBKIT_RPC_URL!,
+    chainId: 1,
+    proxyUrl: 'https://proxy.example.com',
+    requestSigningSecret: 'shared-secret-with-proxy'
+  },
+  signer
+);
 
-// Store blob data
-const result = await blobkit.writeBlob({
-  message: 'Hello, decentralized storage!'
-}, {
-  appId: 'my-dapp',
-  filename: 'greeting.json'
-});
+const result = await blobkit.writeBlob({ message: 'Hello world' }, { appId: 'my-app' });
 
 console.log('Blob hash:', result.blobHash);
 console.log('Transaction:', result.blobTxHash);
@@ -42,25 +39,26 @@ console.log('Transaction:', result.blobTxHash);
 import { BlobKit } from '@blobkit/sdk';
 import { ethers } from 'ethers';
 
-const provider = new ethers.JsonRpcProvider('https://mainnet.infura.io/v3/YOUR_PROJECT_ID');
-const signer = new ethers.Wallet('YOUR_PRIVATE_KEY', provider);
+const provider = new ethers.JsonRpcProvider(process.env.BLOBKIT_RPC_URL!);
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
-const blobkit = new BlobKit({
-  rpcUrl: 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
-  chainId: 1
-}, signer);
+const blobkit = new BlobKit(
+  {
+    rpcUrl: process.env.BLOBKIT_RPC_URL!,
+    chainId: 1
+  },
+  signer
+);
 
 const result = await blobkit.writeBlob(data);
-console.log('Blob stored:', result.blobHash);
+console.log('Blob hash:', result.blobHash);
 ```
 
-## Architecture
+## Components
 
-BlobKit solves browser wallet limitations through three components:
-
-1. **[@blobkit/sdk](../packages/sdk/)** - TypeScript SDK for blob storage
-2. **[@blobkit/proxy-server](../packages/proxy-server/)** - Proxy server for browser environments  
-3. **[@blobkit/contracts](../packages/contracts/)** - Smart contracts for trustless payments
+- **[@blobkit/sdk](../packages/sdk/)** - TypeScript SDK for blob storage
+- **[@blobkit/proxy-server](../packages/proxy-server/)** - Proxy server for browser environments
+- **[@blobkit/contracts](../packages/contracts/)** - Smart contracts for trustless payments
 
 ## Payment Flow
 
@@ -86,11 +84,7 @@ sequenceDiagram
 
 ## Next Steps
 
-- **[SDK Documentation](sdk/)** - Complete API reference
-- **[Proxy Setup](proxy/)** - Deploy your own proxy server
-- **[Contract Integration](contracts/)** - Smart contract details
-- **[Architecture](architecture.md)** - System design overview
-
-## Attribution
-
-BlobKit was built by [Zak Cole](https://x.com/0xzak) at [Number Group](https://numbergroup.xyz) for the [Ethereum Community Foundation](https://ethcf.org). 
+- [SDK Documentation](sdk/)
+- [Proxy Documentation](proxy/)
+- [Contract Documentation](contracts/)
+- [Architecture](architecture.md)

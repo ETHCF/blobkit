@@ -26,9 +26,10 @@ contract BlobKitEscrowTest is Test {
 
     function setUp() public {
         owner = makeAddr("owner");
-        proxy = makeAddr("proxy");
-        user = makeAddr("user");
-        unauthorizedUser = makeAddr("unauthorized");
+        // Use vm.addr to derive addresses from private keys for signature testing
+        proxy = vm.addr(0x3333);
+        user = vm.addr(0x1111);
+        unauthorizedUser = vm.addr(0x2222);
 
         // Deploy escrow contract
         escrow = new BlobKitEscrow(owner);
@@ -96,10 +97,8 @@ contract BlobKitEscrowTest is Test {
         bytes memory proof = _createProof(TEST_JOB_ID, TEST_BLOB_TX_HASH, proxy);
 
         uint256 expectedProxyFee = (DEPOSIT_AMOUNT * PROXY_FEE_PERCENT) / 100;
-        uint256 expectedUserRefund = DEPOSIT_AMOUNT - expectedProxyFee;
 
         uint256 proxyBalanceBefore = proxy.balance;
-        uint256 userBalanceBefore = user.balance;
 
         vm.prank(proxy);
         vm.expectEmit(true, false, false, true);
@@ -112,9 +111,8 @@ contract BlobKitEscrowTest is Test {
         assertTrue(job.completed);
         assertEq(job.blobTxHash, TEST_BLOB_TX_HASH);
 
-        // Verify payments
-        assertEq(proxy.balance, proxyBalanceBefore + expectedProxyFee);
-        assertEq(user.balance, userBalanceBefore + expectedUserRefund);
+        // Verify payment - proxy receives the full amount (proxy covers blob costs)
+        assertEq(proxy.balance, proxyBalanceBefore + DEPOSIT_AMOUNT);
     }
 
     function testCompleteJobUnauthorizedProxy() public {
@@ -164,7 +162,7 @@ contract BlobKitEscrowTest is Test {
         bytes memory proof = _createProof(TEST_JOB_ID, TEST_BLOB_TX_HASH, proxy);
 
         vm.prank(proxy);
-        vm.expectRevert(BlobKitEscrow.JobNotExpired.selector);
+        vm.expectRevert(BlobKitEscrow.JobExpired.selector);
         escrow.completeJob(TEST_JOB_ID, TEST_BLOB_TX_HASH, proof);
     }
 
@@ -344,19 +342,24 @@ contract BlobKitEscrowTest is Test {
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _createProof(bytes32 jobId, bytes32 blobTxHash, address signer) internal pure returns (bytes memory) {
-        // Create a simple signature for testing
-        // In reality, this would be signed by the proxy's private key
-        bytes32 messageHash = keccak256(abi.encodePacked(jobId, blobTxHash));
+    function _createProof(bytes32 jobId, bytes32 blobTxHash, address signer) internal view returns (bytes memory) {
+        // Create message hash that includes the signer address (as per contract requirement)
+        bytes32 messageHash = keccak256(abi.encodePacked(jobId, blobTxHash, signer));
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
-        // For testing, we'll create a mock signature
-        // Note: This won't actually verify correctly with the contract's verification
-        // but serves as a placeholder for the test structure
-        uint8 v = 27;
-        bytes32 r = keccak256(abi.encodePacked(signer, "r"));
-        bytes32 s = keccak256(abi.encodePacked(signer, "s"));
+        // Use vm.sign to create a valid signature
+        uint256 signerPrivateKey;
+        if (signer == proxy) {
+            signerPrivateKey = 0x3333;
+        } else if (signer == user) {
+            signerPrivateKey = 0x1111;
+        } else if (signer == unauthorizedUser) {
+            signerPrivateKey = 0x2222;
+        } else {
+            signerPrivateKey = uint256(keccak256(abi.encodePacked(signer)));
+        }
 
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, ethSignedMessageHash);
         return abi.encodePacked(r, s, v);
     }
 }

@@ -8,7 +8,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": false,
-    
+
     // Strict type checking (balanced for production)
     "strict": true,
     "noImplicitAny": true,
@@ -20,13 +20,13 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false,
     "exactOptionalPropertyTypes": false,
-    
+
     // Additional checks
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": false,
     "noImplicitThis": true,
     "useUnknownInCatchVariables": true,
-    
+
     // Module system
     "declaration": true,
     "declarationMap": true,
@@ -38,7 +38,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    
+
     // Path mapping
     "baseUrl": ".",
     "paths": {
@@ -47,11 +47,5 @@
       "@blobkit/proxy-server": ["./packages/proxy-server/src"]
     }
   },
-  "exclude": [
-    "node_modules",
-    "dist",
-    "lib",
-    "**/*.test.ts",
-    "**/*.spec.ts"
-  ]
-} 
+  "exclude": ["node_modules", "dist", "lib", "**/*.test.ts", "**/*.spec.ts"]
+}

@@ -125,4 +125,4 @@ export class CodecRegistry {
 }
 
 // Export default registry instance
-export const defaultCodecRegistry = new CodecRegistry(); 
+export const defaultCodecRegistry = new CodecRegistry();

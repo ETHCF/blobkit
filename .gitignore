@@ -7,6 +7,7 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+.rollup.cache/
 
 # Testing
 coverage/
@@ -46,5 +47,14 @@ lerna-debug.log*
 .tmp/
 *.bak
 *.origtest/**/*benchmark*.test.ts
+
+# Production artifacts
+*.tgz
+*.production-status
+production-check-results.json
+production-check.log
+*SUMMARY*.md
+*REMEDIATION*.md
+*REPORT*.md
 
 /packages/contracts/deployments/

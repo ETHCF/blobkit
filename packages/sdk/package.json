@@ -1,19 +1,19 @@
 {
   "name": "@blobkit/sdk",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "TypeScript SDK for blob storage with EIP-4844 support and browser compatibility",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "module": "dist/index.esm.js",
   "exports": {
     ".": {
-      "import": "./dist/index.esm.js",
-      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
     },
     "./browser": {
-      "import": "./dist/browser.esm.js",
-      "require": "./dist/browser.js",
+      "import": "./dist/browser.js",
+      "require": "./dist/browser.cjs",
       "types": "./dist/browser.d.ts"
     }
   },
@@ -30,7 +30,9 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "docs": "typedoc",
+    "docs:serve": "npx http-server docs -p 8080 -o"
   },
   "keywords": [
     "ethereum",
@@ -47,11 +49,11 @@
   },
   "license": "MIT",
   "dependencies": {
-    "axios": "^1.5.0",
-    "kzg-wasm": "0.5.0",
-    "ethers": "^6.7.1"
+    "ethers": "^6.7.1",
+    "kzg-wasm": "^0.4.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.0.5",
     "@rollup/plugin-commonjs": "^28.0.6",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.4",
@@ -61,6 +63,9 @@
     "jest": "^30.0.5",
     "rollup": "^4.9.1",
     "rollup-plugin-dts": "^6.1.0",
+    "ts-jest": "^29.4.1",
+    "typedoc": "^0.28.9",
+    "typedoc-plugin-markdown": "^4.8.0",
     "typescript": "^5.3.3"
   },
   "repository": {

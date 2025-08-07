@@ -12,13 +12,6 @@
       "@blobkit/sdk": ["../sdk/dist/index.d.ts"]
     }
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "dist",
-    "../sdk/src/**/*"
-  ]
-} 
+  "include": ["src/**/*"],
+  "exclude": ["**/*.test.ts", "**/*.spec.ts", "dist", "../sdk/src/**/*"]
+}

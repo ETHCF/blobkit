@@ -1,25 +1,6 @@
-# BlobKit Contracts Documentation
+# Contracts Documentation
 
-Complete guide for deploying and integrating BlobKit smart contracts.
-
-## Overview
-
-The BlobKit contracts provide a trustless escrow system for blob storage payments with automatic refunds and proxy fee management.
-
-## Architecture
-
-```mermaid
-graph TD
-    User[Browser User] --> |depositForBlob| Escrow[BlobKitEscrow]
-    Proxy[Authorized Proxy] --> |verifyPayment| Escrow
-    Proxy --> |executeBlob| Ethereum[Ethereum Network]
-    Proxy --> |completeJob| Escrow
-    Escrow --> |refund| User
-    Escrow --> |payout| Proxy
-    
-    Owner[Contract Owner] --> |authorize| Proxy
-    Owner --> |configure| Escrow
-```
+Deployment and integration guide for @blobkit/contracts.
 
 ## Installation
 
@@ -29,20 +10,18 @@ npm install @blobkit/contracts ethers
 
 ## Integration
 
-### With Ethers.js
-
 ```typescript
 import { ethers } from 'ethers';
 import { BlobKitEscrowABI, getContractAddress } from '@blobkit/contracts';
 
 const provider = new ethers.JsonRpcProvider('https://mainnet.infura.io/v3/YOUR_PROJECT_ID');
-const signer = new ethers.Wallet('YOUR_PRIVATE_KEY', provider);
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
-const escrowAddress = getContractAddress(1); // Mainnet
+const escrowAddress = getContractAddress(1);
 const escrow = new ethers.Contract(escrowAddress, BlobKitEscrowABI, signer);
 
-// Deposit for a job
-const jobId = ethers.keccak256(ethers.toUtf8Bytes('job-123'));
+// Deposit for blob job
+const jobId = ethers.keccak256(ethers.toUtf8Bytes('unique-job-id'));
 const tx = await escrow.depositForBlob(jobId, { value: ethers.parseEther('0.01') });
 await tx.wait();
 
@@ -79,21 +58,18 @@ console.log('Job completed:', job.completed);
 
 ```solidity
 event JobCreated(bytes32 indexed jobId, address indexed user, uint256 amount);
-event JobCompleted(bytes32 indexed jobId, bytes32 blobTxHash, uint256 proxyFee);  
+event JobCompleted(bytes32 indexed jobId, bytes32 blobTxHash, uint256 proxyFee);
 event JobRefunded(bytes32 indexed jobId, string reason);
 event ProxyAuthorizationChanged(address indexed proxy, bool authorized);
 ```
 
 ## Development
 
-Prerequisites:
-- [Foundry](https://getfoundry.sh/)
-
 ```bash
-forge build                # Build contracts
-forge test                 # Run tests
-forge test --coverage      # Run with coverage
-forge fmt                  # Format code
+forge build            # Build contracts
+forge test             # Run tests
+forge test --coverage  # Run with coverage
+forge fmt              # Format code
 ```
 
 ## Deployment
@@ -111,11 +87,8 @@ forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
 ### Testnet
 
 ```bash
-export RPC_URL="https://sepolia.infura.io/v3/YOUR_PROJECT_ID"
-export PRIVATE_KEY="your-private-key"
-
 forge script script/Deploy.s.sol \
-  --rpc-url $RPC_URL \
+  --rpc-url $SEPOLIA_RPC_URL \
   --private-key $PRIVATE_KEY \
   --broadcast \
   --verify
@@ -133,24 +106,19 @@ forge script script/Deploy.s.sol \
 
 ## Configuration
 
-Set contract addresses via environment variables:
-
 ```bash
-BLOBKIT_ESCROW_MAINNET=0x1234567890123456789012345678901234567890
-BLOBKIT_ESCROW_SEPOLIA=0x1234567890123456789012345678901234567890
-BLOBKIT_ESCROW_HOLESKY=0x1234567890123456789012345678901234567890
+# Environment variables for deployed contracts
+BLOBKIT_ESCROW_1=0x...        # Mainnet
+BLOBKIT_ESCROW_11155111=0x... # Sepolia
+BLOBKIT_ESCROW_17000=0x...    # Holesky
 ```
 
-## Security
+## Security Considerations
 
-- Contracts use OpenZeppelin patterns (Ownable, ReentrancyGuard, Pausable)
+- OpenZeppelin base contracts (Ownable, ReentrancyGuard, Pausable)
 - Custom errors for gas efficiency
-- Replay protection for job completion
-- Input validation on all functions
+- Replay protection on job completion
+- Input validation on all public functions
 - Emergency pause functionality
 
-**Note:** Contracts have not been professionally audited. Use at your own risk.
-
-## Attribution
-
-BlobKit was built by [Zak Cole](https://x.com/0xzak) at [Number Group](https://numbergroup.xyz) for the [Ethereum Community Foundation](https://ethcf.org). 
+Contracts have not been audited. Use at your own risk.

@@ -4,6 +4,35 @@
  */
 
 /**
+ * Re-export ethers types for compatibility
+ */
+import type {
+  Signer as EthersSigner,
+  Provider as EthersProvider,
+  TransactionRequest as EthersTransactionRequest,
+  TransactionResponse as EthersTransactionResponse,
+  TransactionReceipt as EthersTransactionReceipt,
+  FeeData as EthersFeeData
+} from 'ethers';
+
+// Re-export ethers types
+export type Signer = EthersSigner;
+export type Provider = EthersProvider;
+export type FeeData = EthersFeeData;
+export type TransactionResponse = EthersTransactionResponse;
+export type TransactionReceipt = EthersTransactionReceipt;
+
+/**
+ * Extended transaction request for blob transactions
+ */
+export interface TransactionRequest extends EthersTransactionRequest {
+  blobs?: Uint8Array[];
+  kzgCommitments?: string[];
+  kzgProofs?: string[];
+  maxFeePerBlobGas?: bigint;
+}
+
+/**
  * Process environment variables required by BlobKit
  */
 export interface ProcessEnv {
@@ -16,12 +45,13 @@ export interface ProcessEnv {
   readonly BLOBKIT_PROXY_URL?: string;
   readonly BLOBKIT_LOG_LEVEL?: 'debug' | 'info' | 'silent';
   readonly BLOBKIT_KZG_TRUSTED_SETUP_PATH?: string;
+  readonly OVERRIDE_BLOBKIT_ENVIRONMENT?: BlobKitEnvironment;
 }
 
 export interface KzgLibrary {
-    blobToKzgCommitment: (blob: Uint8Array) => Uint8Array;
-    computeBlobKzgProof: (blob: Uint8Array, commitment: Uint8Array) => Uint8Array;
-}  
+  blobToKzgCommitment: (blob: Uint8Array) => Uint8Array;
+  computeBlobKzgProof: (blob: Uint8Array, commitment: Uint8Array) => Uint8Array;
+}
 
 /**
  * Environment types supported by BlobKit
@@ -51,6 +81,31 @@ export interface BlobMeta {
 }
 
 /**
+ * KZG setup options for BlobKit initialization
+ */
+export interface KzgSetupOptions {
+  /** Pre-loaded trusted setup data as Uint8Array */
+  trustedSetupData?: Uint8Array;
+  /** URL to load trusted setup from (for browser environments) */
+  trustedSetupUrl?: string;
+  /** File path to load trusted setup from (for Node.js environments) */
+  trustedSetupPath?: string;
+  /** Expected hash for integrity verification */
+  expectedHash?: string;
+}
+
+/**
+ * Metrics hooks for monitoring
+ */
+export interface MetricsHooks {
+  onBlobWrite?: (size: number, duration: number, success: boolean) => void;
+  onBlobRead?: (size: number, duration: number, success: boolean, source: string) => void;
+  onProxyRequest?: (url: string, duration: number, success: boolean) => void;
+  onKzgOperation?: (operation: string, duration: number, success: boolean) => void;
+  onError?: (error: Error, context: string) => void;
+}
+
+/**
  * Enhanced configuration for BlobKit instances
  */
 export interface BlobKitConfig {
@@ -67,6 +122,13 @@ export interface BlobKitConfig {
   maxProxyFeePercent?: number;
   callbackUrl?: string;
   logLevel?: 'debug' | 'info' | 'silent';
+  requestSigningSecret?: string;
+
+  // KZG configuration
+  kzgSetup?: KzgSetupOptions;
+
+  // Monitoring hooks
+  metricsHooks?: MetricsHooks;
 }
 
 /**
@@ -87,8 +149,14 @@ export interface CostEstimate {
  * Standard blob receipt interface
  */
 export interface BlobReceipt {
+  /** Operation success status */
+  success: boolean;
+  /** Job ID for tracking */
+  jobId: string;
   /** Transaction hash containing the blob */
   blobTxHash: string;
+  /** Payment transaction hash */
+  paymentTxHash: string;
   /** Block number where blob was included */
   blockNumber: number;
   /** Blob hash identifier */
@@ -104,21 +172,33 @@ export interface BlobReceipt {
 }
 
 /**
- * Extended result interface with payment information
+ * Payment result from escrow deposit
  */
-export interface BlobPaymentResult extends BlobReceipt {
-  /** Escrow payment transaction */
-  paymentTx?: string;
-  /** Escrow tracking ID */
-  jobId?: string;
-  /** Proxy used for execution */
-  proxyUrl?: string;
-  /** Total cost paid */
-  totalCostETH?: string;
-  /** Transaction hash when proxy called completeJob */
-  completionTxHash?: string;
-  /** Payment method used */
-  paymentMethod?: 'web3' | 'direct';
+export interface BlobPaymentResult {
+  /** Operation success status */
+  success: boolean;
+  /** Job ID for tracking */
+  jobId: string;
+  /** Payment transaction hash */
+  paymentTxHash: string;
+  /** Amount paid in ETH */
+  amountPaid: string;
+  /** Block number of payment */
+  blockNumber: number;
+}
+
+/**
+ * Result from reading a blob
+ */
+export interface BlobReadResult {
+  /** Raw blob data */
+  data: Uint8Array;
+  /** Transaction hash containing the blob */
+  blobTxHash: string;
+  /** Index of the blob within the transaction */
+  blobIndex: number;
+  /** Source of the blob data */
+  source: 'rpc' | 'archive' | 'fallback';
 }
 
 /**
@@ -136,9 +216,20 @@ export enum BlobKitErrorCode {
   BLOB_TOO_LARGE = 'BLOB_TOO_LARGE',
   INSUFFICIENT_FUNDS = 'INSUFFICIENT_FUNDS',
   JOB_EXPIRED = 'JOB_EXPIRED',
+  JOB_NOT_EXPIRED = 'JOB_NOT_EXPIRED',
   PROXY_ERROR = 'PROXY_ERROR',
   TRANSACTION_FAILED = 'TRANSACTION_FAILED',
-  KZG_ERROR = 'KZG_ERROR'
+  KZG_ERROR = 'KZG_ERROR',
+  JOB_ALREADY_EXISTS = 'JOB_ALREADY_EXISTS',
+  PAYMENT_FAILED = 'PAYMENT_FAILED',
+  JOB_NOT_FOUND = 'JOB_NOT_FOUND',
+  JOB_ALREADY_COMPLETED = 'JOB_ALREADY_COMPLETED',
+  REFUND_FAILED = 'REFUND_FAILED',
+  BLOB_SUBMISSION_FAILED = 'BLOB_SUBMISSION_FAILED',
+  JOB_TIMEOUT = 'JOB_TIMEOUT',
+  BLOB_NOT_FOUND = 'BLOB_NOT_FOUND',
+  BLOB_READ_FAILED = 'BLOB_READ_FAILED',
+  ARCHIVE_READ_FAILED = 'ARCHIVE_READ_FAILED'
 }
 
 /**
@@ -188,68 +279,3 @@ export interface Codec {
   decode(data: Uint8Array): unknown;
   contentType: string;
 }
-
-/**
- * Ethereum signer interface compatible with ethers.js
- */
-export interface Signer {
-  getAddress(): Promise<string>;
-  signMessage(message: string | Uint8Array): Promise<string>;
-  sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse>;
-  provider?: Provider;
-}
-
-/**
- * Transaction request interface
- */
-export interface TransactionRequest {
-  to?: string;
-  value?: bigint;
-  data?: string;
-  gasLimit?: bigint;
-  maxFeePerGas?: bigint;
-  maxPriorityFeePerGas?: bigint;
-  maxFeePerBlobGas?: bigint;
-  type?: number;
-  blobs?: Uint8Array[];
-  kzgCommitments?: string[];
-  kzgProofs?: string[];
-  chainId?: number;
-  kzg?: KzgLibrary;
-}
-
-/**
- * Transaction response interface
- */
-export interface TransactionResponse {
-  hash: string;
-  wait(): Promise<TransactionReceipt>;
-}
-
-/**
- * Transaction receipt interface
- */
-export interface TransactionReceipt {
-  hash: string;
-  blockNumber?: number;
-  gasUsed?: bigint;
-}
-
-/**
- * Provider interface compatible with ethers.js
- */
-export interface Provider {
-  getFeeData(): Promise<FeeData>;
-  getBlockNumber?(): Promise<number>;
-  getNetwork?(): Promise<{ chainId: number }>;
-}
-
-/**
- * Fee data interface including blob gas pricing
- */
-export interface FeeData {
-  gasPrice?: bigint;
-  maxFeePerGas?: bigint;
-  maxPriorityFeePerGas?: bigint;
-  maxFeePerBlobGas?: bigint;
-} 

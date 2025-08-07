@@ -18,17 +18,20 @@ By participating in this project, you agree to abide by our Code of Conduct. Ple
 
 1. Fork the repository on GitHub
 2. Clone your fork locally:
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/blobkit.git
    cd blobkit
    ```
 
 3. Install dependencies:
+
    ```bash
    npm install
    ```
 
 4. Create a `.env` file for testing:
+
    ```bash
    cp .env.example .env
    # Edit .env with your test configuration
@@ -44,11 +47,13 @@ By participating in this project, you agree to abide by our Code of Conduct. Ple
 ### Before Making Changes
 
 1. Create a new branch for your feature or fix:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
 2. Ensure all tests pass:
+
    ```bash
    npm test
    ```
@@ -98,6 +103,7 @@ test(utils): add edge cases for blob validation
 ```
 
 Types:
+
 - `feat`: New features
 - `fix`: Bug fixes
 - `docs`: Documentation changes
@@ -240,8 +246,9 @@ Do not open public issues for security vulnerabilities. Instead:
 ## Recognition
 
 Contributors will be recognized in:
+
 - Release notes for significant contributions
 - Project documentation
 - Special thanks for major features or fixes
 
-Thank you for contributing to BlobKit! 
+Thank you for contributing to BlobKit!

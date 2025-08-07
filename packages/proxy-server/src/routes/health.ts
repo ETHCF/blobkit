@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ethers } from 'ethers';
 import { HealthResponse, ProxyConfig } from '../types.js';
 import { createLogger } from '../utils/logger.js';
+import { circuitBreakerManager } from '../services/circuit-breaker.js';
 
 const logger = createLogger('HealthRoute');
 
@@ -15,7 +16,7 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
   router.get('/health', async (req: Request, res: Response) => {
     try {
       const uptime = Math.floor((Date.now() - startTime) / 1000);
-      
+
       // Check blockchain connectivity
       let blocksLag: number | undefined;
       try {
@@ -26,24 +27,29 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
           blocksLag = Math.max(0, Math.floor((currentTime - block.timestamp) / 12)); // Assuming 12s block time
         }
       } catch (error) {
-        logger.warn('Failed to check blockchain connectivity:', error);
+        logger.warn('Failed to check blockchain connectivity:', error as Error);
       }
 
+      // Check circuit breakers
+      const circuitMetrics = circuitBreakerManager.getAllMetrics();
+      const hasOpenCircuits = circuitBreakerManager.hasOpenCircuits();
+
       const response: HealthResponse = {
-        status: 'healthy',
+        status: hasOpenCircuits ? 'degraded' : 'healthy',
         version: '0.0.1',
         chainId: config.chainId,
         escrowContract: config.escrowContract,
         proxyFeePercent: config.proxyFeePercent,
         maxBlobSize: config.maxBlobSize,
         uptime,
-        blocksLag
+        blocksLag,
+        circuitBreakers: circuitMetrics
       };
 
       res.json(response);
     } catch (error) {
       logger.error('Health check failed:', error);
-      
+
       const response: HealthResponse = {
         status: 'unhealthy',
         version: '0.0.1',
@@ -59,4 +65,4 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
   });
 
   return router;
-}; 
+};

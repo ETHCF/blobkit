@@ -5,25 +5,39 @@ import { BlobKitEnvironment } from './types.js';
  * @returns The detected environment type
  */
 export const detectEnvironment = (): BlobKitEnvironment => {
-  if (process.env.OVERRIDE_BLOBKIT_ENVIRONMENT) {
-    return process.env.OVERRIDE_BLOBKIT_ENVIRONMENT as BlobKitEnvironment;
+  // Check for browser environment first (before accessing process)
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    return 'browser';
   }
+
   // Check for Node.js environment
   if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+    // Check for override environment variable with validation
+    if (process.env.OVERRIDE_BLOBKIT_ENVIRONMENT) {
+      const override = process.env.OVERRIDE_BLOBKIT_ENVIRONMENT;
+      const validEnvironments: BlobKitEnvironment[] = ['browser', 'node', 'serverless'];
+
+      if (validEnvironments.includes(override as BlobKitEnvironment)) {
+        return override as BlobKitEnvironment;
+      } else {
+        throw new Error(
+          `Invalid OVERRIDE_BLOBKIT_ENVIRONMENT value: '${override}'. ` +
+            `Must be one of: ${validEnvironments.join(', ')}`
+        );
+      }
+    }
+
     // Check for serverless environments
-    if (process.env.VERCEL || 
-        process.env.NETLIFY || 
-        process.env.AWS_LAMBDA_FUNCTION_NAME ||
-        process.env.FUNCTIONS_WORKER ||
-        process.env.CF_PAGES) {
+    if (
+      process.env.VERCEL ||
+      process.env.NETLIFY ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.FUNCTIONS_WORKER ||
+      process.env.CF_PAGES
+    ) {
       return 'serverless';
     }
     return 'node';
-  }
-
-  // Check for browser environment
-  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    return 'browser';
   }
 
   // Fallback to serverless for unknown environments
@@ -62,28 +76,31 @@ export const getEnvironmentCapabilities = (env: BlobKitEnvironment) => {
         requiresProxy: true,
         hasFileSystem: false,
         hasWebCrypto: typeof crypto !== 'undefined',
-        hasMetaMask: typeof window !== 'undefined' && !!(window as any).ethereum
+        hasMetaMask: typeof window !== 'undefined' && !!window.ethereum,
+        canSubmitBlobs: false
       };
-    
+
     case 'node':
       return {
         supportsDirectTransactions: true,
         requiresProxy: false,
         hasFileSystem: true,
         hasWebCrypto: false,
-        hasMetaMask: false
+        hasMetaMask: false,
+        canSubmitBlobs: true
       };
-    
+
     case 'serverless':
       return {
         supportsDirectTransactions: true,
         requiresProxy: false,
         hasFileSystem: false,
         hasWebCrypto: typeof crypto !== 'undefined',
-        hasMetaMask: false
+        hasMetaMask: false,
+        canSubmitBlobs: false
       };
-    
+
     default:
       throw new Error(`Unknown environment: ${env}`);
   }
-}; 
+};

@@ -9,14 +9,22 @@ export const loadConfig = (): ProxyConfig => {
     throw new Error('RPC_URL environment variable is required');
   }
 
-  const privateKey = process.env.PRIVATE_KEY;
-  if (!privateKey) {
-    throw new Error('PRIVATE_KEY environment variable is required');
-  }
+  // Private key is now optional - handled by secure signer
+  const privateKey = process.env.PRIVATE_KEY || '';
 
   const escrowContract = process.env.ESCROW_CONTRACT;
   if (!escrowContract) {
     throw new Error('ESCROW_CONTRACT environment variable is required');
+  }
+
+  const kzgTrustedSetupPath = process.env.KZG_TRUSTED_SETUP_PATH;
+  if (!kzgTrustedSetupPath) {
+    throw new Error('KZG_TRUSTED_SETUP_PATH environment variable is required');
+  }
+
+  const requestSigningSecret = process.env.REQUEST_SIGNING_SECRET;
+  if (!requestSigningSecret) {
+    throw new Error('REQUEST_SIGNING_SECRET environment variable is required');
   }
 
   return {
@@ -29,9 +37,11 @@ export const loadConfig = (): ProxyConfig => {
     proxyFeePercent: parseInt(process.env.PROXY_FEE_PERCENT || '0'),
     maxBlobSize: parseInt(process.env.MAX_BLOB_SIZE || '131072'), // 128KB
     rateLimitRequests: parseInt(process.env.RATE_LIMIT_REQUESTS || '10'),
-    rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW || '60'), // 1 minute
-    jobTimeout: parseInt(process.env.JOB_TIMEOUT || '300'), // 5 minutes
-    logLevel: (process.env.LOG_LEVEL as any) || 'info'
+    rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW || '60000'), // 60 seconds in milliseconds
+    jobTimeout: parseInt(process.env.JOB_TIMEOUT || '300000'), // 5 minutes in milliseconds
+    logLevel: (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info',
+    kzgTrustedSetupPath,
+    requestSigningSecret
   };
 };
 
@@ -51,11 +61,25 @@ export const validateConfig = (config: ProxyConfig): void => {
     throw new Error('Max blob size must be between 1 and 131072 bytes');
   }
 
-  if (!/^0x[a-fA-F0-9]{64}$/.test(config.privateKey)) {
+  // Private key validation is now handled by secure signer
+  // Only validate if provided
+  if (config.privateKey && !/^0x[a-fA-F0-9]{64}$/.test(config.privateKey)) {
     throw new Error('Invalid private key format');
   }
 
   if (!/^0x[a-fA-F0-9]{40}$/.test(config.escrowContract)) {
     throw new Error('Invalid escrow contract address');
   }
-}; 
+
+  if (config.rateLimitWindow < 1000 || config.rateLimitWindow > 3600000) {
+    throw new Error('Rate limit window must be between 1 second and 1 hour (in milliseconds)');
+  }
+
+  if (config.jobTimeout < 60000 || config.jobTimeout > 86400000) {
+    throw new Error('Job timeout must be between 1 minute and 24 hours (in milliseconds)');
+  }
+
+  if (!config.requestSigningSecret || config.requestSigningSecret.length < 32) {
+    throw new Error('Request signing secret must be at least 32 characters long');
+  }
+};

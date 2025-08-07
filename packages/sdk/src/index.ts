@@ -1,14 +1,20 @@
 /**
  * BlobKit SDK - Main Entry Point
- * 
+ *
  * This module exports the public API for the BlobKit SDK.
- * All exports are production-ready and intended for external use.
  */
 
 // Main SDK class
 export { BlobKit } from './blobkit.js';
 import { BlobKit } from './blobkit.js';
 import type { Signer, BlobKitConfig, ProcessEnv } from './types.js';
+
+// Component modules
+export { PaymentManager } from './payment.js';
+export { ProxyClient } from './proxy-client.js';
+export { BlobSubmitter } from './blob-submitter.js';
+export { BlobReader } from './blob-reader.js';
+export { signRequest, verifySignature } from './signing.js';
 
 // Core types and interfaces
 export type {
@@ -17,6 +23,7 @@ export type {
   BlobMeta,
   BlobReceipt,
   BlobPaymentResult,
+  BlobReadResult,
   CostEstimate,
   JobStatus,
   ProxyHealthResponse,
@@ -26,25 +33,18 @@ export type {
   TransactionReceipt,
   Provider,
   FeeData,
-  ProcessEnv
+  ProcessEnv,
+  KzgSetupOptions
 } from './types.js';
 
 // Error handling
 export { BlobKitError, BlobKitErrorCode } from './types.js';
 
 // Environment utilities
-export {
-  detectEnvironment,
-  getEnvironmentCapabilities
-} from './environment.js';
+export { detectEnvironment, getEnvironmentCapabilities } from './environment.js';
 
 // Codec system
-export {
-  defaultCodecRegistry,
-  JsonCodec,
-  RawCodec,
-  TextCodec
-} from './codecs/index.js';
+export { defaultCodecRegistry, JsonCodec, RawCodec, TextCodec } from './codecs/index.js';
 
 // Essential utilities (only public-facing ones)
 export {
@@ -55,25 +55,25 @@ export {
   isValidAddress,
   validateBlobSize,
   bytesToHex,
-  hexToBytes,
+  hexToBytes
 } from './utils.js';
 
-// KZG utilities (production-grade implementations)
+// KZG utilities
 export {
   initializeKzg,
   encodeBlob,
   blobToKzgCommitment,
   computeKzgProof,
   commitmentToVersionedHash,
+  loadTrustedSetupFromURL,
+  loadTrustedSetupFromFile,
   // bytesToHex,
   FIELD_ELEMENTS_PER_BLOB,
   BYTES_PER_FIELD_ELEMENT,
   BLOB_SIZE
 } from './kzg.js';
 
-export {
-  EscrowContractABI
-} from './abi/index.js';
+export { EscrowContractABI } from './abi/index.js';
 
 /**
  * Convenience function to create BlobKit instance from environment variables
@@ -82,18 +82,25 @@ export {
  */
 export function createFromEnv(signer?: Signer): BlobKit {
   const env = process.env as ProcessEnv;
-  
+
   const config: BlobKitConfig = {
     rpcUrl: env.BLOBKIT_RPC_URL || 'http://localhost:8545',
     chainId: env.BLOBKIT_CHAIN_ID ? parseInt(env.BLOBKIT_CHAIN_ID, 10) : 31337,
     proxyUrl: env.BLOBKIT_PROXY_URL,
     logLevel: env.BLOBKIT_LOG_LEVEL || 'info'
   };
-  
+
+  // Add KZG setup from environment if available
+  if (env.BLOBKIT_KZG_TRUSTED_SETUP_PATH) {
+    config.kzgSetup = {
+      trustedSetupPath: env.BLOBKIT_KZG_TRUSTED_SETUP_PATH
+    };
+  }
+
   return new BlobKit(config, signer);
 }
 
 /**
  * Package version
  */
-export const VERSION = '1.1.0'; 
+export const VERSION = '1.1.0';

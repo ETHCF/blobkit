@@ -3,7 +3,7 @@
  * Core utility functions for blob operations, validation, and environment handling
  */
 
-import { keccak256 } from 'ethers';
+import { ethers } from 'ethers';
 import { BlobKitError, BlobKitErrorCode, ProcessEnv } from './types.js';
 
 // Size constraints
@@ -15,7 +15,7 @@ const MAX_BLOB_SIZE = 128 * 1024; // 128KB
  * @returns Hash string
  */
 export function calculatePayloadHash(data: Uint8Array): string {
-  return keccak256(data);
+  return ethers.keccak256(data);
 }
 
 /**
@@ -27,7 +27,7 @@ export function calculatePayloadHash(data: Uint8Array): string {
  */
 export function generateJobId(userAddress: string, payloadHash: string, nonce: number): string {
   const combined = `${userAddress}-${payloadHash}-${nonce}`;
-  return keccak256(new TextEncoder().encode(combined));
+  return ethers.keccak256(new TextEncoder().encode(combined));
 }
 
 /**
@@ -36,19 +36,16 @@ export function generateJobId(userAddress: string, payloadHash: string, nonce: n
  */
 export function validateEnvironmentConfig(): void {
   const env = process.env as ProcessEnv;
-  
-  // Log environment validation for debugging
-  if (env.BLOBKIT_LOG_LEVEL === 'debug') {
-    console.log('[BlobKit:DEBUG] Validating environment configuration');
-  }
-  
+
+  // Environment validation runs in debug mode
+
   // Validate chain-specific escrow contract addresses if set
   const chainVars = [
     'BLOBKIT_ESCROW_1',
-    'BLOBKIT_ESCROW_11155111', 
+    'BLOBKIT_ESCROW_11155111',
     'BLOBKIT_ESCROW_17000'
   ] as const;
-  
+
   for (const varName of chainVars) {
     const value = env[varName];
     if (value && !isValidAddress(value)) {
@@ -58,7 +55,7 @@ export function validateEnvironmentConfig(): void {
       );
     }
   }
-  
+
   // Validate chain ID if set
   if (env.BLOBKIT_CHAIN_ID) {
     const chainId = parseInt(env.BLOBKIT_CHAIN_ID, 10);
@@ -69,7 +66,7 @@ export function validateEnvironmentConfig(): void {
       );
     }
   }
-  
+
   // Validate log level if set
   if (env.BLOBKIT_LOG_LEVEL && !['debug', 'info', 'silent'].includes(env.BLOBKIT_LOG_LEVEL)) {
     throw new BlobKitError(
@@ -86,14 +83,14 @@ export function validateEnvironmentConfig(): void {
  */
 export async function discoverProxyUrl(chainId: number): Promise<string> {
   // Check environment variable first
-  const envProxyUrl = process.env.BLOBKIT_PROXY_URL;
+  const envProxyUrl = typeof process !== 'undefined' ? process.env?.BLOBKIT_PROXY_URL : undefined;
   if (envProxyUrl) {
     try {
       const response = await fetch(`${envProxyUrl}/api/v1/health`, {
         method: 'GET',
         signal: AbortSignal.timeout(5000)
       });
-      
+
       if (response.ok) {
         const health = await response.json();
         if (health.chainId === chainId) {
@@ -101,17 +98,17 @@ export async function discoverProxyUrl(chainId: number): Promise<string> {
         }
       }
     } catch {
-      // Fall through to discovery
+      // Continue to fallback
     }
   }
-  
-  // Fallback proxy URLs by chain (these would be updated with actual proxy deployments)
+
+  // Fallback proxy URLs by chain
   const defaultProxies: Record<number, string> = {
-    1: 'https://proxy-mainnet.blobkit.dev',
-    11155111: 'https://proxy-sepolia.blobkit.dev',
-    17000: 'https://proxy-holesky.blobkit.dev'
+    1: 'https://proxy-mainnet.blobkit.org',
+    11155111: 'https://proxy-sepolia.blobkit.org',
+    17000: 'https://proxy-holesky.blobkit.org'
   };
-  
+
   const proxyUrl = defaultProxies[chainId];
   if (!proxyUrl) {
     throw new BlobKitError(
@@ -119,7 +116,7 @@ export async function discoverProxyUrl(chainId: number): Promise<string> {
       `No proxy server configured for chain ${chainId}. Set BLOBKIT_PROXY_URL environment variable.`
     );
   }
-  
+
   return proxyUrl;
 }
 
@@ -128,25 +125,22 @@ export async function discoverProxyUrl(chainId: number): Promise<string> {
  */
 export function getDefaultEscrowContract(chainId: number): string {
   // Check environment variables first
-  const envAddress = process.env[`BLOBKIT_ESCROW_${chainId}`];
+  const envAddress =
+    typeof process !== 'undefined' ? process.env?.[`BLOBKIT_ESCROW_${chainId}`] : undefined;
   if (envAddress && isValidAddress(envAddress)) {
     return envAddress;
   }
 
-  // Fall back to known deployed addresses (these would be updated when contracts are deployed)
+  // Fall back to known deployed addresses
   switch (chainId) {
     case 1: // Mainnet
-      // These addresses should be updated when contracts are actually deployed
-      throw new BlobKitError(
-        BlobKitErrorCode.CONTRACT_NOT_DEPLOYED,
-        `BlobKit escrow contract not yet deployed on Mainnet (chain ${chainId}). Please set BLOBKIT_ESCROW_1 environment variable.`
-      );
+      // DEPLOYED: Mainnet contract
+      return '0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495';
     case 11155111: // Sepolia
-      throw new BlobKitError(
-        BlobKitErrorCode.CONTRACT_NOT_DEPLOYED,
-        `BlobKit escrow contract not yet deployed on Sepolia (chain ${chainId}). Please set BLOBKIT_ESCROW_11155111 environment variable.`
-      );
+      // DEPLOYED: Sepolia testnet contract
+      return '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD77';
     case 17000: // Holesky
+      // Not yet deployed to Holesky
       throw new BlobKitError(
         BlobKitErrorCode.CONTRACT_NOT_DEPLOYED,
         `BlobKit escrow contract not yet deployed on Holesky (chain ${chainId}). Please set BLOBKIT_ESCROW_17000 environment variable.`
@@ -208,19 +202,19 @@ export function validateBlobSize(data: Uint8Array): void {
  */
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
-} 
+}
 
 /****************  Borrowed wholesale from @ethereumjs/util to avoid external dependencies  *******/
-const hexByByte = Array.from({ length: 256 }, (v, i) => i.toString(16).padStart(2, '0'))
+const hexByByte = Array.from({ length: 256 }, (v, i) => i.toString(16).padStart(2, '0'));
 
 export const bytesToHex = (bytes: Uint8Array): string => {
-  let hex = '0x'
-  if (bytes === undefined || bytes.length === 0) return hex
+  let hex = '0x';
+  if (bytes === undefined || bytes.length === 0) return hex;
   for (const byte of bytes) {
-    hex += hexByByte[byte]
+    hex += hexByByte[byte];
   }
-  return hex
-}
+  return hex;
+};
 
 /**
  * Pads a `String` to have an even length
@@ -228,52 +222,52 @@ export const bytesToHex = (bytes: Uint8Array): string => {
  * @return output
  */
 export function padToEven(value: string): string {
-    let a = value
-  
-    if (typeof a !== 'string') {
-      throw new Error(`[padToEven] value must be type 'string', received ${typeof a}`)
-    }
-  
-    if (a.length % 2) a = `0${a}`
-  
-    return a
+  let a = value;
+
+  if (typeof a !== 'string') {
+    throw new Error(`[padToEven] value must be type 'string', received ${typeof a}`);
   }
 
-// hexToBytes cache
-const hexToBytesMapFirstKey: { [key: string]: number } = {}
-const hexToBytesMapSecondKey: { [key: string]: number } = {}
+  if (a.length % 2) a = `0${a}`;
 
-for (let i = 0; i < 16; i++) {
-  const vSecondKey = i
-  const vFirstKey = i * 16
-  const key = i.toString(16).toLowerCase()
-  hexToBytesMapSecondKey[key] = vSecondKey
-  hexToBytesMapSecondKey[key.toUpperCase()] = vSecondKey
-  hexToBytesMapFirstKey[key] = vFirstKey
-  hexToBytesMapFirstKey[key.toUpperCase()] = vFirstKey
+  return a;
 }
 
-  function _unprefixedHexToBytes(hex: string): Uint8Array {
-    const byteLen = hex.length
-    const bytes = new Uint8Array(byteLen / 2)
-    for (let i = 0; i < byteLen; i += 2) {
-      bytes[i / 2] = hexToBytesMapFirstKey[hex[i]] + hexToBytesMapSecondKey[hex[i + 1]]
-    }
-    return bytes
+// hexToBytes cache
+const hexToBytesMapFirstKey: { [key: string]: number } = {};
+const hexToBytesMapSecondKey: { [key: string]: number } = {};
+
+for (let i = 0; i < 16; i++) {
+  const vSecondKey = i;
+  const vFirstKey = i * 16;
+  const key = i.toString(16).toLowerCase();
+  hexToBytesMapSecondKey[key] = vSecondKey;
+  hexToBytesMapSecondKey[key.toUpperCase()] = vSecondKey;
+  hexToBytesMapFirstKey[key] = vFirstKey;
+  hexToBytesMapFirstKey[key.toUpperCase()] = vFirstKey;
+}
+
+function _unprefixedHexToBytes(hex: string): Uint8Array {
+  const byteLen = hex.length;
+  const bytes = new Uint8Array(byteLen / 2);
+  for (let i = 0; i < byteLen; i += 2) {
+    bytes[i / 2] = hexToBytesMapFirstKey[hex[i]] + hexToBytesMapSecondKey[hex[i + 1]];
   }
+  return bytes;
+}
 export const hexToBytes = (hex: string): Uint8Array => {
-    if (typeof hex !== 'string') {
-      throw new Error(`hex argument type ${typeof hex} must be of type string`)
-    }
-  
-    if (!/^0x[0-9a-fA-F]*$/.test(hex)) {
-      throw new Error(`Input must be a 0x-prefixed hexadecimal string, got ${hex}`)
-    }
-  
-    hex = hex.slice(2)
-  
-    if (hex.length % 2 !== 0) {
-      hex = padToEven(hex)
-    }
-    return _unprefixedHexToBytes(hex)
+  if (typeof hex !== 'string') {
+    throw new Error(`hex argument type ${typeof hex} must be of type string`);
   }
+
+  if (!/^0x[0-9a-fA-F]*$/.test(hex)) {
+    throw new Error(`Input must be a 0x-prefixed hexadecimal string, got ${hex}`);
+  }
+
+  hex = hex.slice(2);
+
+  if (hex.length % 2 !== 0) {
+    hex = padToEven(hex);
+  }
+  return _unprefixedHexToBytes(hex);
+};

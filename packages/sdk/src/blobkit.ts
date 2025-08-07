@@ -1,64 +1,77 @@
+/**
+ * BlobKit SDK Main Class
+ *
+ * Simplified orchestration layer that delegates to specialized modules
+ */
+
 import { ethers } from 'ethers';
 import {
   BlobKitConfig,
   BlobKitEnvironment,
   BlobMeta,
+  BlobReceipt,
   BlobPaymentResult,
+  BlobReadResult,
   CostEstimate,
   Signer,
   BlobKitError,
   BlobKitErrorCode,
-  JobStatus,
-  TransactionRequest
+  TransactionResponse,
+  JobStatus
 } from './types.js';
 import { detectEnvironment, getEnvironmentCapabilities } from './environment.js';
 import { defaultCodecRegistry } from './codecs/index.js';
+import { PaymentManager } from './payment.js';
+import { ProxyClient, BlobSubmitResult } from './proxy-client.js';
+import { BlobSubmitter, DirectSubmitResult } from './blob-submitter.js';
+import { BlobReader } from './blob-reader.js';
+import { MetricsCollector } from './metrics.js';
+import { Logger } from './logger.js';
 import {
   generateJobId,
   calculatePayloadHash,
-  discoverProxyUrl,
   getDefaultEscrowContract,
   validateBlobSize,
   formatEther,
-  parseEther,
   isValidAddress,
   validateEnvironmentConfig,
-  bytesToHex
+  sleep
 } from './utils.js';
-import {
-  initializeKzg,
-  encodeBlob,
-  blobToKzgCommitment,
-  computeKzgProof,
-  commitmentToVersionedHash,
-  kzgLibrary,
-} from './kzg.js';
-
-import { EscrowContractABI } from './abi/index.js';
+import { initializeKzg } from './kzg.js';
 
 /**
  * BlobKit SDK - Main class for blob storage operations
  */
 export class BlobKit {
-  private readonly config: Required<BlobKitConfig>;
+  private readonly config: Required<
+    Omit<BlobKitConfig, 'kzgSetup' | 'metricsHooks' | 'requestSigningSecret'>
+  > & {
+    kzgSetup?: import('./types.js').KzgSetupOptions;
+    metricsHooks?: import('./types.js').MetricsHooks;
+    requestSigningSecret?: string;
+  };
   private readonly environment: BlobKitEnvironment;
   private readonly signer: Signer | undefined;
-  private proxyUrl?: string;
-  private escrowContract?: ethers.Contract;
+  private readonly metrics: MetricsCollector;
+
+  // Component managers
+  private paymentManager: PaymentManager;
+  private proxyClient?: ProxyClient;
+  private blobSubmitter?: BlobSubmitter;
+  private blobReader: BlobReader;
+  private logger: Logger;
+
   private kzgInitialized = false;
+  private jobNonce = 0;
 
   /**
    * Creates a new BlobKit instance
-   * @param config Configuration options
-   * @param signer Optional signer for transactions (required for browser environments)
    */
   constructor(config: BlobKitConfig, signer?: Signer) {
     this.environment = detectEnvironment();
-    
-    // Validate configuration
     this.validateConfig(config);
-    
-    // Set default values with proper typing
+
+    // Set defaults
     this.config = {
       rpcUrl: config.rpcUrl,
       chainId: config.chainId ?? 1,
@@ -69,482 +82,467 @@ export class BlobKit {
       escrowContract: config.escrowContract ?? getDefaultEscrowContract(config.chainId ?? 1),
       maxProxyFeePercent: config.maxProxyFeePercent ?? 5,
       callbackUrl: config.callbackUrl ?? '',
-      logLevel: config.logLevel ?? 'info'
+      logLevel: config.logLevel ?? 'info',
+      kzgSetup: config.kzgSetup,
+      metricsHooks: config.metricsHooks,
+      requestSigningSecret: config.requestSigningSecret ?? process.env?.REQUEST_SIGNING_SECRET
     };
-    
+
     this.signer = signer;
-    
-    this.log('debug', `BlobKit initialized in ${this.environment} environment`);
+    this.metrics = new MetricsCollector(config.metricsHooks);
+
+    // Initialize components
+    this.paymentManager = new PaymentManager(
+      this.config.rpcUrl,
+      this.config.escrowContract,
+      signer
+    );
+
+    this.blobReader = new BlobReader({
+      rpcUrl: this.config.rpcUrl,
+      archiveUrl: this.config.archiveUrl,
+      logLevel: this.config.logLevel
+    });
+
+    this.logger = new Logger({ context: 'BlobKit', level: this.config.logLevel as any });
+    this.logger.debug(`BlobKit initialized in ${this.environment} environment`);
   }
 
   /**
-   * Initialize KZG if not already done
+   * Async factory method to create and initialize a BlobKit instance
    */
-  private async ensureKzgInitialized(): Promise<void> {
+  static async init(config: BlobKitConfig, signer?: Signer): Promise<BlobKit> {
+    const instance = new BlobKit(config, signer);
+    await instance.initialize();
+    return instance;
+  }
+
+  /**
+   * Initialize async components
+   */
+  async initialize(): Promise<void> {
+    // Initialize KZG if not already done
     if (!this.kzgInitialized) {
-      await initializeKzg();
+      await initializeKzg(this.config.kzgSetup);
       this.kzgInitialized = true;
     }
-  }
 
-  /**
-   * Writes blob data to Ethereum
-   * @param payload Data to store in the blob
-   * @param meta Optional metadata for the blob
-   * @returns Promise resolving to blob storage result
-   */
-  async writeBlob(payload: unknown, meta?: Partial<BlobMeta>): Promise<BlobPaymentResult> {
-    await this.ensureKzgInitialized();
-    
-    if (payload === null || payload === undefined) {
-      throw new BlobKitError(BlobKitErrorCode.INVALID_PAYLOAD, 'Payload cannot be null or undefined');
-    }
-
-    // Determine payment method based on environment and configuration
-    const capabilities = getEnvironmentCapabilities(this.environment);
-    const useProxy = capabilities.requiresProxy || Boolean(this.config.proxyUrl);
-
-    if (useProxy) {
-      return await this.writeWithWeb3Payment(payload, meta);
-    } else {
-      return await this.writeWithDirectTransaction(payload, meta);
+    // Set up proxy client if needed
+    if (this.shouldUseProxy()) {
+      const proxyUrl = await this.resolveProxyUrl();
+      this.proxyClient = new ProxyClient({
+        proxyUrl,
+        requestSigningSecret: this.config.requestSigningSecret,
+        logLevel: this.config.logLevel
+      });
+    } else if (this.environment === 'node') {
+      // Set up direct submitter for Node.js
+      this.blobSubmitter = new BlobSubmitter({
+        rpcUrl: this.config.rpcUrl,
+        chainId: this.config.chainId,
+        escrowAddress: this.config.escrowContract
+      });
     }
   }
 
   /**
-   * Estimates the cost of storing blob data
-   * @param payload Data to estimate cost for
-   * @returns Promise resolving to cost breakdown
+   * Write blob data to Ethereum
+   *
+   * This method handles the full web3 payment flow:
+   * 1. Estimates cost
+   * 2. Deposits payment to escrow contract
+   * 3. Submits blob via proxy (browser) or directly (Node.js)
+   *
+   * @param data Data to store as blob
+   * @param meta Optional metadata
+   * @returns Blob receipt with transaction details
    */
-  async estimateCost(payload: unknown): Promise<CostEstimate> {
-    if (payload === null || payload === undefined) {
-      throw new BlobKitError(BlobKitErrorCode.INVALID_PAYLOAD, 'Payload cannot be null or undefined');
-    }
+  async writeBlob(
+    data: Uint8Array | string | object,
+    meta?: Partial<BlobMeta>
+  ): Promise<BlobReceipt> {
+    const startTime = Date.now();
+    this.metrics.trackOperation('writeBlob', 'start');
 
-    try {
-      // Encode to get actual size
-      const codec = defaultCodecRegistry.get(this.config.defaultCodec);
-      const encodedData = codec.encode(payload);
-      validateBlobSize(encodedData);
+    const maxRetries = 3;
+    let lastError: unknown;
 
-      // Get current network fees
-      const provider = new ethers.JsonRpcProvider(this.config.rpcUrl);
-      const ethersFeeData = await provider.getFeeData();
-      
-      // Estimate blob fee (simplified calculation - fallback if no blob gas pricing)
-      const blobGasPrice = (ethersFeeData as any).maxFeePerBlobGas ?? ethers.parseUnits('1', 'gwei');
-      const blobGasUsed = 131072n; // Standard blob gas
-      const blobFee = blobGasPrice * blobGasUsed;
+    // Convert data to Uint8Array once
+    const payload = await this.preparePayload(data, meta);
 
-      // Estimate transaction gas
-      const gasPrice = ethersFeeData.maxFeePerGas ?? ethers.parseUnits('20', 'gwei');
-      const gasUsed = 21000n; // Base transaction gas
-      const gasFee = gasPrice * gasUsed;
+    // Validate blob size
+    validateBlobSize(payload);
 
-      // Calculate proxy fee if using proxy
-      const proxyFeePercent = await this.getProxyFeePercent();
-      const totalBaseFee = blobFee + gasFee;
-      const proxyFee = (totalBaseFee * BigInt(proxyFeePercent)) / 100n;
+    // Calculate payload hash once
+    const payloadHash = calculatePayloadHash(payload);
+    const userAddress = await this.getAddress();
 
-      const totalCost = totalBaseFee + proxyFee;
+    // Prepare metadata once
+    const fullMeta: BlobMeta = {
+      appId: 'blobkit-sdk',
+      codec: meta?.codec || this.detectCodec(data),
+      timestamp: Date.now(),
+      ...meta
+    };
 
-      return {
-        blobFee: formatEther(blobFee),
-        gasFee: formatEther(gasFee),
-        proxyFee: formatEther(proxyFee),
-        totalETH: formatEther(totalCost)
-      };
-    } catch (error) {
-      throw new BlobKitError(
-        BlobKitErrorCode.NETWORK_ERROR,
-        'Failed to estimate cost',
-        error instanceof Error ? error : undefined
-      );
-    }
-  }
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Generate new job ID for each attempt
+        const jobId = generateJobId(userAddress, payloadHash, this.jobNonce++);
 
-  /**
-   * Refunds an expired job from the escrow contract
-   * @param jobId Job ID to refund
-   * @returns Promise resolving to transaction hash
-   */
-  async refundIfExpired(jobId: string): Promise<string> {
-    try {
-      const contract = await this.getEscrowContract();
-      const isExpired = await contract['isJobExpired'](jobId) as boolean;
-      
-      if (!isExpired) {
-        throw new BlobKitError(BlobKitErrorCode.JOB_EXPIRED, 'Job has not expired yet');
+        this.logger.info(
+          `Attempting blob write (attempt ${attempt + 1}/${maxRetries}) with job ID: ${jobId}`
+        );
+
+        // Estimate and pay
+        const estimate = await this.estimateCost(payload);
+        const payment = await this.paymentManager.depositForBlob(jobId, estimate.totalETH);
+
+        // Submit blob
+        let result;
+        if (this.shouldUseProxy()) {
+          result = await this.submitViaProxy(jobId, payment.paymentTxHash, payload, fullMeta);
+        } else {
+          result = await this.submitDirectly(jobId, payload);
+        }
+
+        this.metrics.trackOperation('writeBlob', 'complete', Date.now() - startTime);
+
+        return {
+          success: true,
+          jobId,
+          blobTxHash: result.blobTxHash,
+          paymentTxHash: payment.paymentTxHash,
+          blockNumber: result.blockNumber,
+          blobHash: result.blobHash,
+          commitment: result.commitment,
+          proof: result.proof,
+          blobIndex: result.blobIndex,
+          meta: fullMeta
+        };
+      } catch (error) {
+        lastError = error;
+        this.logger.warn(
+          `Blob write attempt ${attempt + 1} failed:`,
+          error as Record<string, unknown>
+        );
+
+        // Don't retry on certain errors
+        if (error instanceof BlobKitError) {
+          const nonRetryableErrors = [
+            BlobKitErrorCode.INVALID_CONFIG,
+            BlobKitErrorCode.INVALID_PAYLOAD,
+            BlobKitErrorCode.BLOB_TOO_LARGE,
+            BlobKitErrorCode.INSUFFICIENT_FUNDS
+          ];
+
+          if (nonRetryableErrors.includes(error.code)) {
+            this.metrics.trackOperation('writeBlob', 'error');
+            throw error;
+          }
+        }
+
+        // Add exponential backoff for retries
+        if (attempt < maxRetries - 1) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+          this.logger.info(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-
-      const tx = await contract['refundExpiredJob'](jobId);
-      const receipt = await tx.wait();
-      
-      this.log('info', `Job ${jobId} refunded: ${receipt.hash}`);
-      return receipt.hash;
-    } catch (error) {
-      throw new BlobKitError(
-        BlobKitErrorCode.NETWORK_ERROR,
-        'Failed to refund expired job',
-        error instanceof Error ? error : undefined
-      );
     }
+
+    this.metrics.trackOperation('writeBlob', 'error');
+    throw new BlobKitError(
+      BlobKitErrorCode.BLOB_SUBMISSION_FAILED,
+      `Failed to write blob after ${maxRetries} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`
+    );
   }
 
   /**
-   * Generates a deterministic job ID
-   * @param userAddress User's Ethereum address
-   * @param payloadHash SHA-256 hash of payload
-   * @param nonce Unique nonce for this job
-   * @returns Job ID string
+   * Generate a deterministic job ID from user address, payload hash, and nonce
+   * @param userAddress The user's Ethereum address
+   * @param payloadHash The hash of the payload
+   * @param nonce A unique nonce to prevent collisions
+   * @returns A deterministic job ID
    */
   generateJobId(userAddress: string, payloadHash: string, nonce: number): string {
-    if (!isValidAddress(userAddress)) {
-      throw new BlobKitError(BlobKitErrorCode.INVALID_PAYLOAD, 'Invalid user address');
-    }
     return generateJobId(userAddress, payloadHash, nonce);
   }
 
   /**
-   * Writes blob using Web3 payment flow (browser environment)
+   * Check job status
    */
-  private async writeWithWeb3Payment(payload: unknown, meta?: Partial<BlobMeta>): Promise<BlobPaymentResult> {
+  async getJobStatus(jobId: string): Promise<JobStatus> {
+    return this.paymentManager.getJobStatus(jobId);
+  }
+
+  /**
+   * Request refund for expired job
+   */
+  async refundIfExpired(jobId: string): Promise<TransactionResponse> {
+    return this.paymentManager.refundIfExpired(jobId);
+  }
+
+  /**
+   * Estimate cost of blob storage
+   */
+  async estimateCost(payload: Uint8Array): Promise<CostEstimate> {
+    validateBlobSize(payload);
+
+    if (this.shouldUseProxy()) {
+      // Get proxy fee
+      const proxyFee = await this.getProxyFeePercent();
+      const baseCost = await this.estimateBaseCost(payload.length);
+      const proxyAmount = (baseCost * BigInt(proxyFee)) / BigInt(100);
+
+      return {
+        blobFee: formatEther(baseCost),
+        gasFee: '0',
+        proxyFee: formatEther(proxyAmount),
+        totalETH: formatEther(baseCost + proxyAmount)
+      };
+    } else {
+      // Direct submission costs
+      const costs = await this.blobSubmitter!.estimateCost(payload.length);
+      return {
+        blobFee: formatEther(costs.blobFee),
+        gasFee: formatEther(costs.executionFee),
+        proxyFee: '0',
+        totalETH: formatEther(costs.total)
+      };
+    }
+  }
+
+  /**
+   * Get current address
+   */
+  async getAddress(): Promise<string> {
     if (!this.signer) {
-      throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Signer required for Web3 payment');
+      throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Signer required for this operation');
+    }
+    return this.signer.getAddress();
+  }
+
+  /**
+   * Get current balance
+   */
+  async getBalance(): Promise<bigint> {
+    const address = await this.getAddress();
+    const provider = new ethers.JsonRpcProvider(this.config.rpcUrl);
+    return provider.getBalance(address);
+  }
+
+  /**
+   * Read blob data by transaction hash
+   * @param blobTxHash Transaction hash containing the blob
+   * @param blobIndex Index of blob within transaction (default: 0)
+   * @returns Raw blob data and metadata
+   */
+  async readBlob(blobTxHash: string, blobIndex: number = 0): Promise<BlobReadResult> {
+    const startTime = Date.now();
+
+    try {
+      this.logger.info(`Reading blob from tx ${blobTxHash} at index ${blobIndex}`);
+
+      // Execute read operation with metrics
+      const result = await this.blobReader.readBlob(blobTxHash, blobIndex);
+
+      const duration = Date.now() - startTime;
+      this.logger.info(`Blob read completed in ${duration}ms from ${result.source}`);
+
+      // Report metrics
+      if (this.metrics) {
+        this.metrics.recordBlobRead(result.data.length, duration, true, result.source);
+      }
+
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error(`Blob read failed after ${duration}ms`, error);
+
+      // Report error metrics
+      if (this.metrics) {
+        this.metrics.recordBlobRead(0, duration, false, 'error');
+        this.metrics.recordError(
+          error instanceof Error ? error : new Error(String(error)),
+          'readBlob'
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Read blob and decode to UTF-8 string
+   * @param blobTxHash Transaction hash containing the blob
+   * @param blobIndex Index of blob within transaction (default: 0)
+   * @returns Decoded string data
+   */
+  async readBlobAsString(blobTxHash: string, blobIndex: number = 0): Promise<string> {
+    const result = await this.readBlob(blobTxHash, blobIndex);
+    return BlobReader.decodeToString(result.data);
+  }
+
+  /**
+   * Read blob and decode to JSON object
+   * @param blobTxHash Transaction hash containing the blob
+   * @param blobIndex Index of blob within transaction (default: 0)
+   * @returns Decoded JSON data
+   */
+  async readBlobAsJSON(blobTxHash: string, blobIndex: number = 0): Promise<unknown> {
+    const result = await this.readBlob(blobTxHash, blobIndex);
+    return BlobReader.decodeToJSON(result.data);
+  }
+
+  // Private helper methods
+
+  private shouldUseProxy(): boolean {
+    const capabilities = getEnvironmentCapabilities(this.environment);
+    return !capabilities.canSubmitBlobs || !!this.config.proxyUrl;
+  }
+
+  private async resolveProxyUrl(): Promise<string> {
+    if (this.config.proxyUrl) {
+      return this.config.proxyUrl;
+    }
+    return ProxyClient.discover(this.config.chainId);
+  }
+
+  private async submitViaProxy(
+    jobId: string,
+    paymentTxHash: string,
+    payload: Uint8Array,
+    meta: BlobMeta
+  ): Promise<BlobSubmitResult> {
+    if (!this.proxyClient) {
+      throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Proxy client not initialized');
     }
 
-    // Encode payload
-    const codec = defaultCodecRegistry.get(this.config.defaultCodec);
-    const encodedData = codec.encode(payload);
-    validateBlobSize(encodedData);
-
-    // Prepare metadata
-    const fullMeta: BlobMeta = {
-      appId: meta?.appId ?? 'blobkit',
-      codec: meta?.codec ?? this.config.defaultCodec,
-      timestamp: meta?.timestamp ?? Date.now(),
-      contentHash: calculatePayloadHash(encodedData),
-      ...(meta?.ttlBlocks !== undefined && { ttlBlocks: meta.ttlBlocks }),
-      ...(meta?.filename !== undefined && { filename: meta.filename }),
-      ...(meta?.contentType !== undefined && { contentType: meta.contentType }),
-      ...(meta?.tags !== undefined && { tags: meta.tags })
-    };
-
-    // Generate job metadata
-    const userAddress = await this.signer.getAddress();
-    const payloadHash = calculatePayloadHash(encodedData);
-    const nonce = Date.now(); // Simple nonce strategy
-    const jobId = this.generateJobId(userAddress, payloadHash, nonce);
-
-    // Get cost estimate
-    const costEstimate = await this.estimateCost(payload);
-    const totalCost = parseEther(costEstimate.totalETH);
-
-    // Execute payment to escrow
-    this.log('info', `Depositing ${costEstimate.totalETH} ETH for job ${jobId}`);
-    const escrowContract = await this.getEscrowContract();
-    const paymentTx = await escrowContract['depositForBlob'](jobId, { value: totalCost });
-    const paymentReceipt = await paymentTx.wait();
+    // Wait for job to appear on-chain
+    await this.waitForJobOnChain(jobId);
 
     // Submit to proxy
-    const proxyUrl = await this.getProxyUrl();
-    const proxyResult = await this.submitToProxy(proxyUrl, {
+    const result = await this.proxyClient.submitBlob({
       jobId,
-      paymentTxHash: paymentReceipt.hash,
-      payload: encodedData,
-      meta: fullMeta
+      paymentTxHash,
+      payload,
+      meta
     });
 
-    this.log('info', `Blob written successfully via proxy: ${proxyResult.blobTxHash}`);
+    // Wait for job completion
+    await this.waitForJobCompletion(jobId);
 
-    return {
-      blobTxHash: proxyResult.blobTxHash,
-      blockNumber: proxyResult.blockNumber,
-      blobHash: proxyResult.blobHash,
-      commitment: proxyResult.commitment,
-      proof: proxyResult.proof,
-      blobIndex: proxyResult.blobIndex,
-      meta: fullMeta,
-      paymentTx: paymentReceipt.hash,
-      jobId,
-      proxyUrl,
-      totalCostETH: costEstimate.totalETH,
-      completionTxHash: proxyResult.completionTxHash,
-      paymentMethod: 'web3'
-    };
-  }
-
-  /**
-   * Writes blob using direct transaction (Node.js/serverless environment)
-   */
-  private async writeWithDirectTransaction(payload: unknown, meta?: Partial<BlobMeta>): Promise<BlobPaymentResult> {
-    if (!this.signer) {
-      throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Signer required for direct transaction');
-    }
-
-    await this.ensureKzgInitialized();
-
-    // Encode payload using codec
-    const codec = defaultCodecRegistry.get(this.config.defaultCodec);
-    const encodedPayload = codec.encode(payload);
-    validateBlobSize(encodedPayload);
-
-    // Prepare metadata
-    const fullMeta: BlobMeta = {
-      appId: meta?.appId ?? 'blobkit',
-      codec: meta?.codec ?? this.config.defaultCodec,
-      timestamp: meta?.timestamp ?? Date.now(),
-      contentHash: calculatePayloadHash(encodedPayload),
-      ...(meta?.ttlBlocks !== undefined && { ttlBlocks: meta.ttlBlocks }),
-      ...(meta?.filename !== undefined && { filename: meta.filename }),
-      ...(meta?.contentType !== undefined && { contentType: meta.contentType }),
-      ...(meta?.tags !== undefined && { tags: meta.tags })
-    };
-
-    // Pack metadata and payload
-    const metaBytes = new TextEncoder().encode(JSON.stringify(fullMeta));
-    const combined = new Uint8Array(4 + metaBytes.length + encodedPayload.length);
-    
-    new DataView(combined.buffer).setUint32(0, metaBytes.length, false);
-    combined.set(metaBytes, 4);
-    combined.set(encodedPayload, 4 + metaBytes.length);
-
-    // Encode to blob format
-    const blob = encodeBlob(combined);
-    
-    // Generate KZG commitment and proof
-    const commitment = blobToKzgCommitment(blob);
-    const proof = computeKzgProof(blob, commitment);
-    const versionedHash = await commitmentToVersionedHash(commitment);
-
-    // Convert to hex
-    const commitmentHex = bytesToHex(commitment);
-    const proofHex = bytesToHex(proof);
-    const blobHash = bytesToHex(versionedHash);
-
-    // Send blob transaction
-    const txResponse = await this.sendBlobTransaction(blob, commitmentHex, proofHex);
-    const receipt = await txResponse.wait();
-
-    if (!receipt) {
-      throw new BlobKitError(BlobKitErrorCode.TRANSACTION_FAILED, 'Transaction failed');
-    }
-
-    this.log('info', `Blob written successfully: ${receipt.hash}`);
-
-    return {
-      blobTxHash: receipt.hash,
-      blockNumber: receipt.blockNumber ?? 0,
-      blobHash,
-      commitment: commitmentHex,
-      proof: proofHex,
-      blobIndex: 0,
-      meta: fullMeta,
-      paymentTx: receipt.hash,
-      jobId: `direct-${receipt.hash}`,
-      proxyUrl: '',
-      totalCostETH: formatEther(receipt.gasUsed ?? 0n),
-      completionTxHash: receipt.hash,
-      paymentMethod: 'direct'
-    };
-  }
-
-  /**
-   * Submits encoded blob data to proxy service
-   */
-  private async submitToProxy(proxyUrl: string, data: {
-    jobId: string;
-    paymentTxHash: string;
-    payload: Uint8Array;
-    meta: BlobMeta;
-  }): Promise<{
-    blobTxHash: string;
-    blockNumber: number;
-    blobHash: string;
-    commitment: string;
-    proof: string;
-    blobIndex: number;
-    completionTxHash: string;
-  }> {
-    const response = await fetch(`${proxyUrl}/api/v1/blob/write`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        jobId: data.jobId,
-        paymentTxHash: data.paymentTxHash,
-        payload: Array.from(data.payload), // Convert Uint8Array to regular array for JSON
-        meta: data.meta
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new BlobKitError(
-        BlobKitErrorCode.PROXY_ERROR,
-        `Proxy request failed: ${response.status} ${errorText}`
-      );
-    }
-
-    const result = await response.json();
     return result;
   }
 
-  /**
-   * Gets the proxy URL for blob submission
-   */
-  private async getProxyUrl(): Promise<string> {
-    if (this.proxyUrl) {
-      return this.proxyUrl;
+  private async submitDirectly(
+    jobId: string,
+    payload: Uint8Array
+  ): Promise<DirectSubmitResult & { completionTxHash: string }> {
+    if (!this.blobSubmitter || !this.signer) {
+      throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Direct submission not available');
     }
 
-    if (this.config.proxyUrl) {
-      this.proxyUrl = this.config.proxyUrl;
-      return this.proxyUrl;
-    }
+    const result = await this.blobSubmitter.submitBlob(this.signer, jobId, payload);
 
-    // Auto-discover proxy
-    this.proxyUrl = await discoverProxyUrl(this.config.chainId);
-    return this.proxyUrl;
-  }
-
-  /**
-   * Gets the escrow contract instance
-   */
-  private async getEscrowContract(): Promise<ethers.Contract> {
-    if (this.escrowContract) {
-      return this.escrowContract;
-    }
-
-    if (!this.signer?.provider) {
-      throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Provider required for contract interaction');
-    }
-
-
-    // Use signer if it's compatible with ethers.Signer, otherwise use provider
-    let contractRunner: ethers.ContractRunner;
-    
-    if ('connect' in this.signer) {
-      // This is likely an ethers.Signer
-      contractRunner = this.signer as unknown as ethers.Signer;
-    } else if (this.signer.provider) {
-      // Use the signer's provider
-      contractRunner = (this.signer.provider as unknown) as ethers.Provider;
-    } else {
-      // Fallback to creating a new provider
-      contractRunner = new ethers.JsonRpcProvider(this.config.rpcUrl);
-    }
-    
-    this.escrowContract = new ethers.Contract(
-      this.config.escrowContract,
-      EscrowContractABI,
-      contractRunner
-    );
-
-    return this.escrowContract;
-  }
-
-  /**
-   * Gets job status from escrow contract
-   */
-  private async getJobStatus(jobId: string): Promise<JobStatus> {
-    const contract = await this.getEscrowContract();
-    const job = await contract['getJob'](jobId);
-    
     return {
-      exists: job.user !== '0x0000000000000000000000000000000000000000',
-      user: job.user,
-      amount: formatEther(job.amount),
-      completed: job.completed,
-      timestamp: Number(job.timestamp),
-      blobTxHash: job.blobTxHash
+      ...result,
+      completionTxHash: result.blobTxHash // Same transaction completes the job
     };
   }
 
-  /**
-   * Gets proxy fee percentage
-   */
-  private async getProxyFeePercent(): Promise<number> {
-    try {
-      const proxyUrl = await this.getProxyUrl();
-      const response = await fetch(`${proxyUrl}/api/v1/health`);
-      const health = await response.json();
-      return health.proxyFeePercent || 0;
-    } catch {
-      return 0; // Default to 0% if unable to fetch
+  private async waitForJobOnChain(jobId: string): Promise<void> {
+    const maxAttempts = 30;
+    for (let i = 0; i < maxAttempts; i++) {
+      const job = await this.getJobStatus(jobId);
+      if (job.exists) {
+        return;
+      }
+      await sleep(1000);
+    }
+    throw new BlobKitError(BlobKitErrorCode.JOB_NOT_FOUND, 'Job not found on chain after payment');
+  }
+
+  private async waitForJobCompletion(jobId: string): Promise<void> {
+    const timeout = 5 * 60 * 1000; // 5 minutes
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeout) {
+      const job = await this.getJobStatus(jobId);
+      if (job.completed) {
+        return;
+      }
+      await sleep(2000);
+    }
+
+    throw new BlobKitError(BlobKitErrorCode.JOB_TIMEOUT, 'Job completion timeout');
+  }
+
+  private async preparePayload(
+    data: Uint8Array | string | object,
+    meta?: Partial<BlobMeta>
+  ): Promise<Uint8Array> {
+    const codec = meta?.codec || this.detectCodec(data);
+    const encoder = defaultCodecRegistry.get(codec);
+    return encoder.encode(data);
+  }
+
+  private detectCodec(data: unknown): string {
+    if (data instanceof Uint8Array) {
+      return 'application/octet-stream';
+    } else if (typeof data === 'string') {
+      return 'text/plain';
+    } else {
+      return 'application/json';
     }
   }
 
-  /**
-   * Validates the configuration
-   */
+  private async getProxyFeePercent(): Promise<number> {
+    if (this.proxyClient) {
+      const health = await this.proxyClient.getHealth();
+      return health.proxyFeePercent || 0;
+    }
+    return 0;
+  }
+
+  private async estimateBaseCost(payloadSize: number): Promise<bigint> {
+    // Simple estimation: 1 blob = 131072 gas at 1 gwei
+    const blobGas = BigInt(131072);
+    const gasPrice = BigInt(1000000000); // 1 gwei
+    return blobGas * gasPrice;
+  }
+
   private validateConfig(config: BlobKitConfig): void {
     if (!config.rpcUrl) {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'rpcUrl is required');
     }
 
-    if (!isValidAddress(config.escrowContract || '')) {
-      // Will be validated later when we try to get the default contract
+    try {
+      new URL(config.rpcUrl);
+    } catch {
+      throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Invalid RPC URL format');
     }
 
-    // Validate environment variables if running in Node.js
+    if (config.chainId !== undefined) {
+      if (!Number.isInteger(config.chainId) || config.chainId <= 0 || config.chainId > 2147483647) {
+        throw new BlobKitError(
+          BlobKitErrorCode.INVALID_CONFIG,
+          'Chain ID must be a positive integer less than 2^31'
+        );
+      }
+    }
+
+    if (config.escrowContract && !isValidAddress(config.escrowContract)) {
+      throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Invalid escrow contract address');
+    }
+
     if (this.environment === 'node') {
       validateEnvironmentConfig();
     }
   }
 
-  /**
-   * Logs messages based on configured log level
-   */
-  private log(level: 'debug' | 'info', message: string, obj?: unknown): void {
-    if (this.config.logLevel === 'silent') return;
-    if (this.config.logLevel === 'info' && level === 'debug') return;
-    
-    console.log(`[BlobKit:${level.toUpperCase()}] ${message}`);
-    if (obj) {
-      console.log(obj);
-    }
+  private log(level: 'debug' | 'info', message: string, data?: unknown): void {
+    this.logger[level](message, data as Record<string, unknown>);
   }
-
-  /**
-   * Send blob transaction to Ethereum
-   */
-  private async sendBlobTransaction(
-    blob: Uint8Array,
-    commitment: string,
-    proof: string
-  ): Promise<{ hash: string; wait(): Promise<{ hash: string; blockNumber?: number; gasUsed?: bigint }> }> {
-    if (!this.signer) {
-      throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Signer required');
-    }
-
-    // Check if using MetaMask or browser wallet
-    const provider = this.signer.provider;
-    if (!provider) {
-      throw new BlobKitError(BlobKitErrorCode.ENVIRONMENT_ERROR, 'Provider not available');
-    }
-
-    // Get fee data
-    const ethersFeeData = await provider.getFeeData();
-    const blobGasPrice = (ethersFeeData as any).maxFeePerBlobGas ?? ethers.parseUnits('1', 'gwei');
-
-    const tx: TransactionRequest = {
-      type: 3,
-      to: '0x0000000000000000000000000000000000000000',
-      data: '0x',
-      value: 0n,
-      gasLimit: 21000n,
-      maxFeePerGas: ethersFeeData.maxFeePerGas ?? ethers.parseUnits('20', 'gwei'),
-      maxPriorityFeePerGas: ethers.parseUnits('1', 'gwei'),
-      maxFeePerBlobGas: blobGasPrice,
-      blobs: [blob],
-      kzgCommitments: [commitment],
-      kzgProofs: [proof],
-      chainId: this.config.chainId,
-      kzg: kzgLibrary,
-    };
-
-    return this.signer.sendTransaction(tx);
-  }
-} 
+}

@@ -19,6 +19,8 @@ export interface ProxyConfig {
   rateLimitWindow: number;
   jobTimeout: number;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  kzgTrustedSetupPath: string;
+  requestSigningSecret: string;
 }
 
 /**
@@ -27,7 +29,7 @@ export interface ProxyConfig {
 export interface BlobWriteRequest {
   jobId: string;
   paymentTxHash: string;
-  payload: number[]; // Uint8Array as array
+  payload: string; // Base64 encoded binary data
   meta: {
     appId: string;
     codec: string;
@@ -37,6 +39,7 @@ export interface BlobWriteRequest {
     filename?: string;
     contentType?: string;
     tags?: string[];
+    callbackUrl?: string;
   };
 }
 
@@ -59,7 +62,7 @@ export interface BlobWriteResponse {
  * Health check response
  */
 export interface HealthResponse {
-  status: 'healthy' | 'unhealthy';
+  status: 'healthy' | 'unhealthy' | 'degraded';
   version: string;
   chainId: number;
   escrowContract: string;
@@ -67,6 +70,7 @@ export interface HealthResponse {
   maxBlobSize: number;
   uptime: number;
   blocksLag?: number;
+  circuitBreakers?: Record<string, unknown>;
 }
 
 /**
@@ -75,7 +79,7 @@ export interface HealthResponse {
 export interface ErrorResponse {
   error: string;
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -114,7 +118,8 @@ export enum ProxyErrorCode {
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
   NETWORK_ERROR = 'NETWORK_ERROR',
   INTERNAL_ERROR = 'INTERNAL_ERROR',
-  CONTRACT_ERROR = 'CONTRACT_ERROR'
+  CONTRACT_ERROR = 'CONTRACT_ERROR',
+  TRANSACTION_FAILED = 'TRANSACTION_FAILED'
 }
 
 /**
@@ -123,9 +128,14 @@ export enum ProxyErrorCode {
 export class ProxyError extends Error {
   public readonly code: ProxyErrorCode;
   public readonly statusCode: number;
-  public readonly details?: any;
+  public readonly details?: Record<string, unknown>;
 
-  constructor(code: ProxyErrorCode, message: string, statusCode: number = 400, details?: any) {
+  constructor(
+    code: ProxyErrorCode,
+    message: string,
+    statusCode: number = 400,
+    details?: Record<string, unknown>
+  ) {
     super(message);
     this.name = 'ProxyError';
     this.code = code;
@@ -142,7 +152,7 @@ export interface BlobJob {
   user: string;
   paymentTxHash: string;
   payload: Uint8Array;
-  meta: any;
+  meta: Record<string, unknown>;
   timestamp: number;
   retryCount: number;
-} 
+}

@@ -2,35 +2,60 @@ import { BlobKit } from '@blobkit/sdk';
 import { ethers } from 'ethers';
 import { BlobJob, ProxyError, ProxyErrorCode } from '../types.js';
 import { createLogger } from '../utils/logger.js';
+import { CircuitBreaker, DEFAULT_CONFIGS, circuitBreakerManager } from './circuit-breaker.js';
+import { TracingService, ExtendedTraceContext } from '../middleware/tracing.js';
+import type { TraceContext } from '../utils/logger.js';
 
 const logger = createLogger('BlobExecutor');
+const tracingService = new TracingService('blobkit-blob-executor');
 
 /**
  * Service for executing blob transactions
  */
 export class BlobExecutor {
-  private blobkit: BlobKit;
-  private config: { rpcUrl: string; chainId: number };
+  private blobkit: BlobKit | null = null;
+  private config: { rpcUrl: string; chainId: number; kzgTrustedSetupPath: string };
   private signer: ethers.Signer;
   private logger = createLogger('BlobExecutor');
+  private circuitBreaker: CircuitBreaker;
 
-  constructor(rpcUrl: string, chainId: number, signer: ethers.Signer) {
-    this.config = { rpcUrl, chainId };
+  constructor(rpcUrl: string, chainId: number, signer: ethers.Signer, kzgTrustedSetupPath: string) {
+    this.config = { rpcUrl, chainId, kzgTrustedSetupPath };
     this.signer = signer;
-    
-    // Create BlobKit instance for direct transactions
-    // Cast ethers.Signer to BlobKit's Signer interface for compatibility
-    this.blobkit = new BlobKit({
-      rpcUrl,
-      chainId,
-      logLevel: 'info'
-    }, signer as any);
+
+    // Initialize circuit breaker
+    this.circuitBreaker = new CircuitBreaker(DEFAULT_CONFIGS.blobExecutor);
+    circuitBreakerManager.register(this.circuitBreaker, DEFAULT_CONFIGS.blobExecutor);
+  }
+
+  /**
+   * Initialize BlobKit asynchronously
+   */
+  private async ensureBlobKit(): Promise<BlobKit> {
+    if (!this.blobkit) {
+      // Initialize BlobKit with KZG setup for Node.js environment
+      this.blobkit = await BlobKit.init(
+        {
+          rpcUrl: this.config.rpcUrl,
+          chainId: this.config.chainId,
+          logLevel: 'info',
+          kzgSetup: {
+            trustedSetupPath: this.config.kzgTrustedSetupPath
+          }
+        },
+        this.signer
+      );
+    }
+    return this.blobkit;
   }
 
   /**
    * Executes a blob transaction
    */
-  async executeBlob(job: BlobJob): Promise<{
+  async executeBlob(
+    job: BlobJob,
+    traceContext?: ExtendedTraceContext
+  ): Promise<{
     blobTxHash: string;
     blockNumber: number;
     blobHash: string;
@@ -38,79 +63,110 @@ export class BlobExecutor {
     proof: string;
     blobIndex: number;
   }> {
-    try {
-      logger.info(`Executing blob transaction for job ${job.jobId}`);
+    // Execute with circuit breaker protection
+    return await this.circuitBreaker.execute(async () => {
+      const span = tracingService.startSpan('blob.execute', traceContext);
+      span.setAttribute('job.id', job.jobId);
+      span.setAttribute('job.user', job.user);
+      span.setAttribute('payload.size', job.payload.length);
 
-      // Validate blob size
-      if (job.payload.length > 131072) { // 128KB
-        throw new ProxyError(
-          ProxyErrorCode.BLOB_TOO_LARGE,
-          `Blob size ${job.payload.length} exceeds maximum 131072 bytes`,
-          400
-        );
-      }
+      const tracedLogger = traceContext
+        ? tracingService.getLoggerWithTrace(logger, traceContext)
+        : logger;
 
-      // Convert payload back to the appropriate format based on codec
-      let decodedPayload: unknown;
-      
-      switch (job.meta.codec?.toLowerCase()) {
-        case 'json':
-        case 'application/json':
-          decodedPayload = JSON.parse(new TextDecoder().decode(job.payload));
-          break;
-        case 'text':
-        case 'text/plain':
-          decodedPayload = new TextDecoder().decode(job.payload);
-          break;
-        case 'raw':
-        case 'application/octet-stream':
-          decodedPayload = job.payload;
-          break;
-        default:
-          // Try to parse as JSON by default
-          try {
+      try {
+        tracedLogger.info(`Executing blob transaction for job ${job.jobId}`);
+
+        // Validate blob size
+        if (job.payload.length > 131072) {
+          // 128KB
+          throw new ProxyError(
+            ProxyErrorCode.BLOB_TOO_LARGE,
+            `Blob size ${job.payload.length} exceeds maximum 131072 bytes`,
+            400
+          );
+        }
+
+        // Convert payload back to the appropriate format based on codec
+        let decodedPayload: unknown;
+
+        const codec = (job.meta as { codec?: string }).codec;
+        switch (codec?.toLowerCase()) {
+          case 'json':
+          case 'application/json':
             decodedPayload = JSON.parse(new TextDecoder().decode(job.payload));
-          } catch {
+            break;
+          case 'text':
+          case 'text/plain':
+            decodedPayload = new TextDecoder().decode(job.payload);
+            break;
+          case 'raw':
+          case 'application/octet-stream':
             decodedPayload = job.payload;
-          }
+            break;
+          default:
+            // Try to parse as JSON by default
+            try {
+              decodedPayload = JSON.parse(new TextDecoder().decode(job.payload));
+            } catch {
+              decodedPayload = job.payload;
+            }
+        }
+
+        // Execute blob write using the SDK
+        const result = await this.writeBlob(decodedPayload, job.meta);
+
+        tracedLogger.info(
+          `Blob transaction executed successfully for job ${job.jobId}: ${result.blobTxHash}`
+        );
+
+        span.setAttribute('blob.tx_hash', result.blobTxHash);
+        span.setAttribute('blob.block_number', result.blockNumber);
+        span.setAttribute('blob.index', result.blobIndex);
+        span.setStatus({ code: 0 }); // Success
+
+        return {
+          blobTxHash: result.blobTxHash,
+          blockNumber: result.blockNumber,
+          blobHash: result.blobHash,
+          commitment: result.commitment,
+          proof: result.proof,
+          blobIndex: result.blobIndex
+        };
+      } catch (error) {
+        tracedLogger.error(`Blob execution failed for job ${job.jobId}:`, {
+          error: error instanceof Error ? error.message : String(error)
+        });
+
+        span.recordException(error as Error);
+        span.setStatus({
+          code: 2,
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }); // Error
+
+        if (error instanceof ProxyError) {
+          throw error;
+        }
+
+        throw new ProxyError(
+          ProxyErrorCode.BLOB_EXECUTION_FAILED,
+          `Failed to execute blob transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          500,
+          { jobId: job.jobId, error: error instanceof Error ? error.message : 'Unknown error' }
+        );
+      } finally {
+        span.end();
       }
-
-      // Execute blob write using the SDK
-      // Note: This would need to integrate with the existing BlobKit blob writing logic
-      // For now, we'll simulate the response structure
-      const result = await this.writeBlob(decodedPayload, job.meta);
-
-      logger.info(`Blob transaction executed successfully for job ${job.jobId}: ${result.blobTxHash}`);
-
-      return {
-        blobTxHash: result.blobTxHash,
-        blockNumber: result.blockNumber,
-        blobHash: result.blobHash,
-        commitment: result.commitment,
-        proof: result.proof,
-        blobIndex: result.blobIndex
-      };
-    } catch (error) {
-      logger.error(`Blob execution failed for job ${job.jobId}:`, error);
-      
-      if (error instanceof ProxyError) {
-        throw error;
-      }
-
-      throw new ProxyError(
-        ProxyErrorCode.BLOB_EXECUTION_FAILED,
-        `Failed to execute blob transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        500,
-        { jobId: job.jobId, error: error instanceof Error ? error.message : 'Unknown error' }
-      );
-    }
+    }); // End circuit breaker execute
   }
 
   /**
    * Writes blob data using the SDK
-   * Note: This is a placeholder that would integrate with existing blob writing logic
    */
-  private async writeBlob(payload: unknown, meta: any): Promise<{
+  private async writeBlob(
+    payload: unknown,
+    meta: Record<string, unknown>
+  ): Promise<{
     blobTxHash: string;
     blockNumber: number;
     blobHash: string;
@@ -118,22 +174,13 @@ export class BlobExecutor {
     proof: string;
     blobIndex: number;
   }> {
-    // Use the BlobKit SDK for actual blob writing
+    // Use the initialized BlobKit instance
     try {
-      const blobKitConfig = {
-        rpcUrl: this.config.rpcUrl,
-        chainId: this.config.chainId,
-        defaultCodec: 'application/json',
-        logLevel: 'info' as const
-      };
+      const blobkit = await this.ensureBlobKit();
 
-      // Create BlobKit instance with the signer
-      // Cast ethers.Signer to BlobKit's Signer interface for compatibility
-      const blobkit = new BlobKit(blobKitConfig, this.signer as any);
-      
       // Write blob directly (without proxy)
-      const result = await blobkit.writeBlob(payload, meta);
-      
+      const result = await blobkit.writeBlob(payload as Uint8Array | string | object, meta);
+
       return {
         blobTxHash: result.blobTxHash,
         blockNumber: result.blockNumber,
@@ -151,4 +198,4 @@ export class BlobExecutor {
       );
     }
   }
-} 
+}

@@ -163,4 +163,4 @@ Our security testing includes:
 
 For security-related questions or concerns, please contact Zak Cole directly at zcole@linux.com rather than opening public issues.
 
-Thank you for helping keep BlobKit secure. 
+Thank you for helping keep BlobKit secure.

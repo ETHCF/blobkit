@@ -1,10 +1,6 @@
-# BlobKit Proxy Server Documentation
+# Proxy Server Documentation
 
-Complete guide for deploying and operating BlobKit proxy servers.
-
-## Overview
-
-The BlobKit proxy server executes blob transactions for browser clients after verifying escrow payments.
+Deployment and operation guide for @blobkit/proxy-server.
 
 ## Installation
 
@@ -14,39 +10,27 @@ npm install @blobkit/proxy-server
 
 ## Quick Start
 
-Create `.env` file:
-
 ```bash
-RPC_URL=https://mainnet.infura.io/v3/YOUR_PROJECT_ID
-PRIVATE_KEY=0x1234567890123456789012345678901234567890123456789012345678901234
-ESCROW_CONTRACT=0x1234567890123456789012345678901234567890
-PORT=3000
-CHAIN_ID=1
-PROXY_FEE_PERCENT=0
-LOG_LEVEL=info
-```
+# Using environment variables
+export RPC_URL=$MAINNET_RPC_URL
+export PRIVATE_KEY=$PRIVATE_KEY
+export ESCROW_CONTRACT=0x0000000000000000000000000000000000000000
 
-Start server:
-
-```bash
-npm start
+npx blobkit-proxy
 ```
 
 ## Configuration
 
-### Required Environment Variables
-
-- `RPC_URL` - Ethereum RPC endpoint
-- `PRIVATE_KEY` - Private key for blob transactions (64 hex chars)
-- `ESCROW_CONTRACT` - BlobKit escrow contract address
-
-### Optional Environment Variables
-
-- `PORT` (default: 3000)
-- `HOST` (default: 0.0.0.0)
-- `CHAIN_ID` (default: 1)
-- `PROXY_FEE_PERCENT` (default: 0, max: 10)
-- `LOG_LEVEL` (default: info)
+| Variable            | Required | Default | Description                |
+| ------------------- | -------- | ------- | -------------------------- |
+| `RPC_URL`           | Yes      | -       | Ethereum RPC endpoint      |
+| `PRIVATE_KEY`       | Yes      | -       | Private key (64 hex chars) |
+| `ESCROW_CONTRACT`   | Yes      | -       | Escrow contract address    |
+| `PORT`              | No       | 3000    | Server port                |
+| `HOST`              | No       | 0.0.0.0 | Server host                |
+| `CHAIN_ID`          | No       | 1       | Chain ID                   |
+| `PROXY_FEE_PERCENT` | No       | 0       | Fee percentage (0-10)      |
+| `LOG_LEVEL`         | No       | info    | Log level                  |
 
 ## API Endpoints
 
@@ -65,6 +49,7 @@ POST /api/v1/blob/write
 ```
 
 **Request body:**
+
 ```json
 {
   "jobId": "user-0x1234-payload-hash-nonce",
@@ -79,6 +64,7 @@ POST /api/v1/blob/write
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -109,29 +95,25 @@ npx blobkit-proxy config
 
 ### Docker
 
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY dist ./dist
-EXPOSE 3000
-CMD ["npm", "start"]
-```
-
-Build and run:
 ```bash
-docker build -t blobkit-proxy .
-docker run -p 3000:3000 --env-file .env blobkit-proxy
+# Build image
+npm run docker:build
+
+# Run container
+docker run -p 3000:3000 \
+  -e RPC_URL=$MAINNET_RPC_URL \
+  -e PRIVATE_KEY=$PRIVATE_KEY \
+  -e ESCROW_CONTRACT=0x0000000000000000000000000000000000000000 \
+  blobkit-proxy
 ```
 
-### Environment
+### Production Checklist
 
-For production deployments:
-- Use secure private key management
-- Set up reverse proxy (nginx/Cloudflare)
-- Configure monitoring and logging
+- Use secure key management (AWS KMS, Hashicorp Vault)
+- Configure reverse proxy with TLS
+- Set up monitoring and alerting
 - Enable rate limiting
+- Use environment-specific configs
 
 ## Security
 
@@ -141,16 +123,12 @@ For production deployments:
 - Monitor for suspicious activity
 - Keep dependencies updated
 
-## Development
+## Testing and Development
 
 ```bash
-npm test                    # Run tests
-npm run build               # Build for production
-npm run dev                 # Start development server
-npm run lint                # Lint code
-npm run type-check          # TypeScript checking
+npm test               # Run tests
+npm run build          # Build for production
+npm run dev            # Start development server
+npm run lint           # Lint code
+npm run type-check     # TypeScript checking
 ```
-
-## Attribution
-
-BlobKit was built by [Zak Cole](https://x.com/0xzak) at [Number Group](https://numbergroup.xyz) for the [Ethereum Community Foundation](https://ethcf.org). 

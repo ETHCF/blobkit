@@ -8,7 +8,7 @@ const logger = createLogger('ErrorHandler');
  * Global error handling middleware
  */
 export const errorHandler = (
-  err: any,
+  err: Error | ProxyError,
   req: Request,
   res: Response,
   _next: NextFunction
@@ -30,7 +30,7 @@ export const errorHandler = (
       message: err.message,
       details: err.details
     };
-    
+
     return res.status(err.statusCode).json(response);
   }
 
@@ -40,7 +40,7 @@ export const errorHandler = (
       error: ProxyErrorCode.INVALID_REQUEST,
       message: err.message
     };
-    
+
     return res.status(400).json(response);
   }
 
@@ -50,7 +50,7 @@ export const errorHandler = (
       error: ProxyErrorCode.INVALID_REQUEST,
       message: 'Invalid JSON in request body'
     };
-    
+
     return res.status(400).json(response);
   }
 
@@ -59,7 +59,7 @@ export const errorHandler = (
     error: ProxyErrorCode.INTERNAL_ERROR,
     message: 'Internal server error'
   };
-  
+
   return res.status(500).json(response);
 };
 
@@ -71,6 +71,6 @@ export const notFoundHandler = (req: Request, res: Response) => {
     error: ProxyErrorCode.INVALID_REQUEST,
     message: `Route ${req.method} ${req.path} not found`
   };
-  
+
   res.status(404).json(response);
-}; 
+};

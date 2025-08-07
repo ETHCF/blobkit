@@ -1,0 +1,16 @@
+{
+  "network": "mainnet",
+  "chainId": 1,
+  "address": "0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495",
+  "deployer": "0x9CFe9dc15b6cA16147dF1b93E487bAaDd422F693",
+  "blockNumber": 23090830,
+  "transactionHash": "0x22554bb185c8f59dfc8d2341e31dffedbc50db7006435b068e5543ed5fa022eb",
+  "timestamp": "2025-08-07T17:59:49.348Z",
+  "config": {
+    "jobTimeout": 300,
+    "proxies": [],
+    "proxyFeePercent": 2
+  },
+  "gasUsed": "1138226",
+  "deploymentCost": "0.000596540147848174 ETH"
+}

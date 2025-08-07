@@ -6,12 +6,6 @@
     "composite": true,
     "declarationMap": true
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "dist"
-  ]
-} 
+  "include": ["src/**/*"],
+  "exclude": ["**/*.test.ts", "**/*.spec.ts", "dist"]
+}

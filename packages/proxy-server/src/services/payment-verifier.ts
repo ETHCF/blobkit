@@ -1,9 +1,16 @@
 import { ethers } from 'ethers';
 import { JobVerification, ProxyError, ProxyErrorCode } from '../types.js';
 import { createLogger } from '../utils/logger.js';
-import { hexToBytes } from '@blobkit/sdk';
 
 const logger = createLogger('PaymentVerifier');
+
+interface EscrowContractMethods {
+  completeJob(
+    jobId: string,
+    blobTxHash: string,
+    proof: string
+  ): Promise<ethers.TransactionResponse>;
+}
 
 /**
  * Service for verifying payments in the escrow contract
@@ -14,7 +21,7 @@ export class PaymentVerifier {
 
   constructor(rpcUrl: string, escrowContract: string) {
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
-    
+
     // Escrow contract ABI - matches the one from SDK
     const escrowAbi = [
       'function jobs(bytes32) external view returns (address user, uint256 amount, bool completed, uint256 timestamp, bytes32 blobTxHash)',
@@ -36,7 +43,7 @@ export class PaymentVerifier {
 
       // Get job details from contract
       const job = await this.contract.jobs(jobId);
-      
+
       const verification: JobVerification = {
         valid: false,
         exists: job.user !== '0x0000000000000000000000000000000000000000',
@@ -89,13 +96,13 @@ export class PaymentVerifier {
 
       verification.valid = true;
       logger.info(`Job ${jobId} payment verification successful`);
-      
+
       return verification;
     } catch (error) {
       if (error instanceof ProxyError) {
         throw error;
       }
-      
+
       logger.error(`Payment verification failed for job ${jobId}:`, error);
       throw new ProxyError(
         ProxyErrorCode.CONTRACT_ERROR,
@@ -112,30 +119,34 @@ export class PaymentVerifier {
     try {
       const receipt = await this.provider.getTransactionReceipt(paymentTxHash);
       if (!receipt) {
-        console.warn(`Payment transaction ${paymentTxHash} not found`);
+        logger.warn(`Payment transaction ${paymentTxHash} not found`);
         return false;
       }
 
       // Check if the transaction was successful
       if (receipt.status !== 1) {
-        console.warn(`Payment transaction ${paymentTxHash} failed`);
+        logger.warn(`Payment transaction ${paymentTxHash} failed`);
         return false;
       }
 
       // Parse logs to find JobCreated event
       const jobCreatedEvent = this.contract.interface.getEvent('JobCreated');
-      const jobCreatedTopic = jobCreatedEvent?.topicHash || ethers.id('JobCreated(bytes32,address,uint256)');
+      const jobCreatedTopic =
+        jobCreatedEvent?.topicHash || ethers.id('JobCreated(bytes32,address,uint256)');
 
       for (const log of receipt.logs) {
         if (log.topics[0] === jobCreatedTopic) {
-          console.warn(`Found JobCreated event for job ${jobId} in payment transaction ${paymentTxHash}`);
+          logger.info(
+            `Found JobCreated event for job ${jobId} in payment transaction ${paymentTxHash}`
+          );
           if (log.topics[1] === jobId) {
             return true;
           }
         }
-        
       }
-      console.warn(`Payment transaction not found in tx receipt${paymentTxHash} does not match job ${jobId}`);
+      logger.warn(
+        `Payment transaction not found in tx receipt${paymentTxHash} does not match job ${jobId}`
+      );
       return false;
     } catch (error) {
       logger.error(`Failed to verify payment transaction ${paymentTxHash}:`, error);
@@ -151,24 +162,34 @@ export class PaymentVerifier {
       logger.info(`Completing job ${jobId} with blob tx ${blobTxHash}`);
 
       const contractWithSigner = this.contract.connect(signer);
-      
-      // Create proof (simple signature for now)
-      const message = ethers.solidityPackedKeccak256(
-        ['bytes32', 'bytes32'],
-        [jobId, blobTxHash]
+
+      // Create proof that includes the proxy address
+      const proxyAddress = await signer.getAddress();
+      const messageHash = ethers.solidityPackedKeccak256(
+        ['bytes32', 'bytes32', 'address'],
+        [jobId, blobTxHash, proxyAddress]
       );
 
-      const proof = await signer.signMessage(ethers.getBytes(message));
+      // The contract expects a signature with the Ethereum prefix
+      // We need to sign the message hash as bytes to get the correct signature
+      // Convert the hash to bytes array for signing
+      const messageBytes = ethers.getBytes(messageHash);
 
-      const tx = await (contractWithSigner as any).completeJob(
-        hexToBytes(jobId),
+      // Sign the message hash - this will add the Ethereum prefix automatically
+      const proof = await signer.signMessage(messageBytes);
+
+      const tx = await (contractWithSigner as ethers.Contract & EscrowContractMethods).completeJob(
+        jobId,
         blobTxHash,
         proof
       );
 
       const receipt = await tx.wait();
+      if (!receipt) {
+        throw new ProxyError(ProxyErrorCode.TRANSACTION_FAILED, 'Transaction receipt not found');
+      }
       logger.info(`Job ${jobId} completed with transaction ${receipt.hash}`);
-      
+
       return receipt.hash;
     } catch (error) {
       logger.error(`Failed to complete job ${jobId}:`, error);
@@ -179,4 +200,4 @@ export class PaymentVerifier {
       );
     }
   }
-} 
+}

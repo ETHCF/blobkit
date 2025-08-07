@@ -1,0 +1,20 @@
+{
+  "name": "blobkit-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BlobKit demo and utility scripts",
+  "type": "module",
+  "scripts": {
+    "demo": "node demo.js",
+    "integration": "tsx integration-demo.ts"
+  },
+  "dependencies": {
+    "@blobkit/sdk": "file:../packages/sdk",
+    "ethers": "^6.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.3.3"
+  }
+}

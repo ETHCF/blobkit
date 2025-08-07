@@ -1,7 +1,8 @@
 {
   "name": "@blobkit/contracts",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Smart contracts for BlobKit escrow and payment system",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -15,6 +16,7 @@
     "build": "forge build && tsc",
     "test": "forge test",
     "test:coverage": "forge coverage",
+    "type-check": "tsc --noEmit",
     "deploy:local": "forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast",
     "deploy:sepolia": "forge script script/Deploy.s.sol --rpc-url $SEPOLIA_RPC_URL --broadcast --verify",
     "deploy:mainnet": "forge script script/Deploy.s.sol --rpc-url $MAINNET_RPC_URL --broadcast --verify",
@@ -39,7 +41,7 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^20.8.0",
+    "@types/node": "^24.2.0",
     "typescript": "^5.2.0"
   },
   "repository": {
@@ -51,4 +53,4 @@
     "url": "https://github.com/blobkit/blobkit/issues"
   },
   "homepage": "https://github.com/blobkit/blobkit/tree/main/packages/contracts#readme"
-} 
+}

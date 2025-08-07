@@ -24,6 +24,8 @@
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
     "lint:fix": "npm run lint:fix --workspaces",
+    "format": "prettier --write \"**/*.{js,ts,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{js,ts,json,md,yml,yaml}\"",
     "clean": "npm run clean --workspaces",
     "type-check": "npm run type-check --workspaces",
     "docs:lint": "markdownlint docs/**/*.md README.md",
@@ -31,13 +33,20 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "npm run build && changeset publish",
-    "demo": "node scripts/integration-demo.js",
+    "demo": "node scripts/demo.js",
+    "demo:integration": "cd scripts && npm run integration",
+    "dev": "./dev.sh",
     "dev:anvil": "anvil --host 0.0.0.0 --port 8545",
-    "dev:setup": "npm run dev:anvil & sleep 3 && npm run demo"
+    "dev:setup": "npm run dev:anvil & sleep 3 && npm run demo",
+    "precommit": "npm run format:check && npm run lint && npm run type-check"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.5",
-    "markdownlint-cli": "0.45.0"
+    "@types/node": "^24.2.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/parser": "^8.39.0",
+    "markdownlint-cli": "0.45.0",
+    "prettier": "^3.1.0"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -51,5 +60,9 @@
   "bugs": {
     "url": "https://github.com/blobkit/blobkit/issues"
   },
-  "homepage": "https://github.com/blobkit/blobkit#readme"
+  "homepage": "https://github.com/blobkit/blobkit#readme",
+  "dependencies": {
+    "kzg-wasm": "^0.5.0",
+    "viem": "^2.33.3"
+  }
 }

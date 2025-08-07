@@ -34,10 +34,10 @@ paths:
                 properties:
                   name:
                     type: string
-                    example: "@blobkit/proxy-server"
+                    example: '@blobkit/proxy-server'
                   version:
                     type: string
-                    example: "0.0.1"
+                    example: '0.0.1'
                   description:
                     type: string
                   endpoints:
@@ -78,14 +78,14 @@ paths:
             schema:
               $ref: '#/components/schemas/BlobWriteRequest'
             example:
-              jobId: "abc123def456"
-              paymentTxHash: "0x1234567890123456789012345678901234567890123456789012345678901234"
+              jobId: 'abc123def456'
+              paymentTxHash: '0x1234567890123456789012345678901234567890123456789012345678901234'
               payload: [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100]
               meta:
-                appId: "my-app"
-                codec: "text"
-                filename: "hello.txt"
-                tags: ["example"]
+                appId: 'my-app'
+                codec: 'text'
+                filename: 'hello.txt'
+                tags: ['example']
       responses:
         '200':
           description: Blob transaction executed successfully
@@ -103,13 +103,13 @@ paths:
                 invalid_payment:
                   summary: Invalid payment
                   value:
-                    error: "PAYMENT_INVALID"
-                    message: "Job payment not found in escrow contract"
+                    error: 'PAYMENT_INVALID'
+                    message: 'Job payment not found in escrow contract'
                 blob_too_large:
                   summary: Blob too large
                   value:
-                    error: "BLOB_TOO_LARGE"
-                    message: "Blob size exceeds 128KB limit"
+                    error: 'BLOB_TOO_LARGE'
+                    message: 'Blob size exceeds 128KB limit'
         '429':
           description: Rate limit exceeded
           content:
@@ -170,7 +170,8 @@ components:
           description: Data encoding format
           minLength: 1
           maxLength: 50
-          enum: ["json", "text", "raw", "application/json", "text/plain", "application/octet-stream"]
+          enum:
+            ['json', 'text', 'raw', 'application/json', 'text/plain', 'application/octet-stream']
         contentHash:
           type: string
           description: SHA-256 hash of content
@@ -261,10 +262,10 @@ components:
       properties:
         status:
           type: string
-          enum: ["healthy", "unhealthy"]
+          enum: ['healthy', 'unhealthy']
         version:
           type: string
-          example: "0.0.1"
+          example: '0.0.1'
         chainId:
           type: integer
           description: Ethereum chain ID
@@ -300,18 +301,18 @@ components:
         error:
           type: string
           description: Error code
-          enum: 
-            - "INVALID_REQUEST"
-            - "PAYMENT_INVALID"
-            - "PAYMENT_NOT_FOUND"
-            - "JOB_ALREADY_COMPLETED"
-            - "JOB_EXPIRED"
-            - "BLOB_TOO_LARGE"
-            - "BLOB_EXECUTION_FAILED"
-            - "RATE_LIMIT_EXCEEDED"
-            - "NETWORK_ERROR"
-            - "INTERNAL_ERROR"
-            - "CONTRACT_ERROR"
+          enum:
+            - 'INVALID_REQUEST'
+            - 'PAYMENT_INVALID'
+            - 'PAYMENT_NOT_FOUND'
+            - 'JOB_ALREADY_COMPLETED'
+            - 'JOB_EXPIRED'
+            - 'BLOB_TOO_LARGE'
+            - 'BLOB_EXECUTION_FAILED'
+            - 'RATE_LIMIT_EXCEEDED'
+            - 'NETWORK_ERROR'
+            - 'INTERNAL_ERROR'
+            - 'CONTRACT_ERROR'
         message:
           type: string
           description: Human-readable error description
@@ -330,4 +331,4 @@ tags:
   - name: Health
     description: Server health and status endpoints
   - name: Blob Operations
-    description: Blob transaction execution endpoints 
+    description: Blob transaction execution endpoints

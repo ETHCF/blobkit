@@ -1,6 +1,6 @@
-# BlobKit SDK Documentation
+# SDK Documentation
 
-Complete API reference for the BlobKit TypeScript SDK.
+API reference for @blobkit/sdk.
 
 ## Installation
 
@@ -14,16 +14,19 @@ npm install @blobkit/sdk ethers
 
 ```typescript
 import { BlobKit } from '@blobkit/sdk';
+import { ethers } from 'ethers';
 
-// Connect MetaMask
 const provider = new ethers.BrowserProvider(window.ethereum);
 const signer = await provider.getSigner();
 
-const blobkit = new BlobKit({
-  rpcUrl: 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
-  chainId: 1,
-  proxyUrl: 'https://proxy.blobkit.dev'
-}, signer);
+const blobkit = new BlobKit(
+  {
+    rpcUrl: process.env.BLOBKIT_RPC_URL!,
+    chainId: 1,
+    proxyUrl: 'https://proxy.example.com'
+  },
+  signer
+);
 ```
 
 ### Node.js
@@ -34,17 +37,17 @@ import { ethers } from 'ethers';
 
 // Option 1: Environment variables
 const provider = new ethers.JsonRpcProvider(process.env.BLOBKIT_RPC_URL);
-const signer = new ethers.Wallet('YOUR_PRIVATE_KEY', provider);
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
 const blobkit = createFromEnv(signer);
 
 // Option 2: Manual configuration
-const provider = new ethers.JsonRpcProvider('https://mainnet.infura.io/v3/YOUR_PROJECT_ID');
-const signer = new ethers.Wallet('YOUR_PRIVATE_KEY', provider);
-
-const blobkit = new BlobKit({
-  rpcUrl: 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
-  chainId: 1
-}, signer);
+const blobkit = new BlobKit(
+  {
+    rpcUrl: 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
+    chainId: 1
+  },
+  signer
+);
 ```
 
 ## API Reference
@@ -58,8 +61,9 @@ new BlobKit(config: BlobKitConfig, signer?: Signer)
 ```
 
 **Parameters:**
-- `config`: Configuration object
-- `signer`: Ethereum signer (required for browser environments)
+
+- `config`: Configuration object (required)
+- `signer`: Ethereum signer (optional for Node.js, required for browser)
 
 #### Methods
 
@@ -72,19 +76,24 @@ async writeBlob(payload: unknown, meta?: Partial<BlobMeta>): Promise<BlobPayment
 ```
 
 **Parameters:**
+
 - `payload`: Data to store as blob
 - `meta`: Optional metadata (appId, filename, tags, etc.)
 
 **Returns:** Promise resolving to blob storage result
 
 **Example:**
+
 ```typescript
-const result = await blobkit.writeBlob({
-  message: 'Hello, blob storage!'
-}, {
-  appId: 'my-app',
-  filename: 'greeting.json'
-});
+const result = await blobkit.writeBlob(
+  {
+    message: 'Hello, blob storage!'
+  },
+  {
+    appId: 'my-app',
+    filename: 'greeting.json'
+  }
+);
 
 console.log('Blob hash:', result.blobHash);
 console.log('Transaction:', result.blobTxHash);
@@ -101,6 +110,7 @@ async estimateCost(payload: unknown): Promise<CostEstimate>
 **Returns:** Cost breakdown with blob fee, gas fee, proxy fee, and total
 
 **Example:**
+
 ```typescript
 const estimate = await blobkit.estimateCost(data);
 console.log(`Total cost: ${estimate.totalETH} ETH`);
@@ -124,30 +134,70 @@ async refundIfExpired(jobId: string): Promise<string>
 
 **Returns:** Transaction hash of refund
 
-### Configuration
+##### readBlob()
 
-#### BlobKitConfig Interface
+Read blob data by transaction hash.
 
 ```typescript
-interface BlobKitConfig {
-  rpcUrl: string;                          // Ethereum RPC endpoint
-  chainId?: number;                        // Default: 1
-  proxyUrl?: string;                       // Auto-discovered for browsers
-  escrowContract?: string;                 // Auto-discovered from env
-  defaultCodec?: string;                   // Default: 'application/json'
-  maxProxyFeePercent?: number;             // Default: 5
-  callbackUrl?: string;                    // Optional webhook
-  logLevel?: 'debug' | 'info' | 'silent'; // Default: 'info'
-}
+async readBlob(blobTxHash: string, blobIndex?: number): Promise<BlobReadResult>
 ```
 
-#### Environment Variables
+**Parameters:**
+
+- `blobTxHash`: Transaction hash containing the blob
+- `blobIndex`: Index of blob within transaction (default: 0)
+
+**Returns:** Promise resolving to blob data and metadata
+
+**Example:**
+
+```typescript
+const result = await blobkit.readBlob('0x123...abc');
+console.log('Blob data:', result.data);
+console.log('Source:', result.source); // 'rpc', 'archive', or 'fallback'
+```
+
+##### readBlobAsString()
+
+Read blob and decode to UTF-8 string.
+
+```typescript
+async readBlobAsString(blobTxHash: string, blobIndex?: number): Promise<string>
+```
+
+**Returns:** Decoded string data
+
+**Example:**
+
+```typescript
+const text = await blobkit.readBlobAsString('0x123...abc');
+console.log('Text content:', text);
+```
+
+##### readBlobAsJSON()
+
+Read blob and decode to JSON object.
+
+```typescript
+async readBlobAsJSON(blobTxHash: string, blobIndex?: number): Promise<unknown>
+```
+
+**Returns:** Decoded JSON data
+
+**Example:**
+
+```typescript
+const json = await blobkit.readBlobAsJSON('0x123...abc');
+console.log('JSON data:', json);
+```
+
+### Environment Variables
 
 ```bash
-BLOBKIT_RPC_URL=https://mainnet.infura.io/v3/YOUR_PROJECT_ID
+BLOBKIT_RPC_URL=https://rpc.flashbots.net
 BLOBKIT_CHAIN_ID=1
-BLOBKIT_PROXY_URL=https://custom-proxy.example.com
-BLOBKIT_ESCROW_1=0x1234567890123456789012345678901234567890
+BLOBKIT_PROXY_URL=https://proxy.example.com
+BLOBKIT_ESCROW_1=0x0000000000000000000000000000000000000000
 BLOBKIT_LOG_LEVEL=info
 ```
 
@@ -184,7 +234,7 @@ import { defaultCodecRegistry, JsonCodec, RawCodec, TextCodec } from '@blobkit/s
 
 // Available codecs:
 // - JsonCodec: 'application/json' (default)
-// - RawCodec: 'application/octet-stream'  
+// - RawCodec: 'application/octet-stream'
 // - TextCodec: 'text/plain'
 ```
 
@@ -206,12 +256,7 @@ if (capabilities.requiresProxy) {
 ### KZG Operations
 
 ```typescript
-import { 
-  initializeKzg, 
-  encodeBlob, 
-  blobToKzgCommitment, 
-  computeKzgProof 
-} from '@blobkit/sdk';
+import { initializeKzg, encodeBlob, blobToKzgCommitment, computeKzgProof } from '@blobkit/sdk';
 
 // Initialize KZG (required before operations)
 await initializeKzg();
@@ -219,11 +264,7 @@ await initializeKzg();
 // Encode data to blob format
 const blob = encodeBlob(data);
 
- // Generate KZG commitment and proof
- const commitment = blobToKzgCommitment(blob);
- const proof = computeKzgProof(blob, commitment);
- ```
-
-## Attribution
-
-BlobKit was built by [Zak Cole](https://x.com/0xzak) at [Number Group](https://numbergroup.xyz) for the [Ethereum Community Foundation](https://ethcf.org). 
+// Generate KZG commitment and proof
+const commitment = blobToKzgCommitment(blob);
+const proof = computeKzgProof(blob, commitment);
+```
