@@ -4,6 +4,7 @@
 /packages/*/node_modules
 /packages/*/dist
 /packages/*/tsconfig.tsbuildinfo
+/packages/*/.rollup.cache
 /dist
 /docs
 /ops
@@ -17,3 +18,4 @@
 /README.md
 /SECURITY.md
 /CONTRIBUTING.md
+/docker-compose.yml

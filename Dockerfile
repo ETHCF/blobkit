@@ -47,6 +47,7 @@ COPY packages/proxy-server/openapi.yaml ./packages/proxy-server/
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
+# RUN chown -R nodejs:nodejs /app
 USER nodejs
 
 # Expose ports
