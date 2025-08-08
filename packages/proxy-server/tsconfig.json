@@ -9,7 +9,8 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "paths": {
-      "@blobkit/sdk": ["../sdk/dist/index.d.ts"]
+      "@blobkit/sdk": ["../sdk/dist/index.d.ts"],
+      "@blobkit/sdk/*": ["../sdk/dist/*"]
     }
   },
   "include": ["src/**/*"],

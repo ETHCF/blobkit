@@ -23,7 +23,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "node ./build.js",
+    "build": "tsc --emitDeclarationOnly && node ./build.js",
     "dev": "rollup -c -w",
     "test": "jest",
     "test:coverage": "jest --coverage",
