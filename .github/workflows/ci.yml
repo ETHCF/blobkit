@@ -372,7 +372,7 @@ jobs:
           BLOBKIT_LOG_LEVEL: 'silent'
         run: |
           cd test
-          npm ci
+          npm install
           npm test
 
   security-audit:
