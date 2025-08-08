@@ -23,7 +23,7 @@ program
   .option('--escrow-contract <string>', 'Escrow contract address')
   .option('--private-key <string>', 'Private key for proxy operations')
   .option('--proxy-fee <number>', 'Proxy fee percentage (0-10)')
-  .action(async options => {
+  .action(async (options: Record<string, string>) => {
     try {
       // Override config with CLI options
       if (options.port) process.env.PORT = options.port;
@@ -45,7 +45,7 @@ program
   .command('health')
   .description('Check if a proxy server is healthy')
   .option('--url <string>', 'Proxy server URL', 'http://localhost:3000')
-  .action(async options => {
+  .action(async (options: { url: string }) => {
     try {
       const response = await fetch(`${options.url}/api/v1/health`);
       const health = await response.json();
@@ -108,7 +108,7 @@ program
   .description('Simulate a payment flow for testing')
   .requiredOption('--job-id <string>', 'Job ID to simulate payment for')
   .option('--amount <string>', 'Payment amount in ETH', '0.001')
-  .action(async options => {
+  .action(async (options: { jobId: string; amount: string }) => {
     try {
       const config = loadConfig();
       logger.info(`Simulating payment for job ${options.jobId}`);
@@ -126,7 +126,7 @@ program
   .command('check-health')
   .description('Verify proxy connectivity and configuration')
   .option('--url <string>', 'Proxy server URL', 'http://localhost:3000')
-  .action(async options => {
+  .action(async (options: { url: string }) => {
     try {
       const response = await fetch(`${options.url}/api/v1/health`);
       const health = await response.json();

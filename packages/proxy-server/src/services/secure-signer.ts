@@ -33,9 +33,9 @@ class EnvSigner implements SecureSigner {
 
   constructor(privateKey: string, provider?: ethers.Provider) {
     logger.warn(
-      '⚠️  Using private key from environment variable. This is NOT recommended for production!'
+      'Using private key from environment variable. This is not recommended for production.'
     );
-    logger.warn('⚠️  Consider using AWS KMS, GCP KMS, or HSM for secure key management.');
+    logger.warn('Consider using AWS KMS, GCP KMS, or HSM for secure key management.');
     this.signer = new ethers.Wallet(privateKey, provider);
   }
 

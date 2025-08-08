@@ -102,6 +102,9 @@ jobs:
             ~/.npm
           key: ${{ needs.setup.outputs.cache-key }}
 
+      - name: Install dependencies (workspace)
+        run: npm ci
+
       - name: Type check ${{ matrix.package }}
         run: |
           cd packages/${{ matrix.package }}
@@ -155,13 +158,16 @@ jobs:
             ~/.npm
           key: ${{ needs.setup.outputs.cache-key }}
 
+      - name: Install dependencies (workspace)
+        run: npm ci
+
       - name: Build ${{ matrix.package }}
         run: |
           cd packages/${{ matrix.package }}
           npm run build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.package }}
           path: packages/${{ matrix.package }}/dist/
@@ -194,8 +200,11 @@ jobs:
             ~/.npm
           key: ${{ needs.setup.outputs.cache-key }}
 
+      - name: Install dependencies (workspace)
+        run: npm ci
+
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-${{ matrix.package }}
           path: packages/${{ matrix.package }}/dist/
@@ -211,7 +220,7 @@ jobs:
 
       - name: Upload test coverage
         if: success() && matrix.package == 'sdk'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.package }}
           path: packages/${{ matrix.package }}/coverage/
@@ -264,7 +273,7 @@ jobs:
           forge test --gas-report > gas-report.txt
 
       - name: Upload gas report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gas-report
           path: packages/contracts/gas-report.txt
@@ -299,14 +308,17 @@ jobs:
             ~/.npm
           key: ${{ needs.setup.outputs.cache-key }}
 
+      - name: Install dependencies (workspace)
+        run: npm ci
+
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-sdk
           path: packages/sdk/dist/
 
       - name: Download proxy build
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-proxy-server
           path: packages/proxy-server/dist/
@@ -358,6 +370,9 @@ jobs:
             ~/.npm
           key: ${{ needs.setup.outputs.cache-key }}
 
+      - name: Install dependencies (workspace)
+        run: npm ci
+
       - name: Run npm audit
         run: |
           for package in $(echo '${{ needs.setup.outputs.packages }}' | jq -r '.[]'); do
@@ -391,7 +406,7 @@ jobs:
 
       - name: Upload security reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-reports
           path: |
@@ -425,8 +440,11 @@ jobs:
             ~/.npm
           key: ${{ needs.setup.outputs.cache-key }}
 
+      - name: Install dependencies (workspace)
+        run: npm ci
+
       - name: Download proxy build
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-proxy-server
           path: packages/proxy-server/dist/
@@ -490,8 +508,11 @@ jobs:
             ~/.npm
           key: ${{ needs.setup.outputs.cache-key }}
 
+      - name: Install dependencies (workspace)
+        run: npm ci
+
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-${{ matrix.package }}
           path: packages/${{ matrix.package }}/dist/
@@ -555,8 +576,11 @@ jobs:
             ~/.npm
           key: ${{ needs.setup.outputs.cache-key }}
 
+      - name: Install dependencies (workspace)
+        run: npm ci
+
       - name: Download all build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts/
 
@@ -576,7 +600,7 @@ jobs:
 
       - name: Upload production check results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: production-check-results
           path: |

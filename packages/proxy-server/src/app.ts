@@ -77,7 +77,7 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
   app.use('/api/v1/blob', signatureVerifier);
 
   // Request logging (now includes trace context from tracing middleware)
-  app.use((req, res, next) => {
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
     logger.info(`${req.method} ${req.path}`, {
       traceId: req.traceId,
       spanId: req.spanId,
@@ -130,7 +130,7 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
   }
 
   // Root endpoint
-  app.get('/', (req, res) => {
+  app.get('/', (req: express.Request, res: express.Response) => {
     res.json({
       name: '@blobkit/proxy-server',
       version: '0.0.1',

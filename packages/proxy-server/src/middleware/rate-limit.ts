@@ -1,4 +1,5 @@
 import rateLimit from 'express-rate-limit';
+import type { Request, Response } from 'express';
 import { ProxyErrorCode } from '../types.js';
 
 /**
@@ -14,7 +15,7 @@ export const createRateLimit = (requests: number, windowMs: number) => {
     },
     standardHeaders: true,
     legacyHeaders: false,
-    handler: (req, res) => {
+    handler: (req: Request, res: Response) => {
       res.status(429).json({
         error: ProxyErrorCode.RATE_LIMIT_EXCEEDED,
         message: `Too many requests, limit is ${requests} requests per ${windowMs} seconds`
