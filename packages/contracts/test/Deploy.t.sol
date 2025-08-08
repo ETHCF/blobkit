@@ -106,7 +106,7 @@ contract DeployTest is Test {
     function testRejectInvalidCharacterAfterAddress() public {
         string memory input = "0x1234567890123456789012345678901234567890X";
         vm.expectRevert("Invalid format: expected comma or end of string after address");
-        harness.testParseProxies(input);
+        harness.exposedParseProxies(input);
     }
     
     function testRejectTooManyAddresses() public {
@@ -165,7 +165,7 @@ contract DeployTest is Test {
     
     function testParseComplexWhitespace() public view {
         string memory input = "  \n\t0x1234567890123456789012345678901234567890  \n\t,  \n\t0xabcdefabcdefabcdefabcdefabcdefabcdefabcd  \n\t";
-        address[] memory result = harness.testParseProxies(input);
+        address[] memory result = harness.exposedParseProxies(input);
         
         assertEq(result.length, 2, "Should parse addresses with complex whitespace");
         assertEq(result[0], address(0x1234567890123456789012345678901234567890));
