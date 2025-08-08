@@ -7,7 +7,7 @@
 import { ethers } from 'ethers';
 import { BlobKitError, BlobKitErrorCode, BlobReadResult } from './types.js';
 import { Logger } from './logger.js';
-import { hexToBytes } from './utils.js';
+import { hexToBytes, isBlobTXType } from './utils.js';
 
 interface BlobReaderConfig {
   rpcUrl: string;
@@ -35,7 +35,10 @@ export class BlobReader {
    */
   async readBlob(blobTxHash: string, blobIndex: number = 0): Promise<BlobReadResult> {
     this.logger.debug(`Reading blob from tx ${blobTxHash} at index ${blobIndex}`);
-
+    // Add 0x to blobTxHash if it doesn't exist
+    if (!blobTxHash.startsWith('0x')) {
+      blobTxHash = `0x${blobTxHash}`;
+    }
     // Validate inputs
     if (!blobTxHash || !blobTxHash.match(/^0x[a-fA-F0-9]{64}$/)) {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Invalid blob transaction hash');
@@ -153,7 +156,7 @@ export class BlobReader {
     }
 
     // Check if transaction is type 3 (blob transaction)
-    if (tx.type !== 3) {
+    if (!isBlobTXType(tx.type)) {
       throw new BlobKitError(
         BlobKitErrorCode.BLOB_NOT_FOUND,
         `Transaction ${blobTxHash} is not a blob transaction`
@@ -226,7 +229,7 @@ export class BlobReader {
           let blobPosition = 0;
           for (let i = 0; i < txIndex; i++) {
             const prevTx = blockWithBlobs.transactions[i];
-            if (prevTx.type === '0x3' && prevTx.blobVersionedHashes) {
+            if (isBlobTXType(prevTx.type) && prevTx.blobVersionedHashes) {
               blobPosition += prevTx.blobVersionedHashes.length;
             }
           }

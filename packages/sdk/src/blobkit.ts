@@ -159,12 +159,12 @@ export class BlobKit {
    */
   async writeBlob(
     data: Uint8Array | string | object,
-    meta?: Partial<BlobMeta>
+    meta?: Partial<BlobMeta>,
+    maxRetries: number = 3
   ): Promise<BlobReceipt> {
     const startTime = Date.now();
     this.metrics.trackOperation('writeBlob', 'start');
 
-    const maxRetries = 3;
     let lastError: unknown;
 
     // Convert data to Uint8Array once
@@ -464,8 +464,7 @@ export class BlobKit {
     throw new BlobKitError(BlobKitErrorCode.JOB_NOT_FOUND, 'Job not found on chain after payment');
   }
 
-  private async waitForJobCompletion(jobId: string): Promise<void> {
-    const timeout = 5 * 60 * 1000; // 5 minutes
+  private async waitForJobCompletion(jobId: string, timeout: number = 5 * 60 * 1000): Promise<void> {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeout) {

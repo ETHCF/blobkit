@@ -407,9 +407,7 @@ class GcpKmsSigner implements SecureSigner {
   }
 
   private pemToDer(pem: string): Uint8Array {
-    const b64 = pem
-      .replace('-----BEGIN PUBLIC KEY-----', '')
-      .replace('-----END PUBLIC KEY-----', '')
+    const b64 = pem.replace(/-----BEGIN [^-]+-----|-----END [^-]+-----|\n/g, '')
       .replace(/\s+/g, '');
     return Uint8Array.from(Buffer.from(b64, 'base64'));
   }
@@ -445,7 +443,7 @@ class GcpKmsSigner implements SecureSigner {
   private async signDigest(digest: string): Promise<string> {
     const { KeyManagementServiceClient } = await import('@google-cloud/kms');
     const client = new KeyManagementServiceClient();
-    const digestBytes = Buffer.from(digest.slice(2), 'hex');
+    const digestBytes = Buffer.from(digest.replace(/^0x/, ''), 'hex');
     const [resp] = await client.asymmetricSign({ name: this.keyName, digest: { sha256: digestBytes } });
     if (!resp.signature) throw new Error('Failed to get signature from GCP KMS');
     const { r, s } = this.parseDerEcdsaSignature(Buffer.from(resp.signature));
@@ -460,23 +458,15 @@ class GcpKmsSigner implements SecureSigner {
     const expect = (val: number) => {
       if (der[idx++] !== val) throw new Error('Invalid DER');
     };
-    const readLen = (): number => {
-      let len = der[idx++];
-      if (len & 0x80) {
-        const n = len & 0x7f;
-        len = 0;
-        for (let j = 0; j < n; j++) len = (len << 8) | der[idx++];
-      }
-      return len;
-    };
+
     expect(0x30);
-    readLen();
+    const totalLen = der[idx++];
     expect(0x02);
-    const rLen = readLen();
+    const rLen = der[idx++];
     let rBytes = der.slice(idx, idx + rLen);
     idx += rLen;
     expect(0x02);
-    const sLen = readLen();
+    const sLen = der[idx++];
     let sBytes = der.slice(idx, idx + sLen);
     // trim leading zeros
     while (rBytes.length > 0 && rBytes[0] === 0x00) rBytes = rBytes.slice(1);
