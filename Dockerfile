@@ -1,11 +1,11 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
-COPY packages/contracts/package*.json ./packages/contracts/
+COPY package*.json tsconfig*.json ./
+# COPY packages/contracts/package*.json ./packages/contracts/
 COPY packages/proxy-server/package*.json ./packages/proxy-server/
 COPY packages/sdk/package*.json ./packages/sdk/
 
@@ -13,16 +13,19 @@ COPY packages/sdk/package*.json ./packages/sdk/
 RUN npm ci --workspace=packages/proxy-server --workspace=packages/sdk
 
 # Copy source code
-COPY packages/contracts ./packages/contracts
+# COPY packages/contracts ./packages/contracts
+
 COPY packages/proxy-server ./packages/proxy-server
 COPY packages/sdk ./packages/sdk
 
 # Build packages
-RUN npm run build --workspace=packages/sdk
+WORKDIR /app/packages/sdk
+RUN npm run build
+WORKDIR /app
 RUN npm run build --workspace=packages/proxy-server
 
 # Production stage
-FROM node:18-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -44,6 +47,7 @@ COPY packages/proxy-server/openapi.yaml ./packages/proxy-server/
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
+# RUN chown -R nodejs:nodejs /app
 USER nodejs
 
 # Expose ports
