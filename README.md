@@ -21,13 +21,6 @@
 
 BlobKit enables applications to store data on Ethereum using blob transactions (EIP-4844). 
 
-### Production Status
-
-- **Escrow Contract:** [Live on Mainnet](https://etherscan.io/address/0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495)
-- **SDK:** Fully functional with mainnet support
-- **Proxy System:** Authorized and operational
-- **KZG Cryptography:** Verified and working
-
 ### Key Features
 
 - **TypeScript SDK** with browser and Node.js support
@@ -319,12 +312,6 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 ## License
 
 MIT - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- Ethereum Foundation for EIP-4844
-- Flashbots for providing free blob-compatible RPC
-- KZG ceremony participants
 
 ## Author
 
