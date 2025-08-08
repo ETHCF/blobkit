@@ -165,6 +165,18 @@ jobs:
       - name: Install dependencies (workspace)
         run: npm ci
 
+      - name: Install Foundry (contracts build only)
+        if: matrix.package == 'contracts'
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Prepare contracts deps (contracts build only)
+        if: matrix.package == 'contracts'
+        run: |
+          cd packages/contracts
+          forge install
+
       - name: Build ${{ matrix.package }}
         run: |
           if [ "${{ matrix.package }}" = "sdk" ]; then
