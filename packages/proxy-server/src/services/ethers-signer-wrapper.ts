@@ -32,21 +32,21 @@ export function wrapAsEthersSigner(
 
   // Override the getAddress method
   Object.defineProperty(voidSigner, 'getAddress', {
-    value: async () => secureSigner.getAddress(),
+    value: () => secureSigner.getAddress(),
     writable: false,
     configurable: false
   });
 
   // Override the signMessage method
   Object.defineProperty(voidSigner, 'signMessage', {
-    value: async (message: string | Uint8Array) => secureSigner.signMessage(message),
+    value: (message: string | Uint8Array) => secureSigner.signMessage(message),
     writable: false,
     configurable: false
   });
 
   // Override the signTransaction method
   Object.defineProperty(voidSigner, 'signTransaction', {
-    value: async (tx: ethers.TransactionRequest) => secureSigner.signTransaction(tx),
+    value: (tx: ethers.TransactionRequest) => secureSigner.signTransaction(tx),
     writable: false,
     configurable: false
   });

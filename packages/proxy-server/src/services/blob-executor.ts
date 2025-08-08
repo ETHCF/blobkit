@@ -4,7 +4,7 @@ import { BlobJob, ProxyError, ProxyErrorCode } from '../types.js';
 import { createLogger } from '../utils/logger.js';
 import { CircuitBreaker, DEFAULT_CONFIGS, circuitBreakerManager } from './circuit-breaker.js';
 import { TracingService, ExtendedTraceContext } from '../middleware/tracing.js';
-import type { TraceContext } from '../utils/logger.js';
+// import type { TraceContext } from '../utils/logger.js';
 
 const logger = createLogger('BlobExecutor');
 const tracingService = new TracingService('blobkit-blob-executor');
@@ -64,7 +64,7 @@ export class BlobExecutor {
     blobIndex: number;
   }> {
     // Execute with circuit breaker protection
-    return await this.circuitBreaker.execute(async () => {
+    return this.circuitBreaker.execute(async () => {
       const span = tracingService.startSpan('blob.execute', traceContext);
       span.setAttribute('job.id', job.jobId);
       span.setAttribute('job.user', job.user);
@@ -90,7 +90,7 @@ export class BlobExecutor {
         // Convert payload back to the appropriate format based on codec
         let decodedPayload: unknown;
 
-        const codec = (job.meta as { codec?: string }).codec;
+        const { codec } = job.meta as { codec?: string };
         switch (codec?.toLowerCase()) {
           case 'json':
           case 'application/json':

@@ -24,7 +24,7 @@ export interface SignatureVerificationConfig {
  * @returns Express middleware function
  */
 export function createSignatureVerification(config: SignatureVerificationConfig) {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     // Skip verification if not required and no signature present
     const signatureHeader = req.headers['x-blobkit-signature'] as string;
     if (!config.required && !signatureHeader) {

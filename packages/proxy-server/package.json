@@ -43,6 +43,7 @@
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-kms": "^3.485.0",
+    "@google-cloud/kms": "^4.3.0",
     "@blobkit/sdk": "file:../sdk",
     "@opentelemetry/api": "^1.7.0",
     "commander": "^14.0.0",

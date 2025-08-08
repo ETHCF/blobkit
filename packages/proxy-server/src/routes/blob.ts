@@ -19,7 +19,7 @@ const tracingService = new TracingService('blobkit-blob-route');
 async function executeCallback(
   callbackUrl: string,
   response: BlobWriteResponse,
-  tracedLogger: any
+  tracedLogger: ReturnType<typeof createLogger>
 ): Promise<void> {
   try {
     const callbackResponse = await fetch(callbackUrl, {

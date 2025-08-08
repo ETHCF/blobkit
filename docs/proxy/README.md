@@ -118,7 +118,7 @@ docker run -p 3000:3000 \
 ## Security
 
 - Never commit private keys to version control
-- Use secure private key storage (HSM, KMS)
+- Use secure private key storage (KMS)
 - Configure appropriate rate limits
 - Monitor for suspicious activity
 - Keep dependencies updated

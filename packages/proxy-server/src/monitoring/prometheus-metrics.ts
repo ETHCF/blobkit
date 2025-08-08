@@ -131,7 +131,7 @@ export class PrometheusMetrics {
   /**
    * Get metrics in Prometheus format
    */
-  async getMetrics(): Promise<string> {
+  getMetrics(): string | Promise<string> {
     return this.registry.metrics();
   }
 

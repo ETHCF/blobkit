@@ -19,7 +19,7 @@
 
 ## Overview
 
-BlobKit enables applications to store data on Ethereum using blob transactions (EIP-4844). **Fully deployed and tested on Ethereum mainnet.**
+BlobKit enables applications to store data on Ethereum using blob transactions (EIP-4844). 
 
 ### Production Status
 
@@ -225,7 +225,7 @@ AWS_KMS_KEY_ID=arn:aws:kms:region:account:key/id   # Production
 - HMAC-SHA256 request signing (required)
 - Rate limiting per IP address
 - Input validation for all blob parameters
-- AWS KMS/GCP KMS/HSM key management support
+- AWS KMS and GCP KMS key management support
 - Circuit breakers for Redis/RPC failures
 
 ### Best Practices
@@ -283,8 +283,6 @@ cd packages/contracts && forge test --gas-report
 | Network     | Contract Address                                                                                                        | Status |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------- | ------ |
 | **Mainnet** | [`0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495`](https://etherscan.io/address/0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495) | Live   |
-| Sepolia     | Not deployed                                                                                                            | TODO   |
-| Holesky     | Not deployed                                                                                                            | TODO   |
 
 ### Deploy Your Own Contracts
 
@@ -313,22 +311,6 @@ docker run -p 3000:3000 --env-file .env blobkit-proxy
 - [Blob Infrastructure Requirements](blob-infrastructure-requirements.md)
 - [Mainnet Deployment Guide](MAINNET_DEPLOYMENT_GUIDE.md)
 - [Production Audit Report](PRODUCTION_AUDIT_REPORT.md)
-
-## Production Verification
-
-The system has been fully tested on Ethereum mainnet:
-
-- **Job Creation TX:** [`0x2d968d9...`](https://etherscan.io/tx/0x2d968d9cd4869b53a78c77ce2daad71e1935753ad7bbcfdcac472d93bf5dbade)
-- **Job Completion TX:** [`0x3c05906...`](https://etherscan.io/tx/0x3c05906995b76d5625b84f7020f225b67084ae844a2ba4b06a9ca68af1514213)
-
-All components verified working:
-
-- ✅ Escrow contract payment handling
-- ✅ Job creation and completion
-- ✅ Proxy authorization (2% fee)
-- ✅ Signature verification
-- ✅ KZG cryptography
-- ✅ Gas estimation
 
 ## Contributing
 

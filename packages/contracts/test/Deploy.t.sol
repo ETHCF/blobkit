@@ -18,19 +18,19 @@ contract DeployTest is Test {
     }
     
     function testParseEmptyString() public view {
-        address[] memory result = harness.testParseProxies("");
+        address[] memory result = harness.exposedParseProxies("");
         assertEq(result.length, 0, "Empty string should return empty array");
     }
     
     function testParseSingleAddress() public view {
-        address[] memory result = harness.testParseProxies("0x1234567890123456789012345678901234567890");
+        address[] memory result = harness.exposedParseProxies("0x1234567890123456789012345678901234567890");
         assertEq(result.length, 1, "Should parse single address");
         assertEq(result[0], address(0x1234567890123456789012345678901234567890), "Address should match");
     }
     
     function testParseMultipleAddresses() public view {
         string memory input = "0x1234567890123456789012345678901234567890,0xabcdefabcdefabcdefabcdefabcdefabcdefabcd,0x9876543210987654321098765432109876543210";
-        address[] memory result = harness.testParseProxies(input);
+        address[] memory result = harness.exposedParseProxies(input);
         
         assertEq(result.length, 3, "Should parse three addresses");
         assertEq(result[0], address(0x1234567890123456789012345678901234567890));
@@ -40,7 +40,7 @@ contract DeployTest is Test {
     
     function testParseWithWhitespace() public view {
         string memory input = " 0x1234567890123456789012345678901234567890 , 0xabcdefabcdefabcdefabcdefabcdefabcdefabcd ";
-        address[] memory result = harness.testParseProxies(input);
+        address[] memory result = harness.exposedParseProxies(input);
         
         assertEq(result.length, 2, "Should parse addresses with whitespace");
         assertEq(result[0], address(0x1234567890123456789012345678901234567890));
@@ -49,7 +49,7 @@ contract DeployTest is Test {
     
     function testParseMixedCase() public view {
         string memory input = "0xAbCdEf1234567890123456789012345678901234,0xFEDCBA9876543210987654321098765432109876";
-        address[] memory result = harness.testParseProxies(input);
+        address[] memory result = harness.exposedParseProxies(input);
         
         assertEq(result.length, 2, "Should parse mixed case addresses");
         assertEq(result[0], address(0xaBcDef1234567890123456789012345678901234));
@@ -58,49 +58,49 @@ contract DeployTest is Test {
     
     function testRejectZeroAddress() public {
         vm.expectRevert("Invalid address: zero address not allowed");
-        harness.testParseProxies("0x0000000000000000000000000000000000000000");
+        harness.exposedParseProxies("0x0000000000000000000000000000000000000000");
     }
     
     function testRejectDuplicateAddresses() public {
         string memory input = "0x1234567890123456789012345678901234567890,0x1234567890123456789012345678901234567890";
         vm.expectRevert("Invalid address: duplicate address");
-        harness.testParseProxies(input);
+        harness.exposedParseProxies(input);
     }
     
     function testRejectInvalidHex() public {
         string memory input = "0x12345678901234567890123456789012345678XY";
         vm.expectRevert("Invalid format: non-hex character in address");
-        harness.testParseProxies(input);
+        harness.exposedParseProxies(input);
     }
     
     function testRejectMissingPrefix() public {
         string memory input = "1234567890123456789012345678901234567890";
         vm.expectRevert("Invalid format: incomplete address");
-        harness.testParseProxies(input);
+        harness.exposedParseProxies(input);
     }
     
     function testRejectIncompleteAddress() public {
         string memory input = "0x12345678901234567890123456789012345678";
         vm.expectRevert("Invalid format: incomplete address");
-        harness.testParseProxies(input);
+        harness.exposedParseProxies(input);
     }
     
     function testRejectTrailingComma() public {
         string memory input = "0x1234567890123456789012345678901234567890,";
         vm.expectRevert("Invalid format: trailing comma");
-        harness.testParseProxies(input);
+        harness.exposedParseProxies(input);
     }
     
     function testRejectDoubleComma() public {
         string memory input = "0x1234567890123456789012345678901234567890,,0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
         vm.expectRevert("Invalid format: empty address entry");
-        harness.testParseProxies(input);
+        harness.exposedParseProxies(input);
     }
     
     function testRejectLeadingComma() public {
         string memory input = ",0x1234567890123456789012345678901234567890";
         vm.expectRevert("Invalid format: empty address entry");
-        harness.testParseProxies(input);
+        harness.exposedParseProxies(input);
     }
     
     function testRejectInvalidCharacterAfterAddress() public {
@@ -123,7 +123,7 @@ contract DeployTest is Test {
         }
         
         vm.expectRevert("Too many addresses: maximum 100 allowed");
-        harness.testParseProxies(input);
+        harness.exposedParseProxies(input);
     }
     
     function testParseMaximumAddresses() public view {
@@ -139,7 +139,7 @@ contract DeployTest is Test {
             }
         }
         
-        address[] memory result = harness.testParseProxies(input);
+        address[] memory result = harness.exposedParseProxies(input);
         assertEq(result.length, 100, "Should parse exactly 100 addresses");
         assertEq(result[0], address(0x0000000000000000000000000000000000000001));
         assertEq(result[99], address(0x0000000000000000000000000000000000000100));
@@ -147,7 +147,7 @@ contract DeployTest is Test {
     
     function testParseWithNewlines() public view {
         string memory input = "0x1234567890123456789012345678901234567890,\n0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
-        address[] memory result = harness.testParseProxies(input);
+        address[] memory result = harness.exposedParseProxies(input);
         
         assertEq(result.length, 2, "Should parse addresses with newlines");
         assertEq(result[0], address(0x1234567890123456789012345678901234567890));
@@ -156,7 +156,7 @@ contract DeployTest is Test {
     
     function testParseWithTabs() public view {
         string memory input = "0x1234567890123456789012345678901234567890\t,\t0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
-        address[] memory result = harness.testParseProxies(input);
+        address[] memory result = harness.exposedParseProxies(input);
         
         assertEq(result.length, 2, "Should parse addresses with tabs");
         assertEq(result[0], address(0x1234567890123456789012345678901234567890));
@@ -174,16 +174,16 @@ contract DeployTest is Test {
     
     function testRejectPartialHexPrefix() public {
         vm.expectRevert("Invalid format: incomplete address");
-        harness.testParseProxies("0");
+        harness.exposedParseProxies("0");
         
         vm.expectRevert("Invalid format: incomplete address");
-        harness.testParseProxies("0x");
+        harness.exposedParseProxies("0x");
     }
     
     function testRejectSpaceInAddress() public {
         string memory input = "0x12345678901234567890 123456789012345678901234";
         vm.expectRevert("Invalid format: non-hex character in address");
-        harness.testParseProxies(input);
+        harness.exposedParseProxies(input);
     }
 }
 
@@ -193,7 +193,7 @@ contract DeployTest is Test {
  */
 contract DeployScriptTestHarness is DeployScript {
     // Public wrapper for testing the internal _parseProxies function
-    function testParseProxies(string memory proxiesString) public pure returns (address[] memory) {
+    function exposedParseProxies(string memory proxiesString) public pure returns (address[] memory) {
         return _parseProxies(proxiesString);
     }
 }

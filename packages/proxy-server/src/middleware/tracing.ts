@@ -66,24 +66,27 @@ export function tracingMiddleware(serviceName: string = 'blobkit-proxy') {
     };
 
     // Set response headers for trace propagation
-    res.setHeader('X-Trace-Id', traceId);
-    res.setHeader('X-Span-Id', spanId);
+    const resHeaders = res as Response & { setHeader: (name: string, value: string) => void };
+    resHeaders.setHeader('X-Trace-Id', traceId);
+    resHeaders.setHeader('X-Span-Id', spanId);
 
     // Log request with trace context
+    const { method, path: reqPath, headers } = req;
     logger.info('Request received', {
       traceId,
       spanId,
       parentSpanId,
-      method: req.method,
-      path: req.path,
-      headers: req.headers
+      method,
+      path: reqPath,
+      headers
     });
 
     // Track response time
     const startTime = Date.now();
 
     // Intercept response to log completion
-    const originalSend = res.send;
+    const { send } = res;
+    const originalSend = send.bind(res);
     res.send = function (data: unknown) {
       const duration = Date.now() - startTime;
 
@@ -124,7 +127,7 @@ export class TracingService {
   startSpan(name: string, traceContext?: ExtendedTraceContext) {
     const span = this.tracer.startSpan(name, {
       kind: SpanKind.SERVER,
-      attributes: traceContext?.attributes as any
+      attributes: traceContext?.attributes as Record<string, string | number | boolean> | undefined
     });
 
     if (traceContext) {
@@ -152,7 +155,9 @@ export class TracingService {
       });
 
       try {
-        const result = await fn(...args);
+        const result = await (fn as unknown as (...a: unknown[]) => Promise<unknown>)(
+          ...args
+        );
         span.setStatus({ code: SpanStatusCode.OK });
         return result;
       } catch (error) {
@@ -172,7 +177,7 @@ export class TracingService {
    * Add trace context to logger
    */
   getLoggerWithTrace(baseLogger: Logger, traceContext: TraceContext): Logger {
-    const childLogger = baseLogger.child('traced', traceContext);
+    const childLogger = baseLogger.child('traced', traceContext as Record<string, unknown>);
     return childLogger;
   }
 }
@@ -188,9 +193,7 @@ export function getTraceContext(req: Request): ExtendedTraceContext {
     timestamp: Date.now(),
     service: 'blobkit-proxy',
     operation: `${req.method} ${req.path}`,
-    attributes: req.traceContext?.attributes as
-      | Record<string, string | number | boolean>
-      | undefined
+    attributes: req.traceContext?.attributes as Record<string, string | number | boolean> | undefined
   };
 }
 

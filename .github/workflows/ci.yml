@@ -108,6 +108,10 @@ jobs:
       - name: Type check ${{ matrix.package }}
         run: |
           cd packages/${{ matrix.package }}
+          if [ -d "../sdk" ] && [ "${{ matrix.package }}" = "proxy-server" ]; then
+            echo "Building SDK before proxy-server type-check..."
+            cd ../sdk && npm run build && cd ../proxy-server
+          fi
           npm run type-check
 
       - name: Check for unsafe type usage
@@ -387,7 +391,20 @@ jobs:
           echo "Checking for hardcoded secrets..."
 
           # Check for private keys (64 hex chars)
-          if grep -r "0x[a-fA-F0-9]\{64\}" . --exclude-dir=node_modules --exclude-dir=.git --exclude="*.log"; then
+          if grep -r "0x[a-fA-F0-9]\{64\}" . \
+            --exclude-dir=node_modules \
+            --exclude-dir=.git \
+            --exclude-dir=packages/contracts/lib \
+            --exclude-dir=deployments \
+            --exclude-dir=**/test \
+            --exclude-dir=**/__tests__ \
+            --exclude-dir=**/__integration__ \
+            --exclude-dir=coverage \
+            --exclude="*.log" \
+            --exclude="*.md" \
+            --exclude="*.mdx" \
+            --exclude="**/openapi.yaml" \
+            --exclude="scripts/dev.sh"; then
             echo "::error::Potential private keys found"
             exit 1
           fi

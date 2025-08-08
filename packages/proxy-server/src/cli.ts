@@ -73,7 +73,7 @@ program
       const config = loadConfig();
       logger.info('Current configuration', {
         ...config,
-        privateKey: config.privateKey.substring(0, 6) + '...' // Hide private key
+        privateKey: `${config.privateKey.substring(0, 6)}...`
       });
     } catch (error) {
       logger.error('Failed to load configuration:', error);
@@ -108,7 +108,7 @@ program
   .description('Simulate a payment flow for testing')
   .requiredOption('--job-id <string>', 'Job ID to simulate payment for')
   .option('--amount <string>', 'Payment amount in ETH', '0.001')
-  .action(async (options: { jobId: string; amount: string }) => {
+  .action((options: { jobId: string; amount: string }) => {
     try {
       const config = loadConfig();
       logger.info(`Simulating payment for job ${options.jobId}`);

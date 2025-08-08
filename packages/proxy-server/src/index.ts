@@ -110,7 +110,7 @@ const startServer = async () => {
     });
 
     // Graceful shutdown
-    const shutdown = async (signal: string) => {
+    const shutdown = (signal: string) => {
       logger.info(`Received ${signal}, shutting down gracefully...`);
 
       // Stop job completion queue first

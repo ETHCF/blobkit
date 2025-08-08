@@ -68,13 +68,12 @@ export class ConsoleAdapter implements LoggerAdapter {
       return;
     }
 
-    const output =
-      this.environment === 'development'
-        ? this.formatDevelopment(entry)
-        : this.formatProduction(entry);
+    const output = this.environment === 'development'
+      ? this.formatDevelopment(entry)
+      : this.formatProduction(entry);
 
     const stream = entry.level >= LogLevel.WARN ? process.stderr : process.stdout;
-    stream.write(output + '\n');
+    stream.write(`${output}\n`);
   }
 
   private formatProduction(entry: LogEntry): string {
@@ -105,13 +104,13 @@ export class ConsoleAdapter implements LoggerAdapter {
     let output = `${time} ${levelColor}[${entry.levelName}]${resetColor} [${entry.context}] ${entry.message}`;
 
     if (entry.metadata && Object.keys(entry.metadata).length > 0) {
-      output += '\n  ' + JSON.stringify(entry.metadata, null, 2).replace(/\n/g, '\n  ');
+      output += `\n  ${JSON.stringify(entry.metadata, null, 2).replace(/\n/g, '\n  ')}`;
     }
 
     if (entry.error) {
       output += `\n  Error: ${entry.error.message}`;
       if (entry.error.stack) {
-        output += '\n  ' + entry.error.stack.replace(/\n/g, '\n  ');
+        output += `\n  ${entry.error.stack.replace(/\n/g, '\n  ')}`;
       }
     }
 
@@ -237,13 +236,14 @@ export class Logger {
 
     if (entry.metadata) {
       Object.keys(entry.metadata).forEach(key => {
-        if (entry.metadata![key] === undefined) {
-          delete entry.metadata![key];
+        const m = entry.metadata as Record<string, unknown>;
+        if (m[key] === undefined) {
+          delete m[key];
         }
       });
 
-      if (Object.keys(entry.metadata).length === 0) {
-        delete entry.metadata;
+      if (Object.keys(entry.metadata as Record<string, unknown>).length === 0) {
+        delete (entry as { metadata?: Record<string, unknown> }).metadata;
       }
     }
 
@@ -259,7 +259,7 @@ export class Logger {
       return {
         message: error.message,
         stack: error.stack,
-        code: (error as any).code
+        code: (error as { code?: string }).code
       };
     }
 
@@ -338,12 +338,12 @@ export function createLogger(component: string, metadata?: Record<string, unknow
  * Express middleware for request logging
  */
 export function requestLogger(logger: Logger) {
-  return (req: Request, res: Response, next: Function) => {
+  return (req: Request, res: Response, next: (err?: unknown) => void) => {
     const start = Date.now();
 
-    const originalEnd = res.end;
+    const originalEnd = res.end as unknown as (...args: unknown[]) => Response;
 
-    res.end = function (...args: any[]) {
+    res.end = function (...args: unknown[]) {
       const duration = Date.now() - start;
 
       const context: HttpContext = {
@@ -372,12 +372,10 @@ export function requestLogger(logger: Logger) {
 
       const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
 
-      logger[level as 'info' | 'warn' | 'error'](
-        `${req.method} ${req.path} ${res.statusCode}`,
-        context as Record<string, unknown>
-      );
+      const logMethod = level as 'info' | 'warn' | 'error';
+      logger[logMethod](`${req.method} ${req.path} ${res.statusCode}`, context as Record<string, unknown>);
 
-      return (originalEnd as any).apply(res, args);
+      return originalEnd.apply(res, args as unknown as unknown[]);
     };
 
     next();

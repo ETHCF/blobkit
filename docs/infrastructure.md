@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-BlobKit is **production-ready** on Ethereum mainnet. However, blob transactions (EIP-4844) require specialized RPC infrastructure beyond standard providers like Alchemy or Infura.
+BlobKit requires blob-compatible RPC infrastructure on Ethereum mainnet. Blob transactions (EIP-4844) need consensus-layer support beyond standard providers like Alchemy or Infura.
 
 **TL;DR:** Use Flashbots RPC (`https://rpc.flashbots.net`) - it's free and works today.
 
@@ -44,7 +44,7 @@ const blobkit = await BlobKit.init(
 
 - ✅ Free to use
 - ✅ No registration
-- ✅ Production-ready
+- ✅ Supported in production environments
 - ✅ Supports blob transactions
 
 **Cons:**
@@ -228,7 +228,7 @@ For infrastructure questions:
 
 ## Summary
 
-BlobKit is **production-ready** today. Just use Flashbots RPC instead of standard providers:
+Use Flashbots RPC or a blob-capable node instead of standard providers:
 
 ```typescript
 // This one change enables blob support:
