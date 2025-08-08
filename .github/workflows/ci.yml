@@ -546,7 +546,7 @@ jobs:
           cd packages/sdk
           node -e "
             try {
-              const { BlobKit, createFromEnv } = require('./dist/index.js');
+              const { BlobKit, createFromEnv } = require('./dist/index.cjs');
               console.log('✓ SDK import successful');
               console.log('✓ BlobKit class available:', typeof BlobKit);
               console.log('✓ createFromEnv function available:', typeof createFromEnv);

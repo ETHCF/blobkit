@@ -24,7 +24,7 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^@blobkit/sdk$': '<rootDir>/../sdk/dist/index.js'
+    '^@blobkit/sdk$': '<rootDir>/../sdk/dist/index.cjs'
   },
   moduleDirectories: ['node_modules', '<rootDir>/../sdk/node_modules'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
