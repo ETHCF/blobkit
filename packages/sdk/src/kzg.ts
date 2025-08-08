@@ -15,13 +15,6 @@ export const BYTES_PER_FIELD_ELEMENT = 31;
 export const BLOB_SIZE = 131072;
 export const VERSIONED_HASH_VERSION_KZG = 0x01;
 
-// Known trusted setup hashes for integrity verification
-const KNOWN_SETUP_HASHES: Record<string, string> = {
-  // Ethereum mainnet trusted setup (example hash - replace with actual)
-  mainnet: 'sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
-  // Add more as needed
-};
-
 // Internal constants
 const BYTES_PER_G1 = 48;
 const BYTES_PER_G2 = 96;
@@ -230,12 +223,12 @@ async function computeHash(data: Uint8Array): Promise<string> {
         .map(b => b.toString(16).padStart(2, '0'))
         .join('')
     );
-  } else {
-    // Node.js environment
-    const hash = createHash('sha256');
-    hash.update(data);
-    return 'sha256:' + hash.digest('hex');
   }
+
+  // Node.js environment
+  const hash = createHash('sha256');
+  hash.update(data);
+  return 'sha256:' + hash.digest('hex');
 }
 
 /**
@@ -262,7 +255,7 @@ async function parseTrustedSetup(data: Uint8Array): Promise<TrustedSetup> {
   const g2Length = NUM_G2_POINTS * BYTES_PER_G2 * 2;
 
   if (dataHex.length < g1Length + g2Length) {
-    throw new Error('Insufficient data in trusted setup');
+    throw new Error(`Insufficient data in trusted setup: expected at least ${g1Length + g2Length} bytes, got ${dataHex.length}`);
   }
 
   return {
@@ -402,14 +395,14 @@ export async function commitmentToVersionedHash(commitment: Uint8Array): Promise
         .map(b => b.toString(16).padStart(2, '0'))
         .join('')
     );
-  } else {
-    // Node.js synchronous fallback
-    const hash = createHash('sha256');
-    hash.update(commitment);
-    const hashBytes = hash.digest();
-    hashBytes[0] = VERSIONED_HASH_VERSION_KZG;
-    return '0x' + hashBytes.toString('hex');
   }
+
+  // Node.js synchronous fallback
+  const hash = createHash('sha256');
+  hash.update(commitment);
+  const hashBytes = hash.digest();
+  hashBytes[0] = VERSIONED_HASH_VERSION_KZG;
+  return '0x' + hashBytes.toString('hex');
 }
 
 /**

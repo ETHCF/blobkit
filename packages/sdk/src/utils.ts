@@ -18,6 +18,11 @@ export function calculatePayloadHash(data: Uint8Array): string {
   return ethers.keccak256(data);
 }
 
+export function isBlobTXType(type: string|number): boolean {
+  // Check if type is a Blob transaction type
+  return type === '0x3' || type === 3;
+}
+
 /**
  * Generate deterministic job ID
  * @param userAddress User's address
