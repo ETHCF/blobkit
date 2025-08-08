@@ -399,30 +399,7 @@ jobs:
       - name: Check for secrets
         run: |
           echo "Checking for hardcoded secrets..."
-
-          # Check for private keys (64 hex chars)
-          if grep -r "0x[a-fA-F0-9]\{64\}" . \
-            --exclude-dir=node_modules \
-            --exclude-dir=.git \
-            --exclude-dir=packages/contracts/lib \
-            --exclude-dir=deployments \
-            --exclude-dir=**/test \
-            --exclude-dir=**/__tests__ \
-            --exclude-dir=**/__integration__ \
-            --exclude-dir=coverage \
-            --exclude="*.log" \
-            --exclude="*.md" \
-            --exclude="*.mdx" \
-            --exclude="**/openapi.yaml" \
-            --exclude="scripts/dev.sh"; then
-            echo "::error::Potential private keys found"
-            exit 1
-          fi
-
-          # Check for API keys
-          if grep -ri "api[_-]key.*[=:]\s*['\"][a-zA-Z0-9]\{20,\}" . --exclude-dir=node_modules --exclude-dir=.git; then
-            echo "::warning::Potential API keys found"
-          fi
+          bash scripts/scan-secrets.sh .
 
       - name: Install and run Slither (if contracts exist)
         if: contains(fromJson(needs.setup.outputs.packages), 'contracts')

@@ -4,6 +4,7 @@ import { readFile } from 'fs/promises';
 
 const pkg = JSON.parse(await readFile('./package.json', 'utf8'));
 const external = Object.keys(pkg.dependencies || {});
+const externalNodeBuiltins = ['crypto', 'fs'];
 
 // Main build (ESM)
 await build({
@@ -37,7 +38,7 @@ await build({
   platform: 'browser',
   target: 'es2020',
   outfile: 'dist/browser.js',
-  external: external.filter(dep => dep !== 'crypto'),
+  external: [...external, ...externalNodeBuiltins],
   sourcemap: true
 });
 
@@ -49,7 +50,7 @@ await build({
   platform: 'browser',
   target: 'es2020',
   outfile: 'dist/browser.cjs',
-  external: external.filter(dep => dep !== 'crypto'),
+  external: [...external, ...externalNodeBuiltins],
   sourcemap: true
 });
 

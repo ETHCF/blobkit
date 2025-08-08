@@ -1,12 +1,42 @@
 /**
  * BlobKit SDK - Browser Entry Point
  * Optimized build for browser environments with MetaMask integration
+ * Exposes only browser-safe APIs (no Node.js built-ins like 'crypto' or 'fs')
  */
 
-// Re-export everything from main index
-export * from './index.js';
 import type { BlobKitConfig } from './types.js';
 import type { Signer } from 'ethers';
+export type {
+  BlobKitConfig,
+  BlobKitEnvironment,
+  BlobMeta,
+  BlobReceipt,
+  BlobReadResult,
+  CostEstimate,
+  JobStatus,
+  ProxyHealthResponse,
+  TransactionRequest,
+  TransactionResponse,
+  TransactionReceipt,
+  Provider,
+  FeeData,
+  KzgSetupOptions
+} from './types.js';
+
+export { BlobKit } from './blobkit.js';
+export { BlobReader } from './blob-reader.js';
+export { detectEnvironment, getEnvironmentCapabilities } from './environment.js';
+export { defaultCodecRegistry, JsonCodec, RawCodec, TextCodec } from './codecs/index.js';
+export {
+  generateJobId,
+  calculatePayloadHash,
+  formatEther,
+  parseEther,
+  isValidAddress,
+  validateBlobSize,
+  bytesToHex,
+  hexToBytes
+} from './utils.js';
 
 // Browser-specific utilities
 // Window type extension for MetaMask
