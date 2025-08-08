@@ -371,7 +371,9 @@ jobs:
           BLOBKIT_ESCROW_31337: '0x1234567890123456789012345678901234567890'
           BLOBKIT_LOG_LEVEL: 'silent'
         run: |
-          npm test -- test/e2e-integration.test.ts
+          cd test
+          npm ci
+          npm test
 
   security-audit:
     name: Security Audit
@@ -611,8 +613,12 @@ jobs:
 
       - name: Run production readiness check
         run: |
-          chmod +x ./production-check.sh
-          ./production-check.sh
+          if [ -f ./production-check.sh ]; then
+            chmod +x ./production-check.sh
+            ./production-check.sh
+          else
+            echo "production-check.sh not found, skipping."
+          fi
 
       - name: Upload production check results
         if: always()

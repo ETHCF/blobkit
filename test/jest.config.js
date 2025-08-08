@@ -1,8 +1,8 @@
 /** @type {import('jest').Config} */
 export default {
-  preset: 'ts-jest/presets/default-esm',
+  preset: 'ts-jest',
   testEnvironment: 'node',
-  extensionsToTreatAsEsm: ['.ts'],
+  extensionsToTreatAsEsm: [],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@blobkit/sdk$': '<rootDir>/../packages/sdk/src/index.ts'
@@ -11,9 +11,9 @@ export default {
     '^.+\\.tsx?$': [
       'ts-jest',
       {
-        useESM: true,
+        useESM: false,
         tsconfig: {
-          module: 'esnext',
+          module: 'commonjs',
           target: 'es2022',
           lib: ['es2022'],
           moduleResolution: 'node',
