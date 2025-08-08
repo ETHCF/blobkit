@@ -23,7 +23,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "rollup -c",
+    "build": "node ./build.js",
     "dev": "rollup -c -w",
     "test": "jest",
     "test:coverage": "jest --coverage",
