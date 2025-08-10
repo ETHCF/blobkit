@@ -15,7 +15,7 @@
 
 [![Mainnet Status](https://img.shields.io/badge/Mainnet-Live-success)](https://etherscan.io/address/0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495)
 [![Contract](https://img.shields.io/badge/Escrow-0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495-blue)](https://etherscan.io/address/0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 ## Overview
 

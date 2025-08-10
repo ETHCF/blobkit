@@ -121,7 +121,7 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
   // Swagger documentation (skip in test environment)
   if (process.env.NODE_ENV !== 'test') {
     try {
-      const swaggerPath = path.join(getDirname(), '..', 'openapi.yaml');
+      const swaggerPath = process.env.SWAGGER_PATH || path.join(getDirname(),  'openapi.yaml');
       const swaggerDocument = YAML.load(swaggerPath);
       app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
     } catch (error) {
