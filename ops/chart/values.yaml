@@ -1,0 +1,72 @@
+version: latest
+image: docker-image
+namespace: default
+projectId: gcp-project-id
+
+services:
+  server:
+    replicas: 1
+    command: todo
+    serviceAccountName: blobkit-proxy
+    resources:
+      cpu: 100m
+      memory: 256Mi
+    paths:
+    - /
+    healthPath: /health
+    maxReplicas: 3
+    targetCPUUtil: 70
+
+
+ingress:
+  domain: proxy.blobkit.org
+  tlsSecret: ethcf-tls
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.org/mergeable-ingress-type: minion
+  
+
+service:
+  type: ClusterIP
+  port: 80
+  protocol: TCP
+  targetPort: 8080
+
+verbosity: DEBUG
+
+# Shared environment variables
+environment:
+- name: KZG_TRUSTED_SETUP_PATH
+  value: /trusted_setup.txt
+- name: ESCROW_CONTRACT
+  value: "0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495"  # Mainnet escrow
+- name: PORT
+  value: "8080"
+- name: CHAIN_ID
+  value: "1"  # Mainnet chain ID
+- name: PROXY_FEE_PERCENT
+  value: "1"  # 1% fee
+- name: MAX_BLOB_SIZE
+  value: "131072"  # 128 KiB
+- name: JOB_TIMEOUT_SECONDS
+  value: "300"  # 5 minutes
+- name: GCP_KMS_KEY_NAME
+  valueFrom:
+    configMapKeyRef:
+      name: blobkit-proxy
+      key: kms-key-id
+- name: RPC_URL
+  valueFrom:
+    configMapKeyRef:
+      name: blobkit-proxy
+      key: eth-rpc-url
+- name: REQUEST_SIGNING_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: blobkit-proxy
+      key: request-signing-secret
+- name: REDIS_URL
+  valueFrom:
+    secretKeyRef:
+      name: blobkit-proxy
+      key: redis-url
