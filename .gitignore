@@ -58,3 +58,4 @@ production-check.log
 *REPORT*.md
 
 /packages/contracts/deployments/
+/test/shrek*
