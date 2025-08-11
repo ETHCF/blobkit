@@ -195,12 +195,13 @@ export class BlobKit {
         );
 
         // Estimate and pay
-        const estimate = await this.estimateCost(payload);
-        const payment = await this.paymentManager.depositForBlob(jobId, estimate.totalETH);
-
+        let paymentHash: undefined | string = undefined;
         // Submit blob
         let result;
         if (this.shouldUseProxy()) {
+          const estimate = await this.estimateCost(payload);
+          const payment = await this.paymentManager.depositForBlob(jobId, estimate.totalETH);
+          paymentHash = payment.paymentTxHash;
           result = await this.submitViaProxy(jobId, payment.paymentTxHash, payload, fullMeta);
         } else {
           result = await this.submitDirectly(jobId, payload);
@@ -212,7 +213,7 @@ export class BlobKit {
           success: true,
           jobId,
           blobTxHash: result.blobTxHash,
-          paymentTxHash: payment.paymentTxHash,
+          paymentTxHash: paymentHash,
           blockNumber: result.blockNumber,
           blobHash: result.blobHash,
           commitment: result.commitment,

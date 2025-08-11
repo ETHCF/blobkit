@@ -156,7 +156,7 @@ export interface BlobReceipt {
   /** Transaction hash containing the blob */
   blobTxHash: string;
   /** Payment transaction hash */
-  paymentTxHash: string;
+  paymentTxHash: string | undefined;
   /** Block number where blob was included */
   blockNumber: number;
   /** Blob hash identifier */
