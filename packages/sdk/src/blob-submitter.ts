@@ -48,7 +48,8 @@ export class BlobSubmitter {
   async submitBlob(
     signer: Signer,
     jobId: string,
-    payload: Uint8Array
+    payload: Uint8Array,
+    kzg: ethers.KzgLibraryLike
   ): Promise<DirectSubmitResult> {
     try {
       // Encode blob data
@@ -84,7 +85,8 @@ export class BlobSubmitter {
         maxFeePerBlobGas: BigInt(1000000000), // 1 gwei default
         blobs: [blob],
         kzgCommitments: ['0x' + Buffer.from(commitment).toString('hex')],
-        kzgProofs: ['0x' + Buffer.from(proof).toString('hex')]
+        kzgProofs: ['0x' + Buffer.from(proof).toString('hex')],
+        kzg: kzg, // This is necessary for the EIP-4844 transaction, do not remove
       };
 
       // Estimate gas

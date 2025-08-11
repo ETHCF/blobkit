@@ -37,7 +37,7 @@ import {
   validateEnvironmentConfig,
   sleep
 } from './utils.js';
-import { initializeKzg } from './kzg.js';
+import { initializeKzg, requireKzg } from './kzg.js';
 
 /**
  * BlobKit SDK - Main class for blob storage operations
@@ -442,7 +442,7 @@ export class BlobKit {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Direct submission not available');
     }
 
-    const result = await this.blobSubmitter.submitBlob(this.signer, jobId, payload);
+    const result = await this.blobSubmitter.submitBlob(this.signer, jobId, payload, requireKzg());
 
     return {
       ...result,

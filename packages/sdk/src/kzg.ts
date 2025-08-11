@@ -32,25 +32,26 @@ interface KzgWasmLibrary {
   loadTrustedSetup: (trustedSetup?: TrustedSetup) => number;
   freeTrustedSetup: () => void;
   // kzg-wasm uses uppercase KZG in method names
-  blobToKZGCommitment: (blob: Uint8Array | string) => Uint8Array;
-  computeBlobKZGProof: (blob: Uint8Array | string, commitment: Uint8Array) => Uint8Array;
-  verifyBlobKZGProof: (
+  blobToKzgCommitment: (blob: Uint8Array | string) => Uint8Array;
+  computeBlobKzgProof: (blob: Uint8Array | string, commitment: Uint8Array) => Uint8Array;
+  verifyBlobKzgProof: (
     blob: Uint8Array | string,
     commitment: Uint8Array,
     proof: Uint8Array
   ) => boolean;
-  verifyBlobKZGProofBatch: (
-    blobs: Array<Uint8Array | string>,
-    commitments: Uint8Array[],
-    proofs: Uint8Array[]
-  ) => boolean;
-  verifyKZGProof: (
+  // verifyBlobKZGProofBatch: (
+  //   blobs: Array<Uint8Array | string>,
+  //   commitments: Uint8Array[],
+  //   proofs: Uint8Array[]
+  // ) => boolean;
+  verifyKzgProof: (
     commitment: Uint8Array,
     z: Uint8Array,
     y: Uint8Array,
     proof: Uint8Array
   ) => boolean;
 }
+
 
 // Module-level caching
 let cachedKzg: KzgWasmLibrary | undefined;
@@ -269,7 +270,7 @@ async function parseTrustedSetup(data: Uint8Array): Promise<TrustedSetup> {
 /**
  * Ensure KZG is initialized before use
  */
-function requireKzg(): KzgWasmLibrary {
+export function requireKzg(): KzgWasmLibrary {
   if (!cachedKzg) {
     throw new BlobKitError(
       BlobKitErrorCode.KZG_ERROR,
@@ -330,11 +331,11 @@ export function blobToKzgCommitment(blob: Uint8Array): Uint8Array {
   try {
     // kzg-wasm expects hex strings
     const hexBlob = '0x' + Buffer.from(blob).toString('hex');
-    return kzg.blobToKZGCommitment(hexBlob);
+    return kzg.blobToKzgCommitment(hexBlob);
   } catch (error) {
     throw new BlobKitError(
       BlobKitErrorCode.KZG_ERROR,
-      'Failed to compute KZG commitment',
+      `Failed to compute KZG commitment: ${error}`,
       error instanceof Error ? error : undefined
     );
   }
@@ -356,7 +357,7 @@ export function computeKzgProof(blob: Uint8Array, commitment: Uint8Array): Uint8
   try {
     // kzg-wasm expects hex strings
     const hexBlob = '0x' + Buffer.from(blob).toString('hex');
-    return kzg.computeBlobKZGProof(hexBlob, commitment);
+    return kzg.computeBlobKzgProof(hexBlob, commitment);
   } catch (error) {
     throw new BlobKitError(
       BlobKitErrorCode.KZG_ERROR,

@@ -130,7 +130,7 @@ export const createBlobRouter = (
         };
 
         // Step 3: Execute blob transaction
-        tracedLogger.debug(`Executing blob transaction for job ${jobId}`);
+        tracedLogger.debug(`Submitting job ${jobId} to executor`);
         metrics.blobSubmitted(payloadArray.length);
 
         // Record Prometheus metrics for blob submission
