@@ -78,8 +78,8 @@ export class BlobSubmitter {
       // Construct blob transaction
       const tx: TransactionRequest = {
         type: 3, // EIP-4844 blob transaction
-        to: this.config.escrowAddress,
-        data: this.encodeCompleteJobCall(jobId, versionedHash),
+        to: '0x0000000000000000000000000000000000000000', // must be 0
+        data: '0x',
         maxFeePerGas: feeData.maxFeePerGas,
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
         maxFeePerBlobGas: BigInt(1000000000), // 1 gwei default
@@ -129,20 +129,6 @@ export class BlobSubmitter {
     }
   }
 
-  /**
-   * Encode the completeJob function call
-   */
-  private encodeCompleteJobCall(jobId: string, blobTxHash: string): string {
-    // Create function signature for completeJob(bytes32,bytes32,bytes)
-    const iface = new ethers.Interface([
-      'function completeJob(bytes32 jobId, bytes32 blobTxHash, bytes proof)'
-    ]);
-
-    // For direct submission, proof is the sender's address
-    const proof = '0x'; // Empty proof for direct submission
-
-    return iface.encodeFunctionData('completeJob', [jobId, blobTxHash, proof]);
-  }
 
   /**
    * Estimate the cost of submitting a blob
