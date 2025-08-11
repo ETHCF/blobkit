@@ -157,6 +157,9 @@ async function loadSetupData(options?: KzgSetupOptions): Promise<Uint8Array> {
 
   // Option 4: Environment variable path
   if (typeof process !== 'undefined' && process.env?.BLOBKIT_KZG_TRUSTED_SETUP_PATH) {
+    if (process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH.startsWith('http://') || process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH.startsWith('https://')) {
+      return loadFromUrl(process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH);
+    }
     return loadFromFile(process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH);
   }
 
