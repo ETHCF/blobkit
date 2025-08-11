@@ -78,8 +78,8 @@ export class BlobSubmitter {
       // Construct blob transaction
       const tx: TransactionRequest = {
         type: 3, // EIP-4844 blob transaction
-        to: '0x0000000000000000000000000000000000000000', // must be 0 //this.config.escrowAddress,
-        data: '0x',//this.encodeCompleteJobCall(jobId, versionedHash),
+        to: '0x0000000000000000000000000000000000000000', // must be 0
+        data: '0x',
         maxFeePerGas: feeData.maxFeePerGas,
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
         maxFeePerBlobGas: BigInt(1000000000), // 1 gwei default
