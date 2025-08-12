@@ -9,10 +9,13 @@ const logger = createLogger('HealthRoute');
 /**
  * Creates health check router
  */
-export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provider) => {
+export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provider, signer: ethers.Signer) => {
   const router = Router();
   const startTime = Date.now();
 
+  router.get('/info', async (_: Request, res: Response) => {
+    res.json({address: await signer.getAddress()});
+  })
   router.get('/health', async (req: Request, res: Response) => {
     try {
       const uptime = Math.floor((Date.now() - startTime) / 1000);

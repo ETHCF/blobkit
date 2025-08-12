@@ -109,7 +109,7 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
   // Note: jobCompletionQueue.start() is called after server starts listening
 
   // API routes
-  app.use('/api/v1', createHealthRouter(config, provider));
+  app.use('/api/v1', createHealthRouter(config, provider, signer));
   app.use(
     '/api/v1/blob',
     createBlobRouter(config, paymentVerifier, blobExecutor, jobCompletionQueue, signer)
