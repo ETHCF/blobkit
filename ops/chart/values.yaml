@@ -6,7 +6,8 @@ projectId: gcp-project-id
 services:
   server:
     replicas: 1
-    command: todo
+    command: node
+    args: ["packages/proxy-server/dist/index.js"]
     serviceAccountName: blobkit-proxy
     resources:
       cpu: 100m
@@ -16,7 +17,6 @@ services:
     healthPath: /health
     maxReplicas: 3
     targetCPUUtil: 70
-
 
 ingress:
   domain: proxy.blobkit.org
