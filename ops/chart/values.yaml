@@ -20,7 +20,7 @@ services:
 
 ingress:
   domain: proxy.blobkit.org
-  tlsSecret: ethcf-tls
+  tlsSecret: blobkit-tls
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.org/mergeable-ingress-type: minion
