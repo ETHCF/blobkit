@@ -13,9 +13,6 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
   const router = Router();
   const startTime = Date.now();
 
-  router.get('/info', async (_: Request, res: Response) => {
-    res.json({address: await signer.getAddress()});
-  })
   router.get('/health', async (req: Request, res: Response) => {
     try {
       const uptime = Math.floor((Date.now() - startTime) / 1000);
@@ -41,6 +38,7 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
         status: hasOpenCircuits ? 'degraded' : 'healthy',
         version: '0.0.1',
         chainId: config.chainId,
+        signer: await signer.getAddress(),
         escrowContract: config.escrowContract,
         proxyFeePercent: config.proxyFeePercent,
         maxBlobSize: config.maxBlobSize,
@@ -57,6 +55,7 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
         status: 'unhealthy',
         version: '0.0.1',
         chainId: config.chainId,
+        signer: await signer.getAddress(),
         escrowContract: config.escrowContract,
         proxyFeePercent: config.proxyFeePercent,
         maxBlobSize: config.maxBlobSize,

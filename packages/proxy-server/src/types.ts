@@ -69,6 +69,7 @@ export interface HealthResponse {
   proxyFeePercent: number;
   maxBlobSize: number;
   uptime: number;
+  signer: string;
   blocksLag?: number;
   circuitBreakers?: Record<string, unknown>;
 }
