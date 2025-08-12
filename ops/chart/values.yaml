@@ -38,6 +38,8 @@ verbosity: DEBUG
 environment:
 - name: BLOBKIT_KZG_TRUSTED_SETUP_PATH
   value: https://raw.githubusercontent.com/ethereum/c-kzg-4844/refs/heads/main/src/trusted_setup.txt
+- name: KZG_TRUSTED_SETUP_PATH
+  value: https://raw.githubusercontent.com/ethereum/c-kzg-4844/refs/heads/main/src/trusted_setup.txt
 - name: ESCROW_CONTRACT
   value: "0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495"  # Mainnet escrow
 - name: PORT
