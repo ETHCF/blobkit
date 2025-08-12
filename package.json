@@ -42,13 +42,13 @@
     "env:check:proxy": "node scripts/check-env.mjs proxy"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.29.5",
-    "@types/node": "^24.2.0",
-    "@typescript-eslint/eslint-plugin": "^8.39.0",
-    "@typescript-eslint/parser": "^8.39.0",
-    "ts-node": "^10.9.2",
+    "@changesets/cli": "^2.9.2",
+    "@types/node": "^24.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
     "markdownlint-cli": "0.45.0",
-    "prettier": "^3.1.0"
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -62,6 +62,5 @@
   "bugs": {
     "url": "https://github.com/blobkit/blobkit/issues"
   },
-  "homepage": "https://github.com/blobkit/blobkit#readme",
-  "dependencies": {}
+  "homepage": "https://github.com/blobkit/blobkit#readme"
 }
