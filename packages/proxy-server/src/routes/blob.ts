@@ -68,6 +68,11 @@ export const createBlobRouter = (
 ) => {
   const router = Router();
 
+
+  router.get('/address', async (req: Request, res: Response) => {
+    res.json({ address: await signer.getAddress() });
+  });
+
   router.post(
     '/write',
     validateBlobWrite,
