@@ -67,7 +67,7 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
 
   // Rate limiting
   const rateLimiter = createRateLimit(config.rateLimitRequests, config.rateLimitWindow);
-  app.use('/api/', rateLimiter);
+  app.use('/api/v1/blob', rateLimiter);
 
   // Signature verification for blob endpoints (always required)
   const signatureVerifier = createSignatureVerification({
