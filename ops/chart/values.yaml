@@ -14,7 +14,7 @@ services:
       memory: 256Mi
     paths:
     - /
-    healthPath: /health
+    healthPath: /api/v1/health
     maxReplicas: 3
     targetCPUUtil: 70
 
