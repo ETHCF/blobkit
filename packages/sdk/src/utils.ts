@@ -140,7 +140,7 @@ export function getDefaultEscrowContract(chainId: number): string {
   switch (chainId) {
     case 1: // Mainnet
       // DEPLOYED: Mainnet contract
-      return '0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495';
+      return '0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838';
     case 11155111: // Sepolia
       // DEPLOYED: Sepolia testnet contract
       return '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD77';

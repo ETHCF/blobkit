@@ -4,7 +4,7 @@
 
 **BlobKit is live on Ethereum mainnet!**
 
-- **Escrow Contract:** [`0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495`](https://etherscan.io/address/0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495)
+- **Escrow Contract:** [`0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838`](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838)
 - **Status:** ✅ Fully operational
 - **Tested:** Complete end-to-end verification on mainnet
 

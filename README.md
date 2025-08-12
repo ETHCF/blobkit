@@ -13,8 +13,8 @@
 
 **EIP-4844 blob storage for Ethereum**
 
-[![Mainnet Status](https://img.shields.io/badge/Mainnet-Live-success)](https://etherscan.io/address/0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495)
-[![Contract](https://img.shields.io/badge/Escrow-0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495-blue)](https://etherscan.io/address/0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495)
+[![Mainnet Status](https://img.shields.io/badge/Mainnet-Live-success)](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838)
+[![Contract](https://img.shields.io/badge/Escrow-0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838-blue)](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 ## Overview
@@ -188,7 +188,7 @@ interface BlobKitConfig {
 ```bash
 # Required for Proxy Server
 RPC_URL=https://rpc.flashbots.net  # Use blob-compatible RPC
-ESCROW_CONTRACT=0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495  # Mainnet escrow
+ESCROW_CONTRACT=0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838  # Mainnet escrow
 KZG_TRUSTED_SETUP_PATH=./trusted_setup.txt
 REQUEST_SIGNING_SECRET=your-secret-minimum-32-characters
 
@@ -275,7 +275,7 @@ cd packages/contracts && forge test --gas-report
 
 | Network     | Contract Address                                                                                                        | Status |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------- | ------ |
-| **Mainnet** | [`0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495`](https://etherscan.io/address/0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495) | Live   |
+| **Mainnet** | [`0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838`](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838) | Live   |
 
 ### Deploy Your Own Contracts
 

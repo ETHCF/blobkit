@@ -59,7 +59,7 @@ console.log('Data:', blob.data);
 
 | Component           | Mainnet Address                                                                                                         | Status  |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------- |
-| **Escrow Contract** | [`0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495`](https://etherscan.io/address/0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495) | ✅ Live |
+| **Escrow Contract** | [`0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838`](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838) | ✅ Live |
 
 ## Costs
 
@@ -73,7 +73,7 @@ console.log('Data:', blob.data);
 # .env
 PRIVATE_KEY=0x...
 BLOBKIT_RPC_URL=https://rpc.flashbots.net  # Use blob-compatible RPC!
-BLOBKIT_ESCROW_1=0xB4CFE544d8aE6015B844dF84D3c5Dcf5bA3e2495
+BLOBKIT_ESCROW_1=0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838
 ```
 
 ## Complete Example

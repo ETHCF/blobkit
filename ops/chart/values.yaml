@@ -41,7 +41,7 @@ environment:
 - name: KZG_TRUSTED_SETUP_PATH
   value: https://raw.githubusercontent.com/ethereum/c-kzg-4844/refs/heads/main/src/trusted_setup.txt
 - name: ESCROW_CONTRACT
-  value: "0x1B345402377A44F674376d6e0f6212e3B9991798"  # Mainnet escrow
+  value: "0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838"  # Mainnet escrow
 - name: PORT
   value: "8080"
 - name: CHAIN_ID
