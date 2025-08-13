@@ -16,6 +16,7 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
   router.get('/health', async (req: Request, res: Response) => {
     try {
       const uptime = Math.floor((Date.now() - startTime) / 1000);
+      let rpcHealthy = true;
 
       // Check blockchain connectivity
       let blocksLag: number | undefined;
@@ -28,6 +29,7 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
         }
       } catch (error) {
         logger.warn('Failed to check blockchain connectivity:', error as Error);
+        rpcHealthy = false;
       }
 
       // Check circuit breakers
@@ -35,7 +37,7 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
       const hasOpenCircuits = circuitBreakerManager.hasOpenCircuits();
 
       const response: HealthResponse = {
-        status: hasOpenCircuits ? 'degraded' : 'healthy',
+        status: hasOpenCircuits || !rpcHealthy ? 'degraded' : 'healthy',
         version: '0.0.1',
         chainId: config.chainId,
         signer: await signer.getAddress(),
@@ -44,6 +46,7 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
         maxBlobSize: config.maxBlobSize,
         uptime,
         blocksLag,
+        rpcHealthy,
         circuitBreakers: circuitMetrics
       };
 
@@ -59,6 +62,7 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
         escrowContract: config.escrowContract,
         proxyFeePercent: config.proxyFeePercent,
         maxBlobSize: config.maxBlobSize,
+        rpcHealthy: false,
         uptime: Math.floor((Date.now() - startTime) / 1000)
       };
 

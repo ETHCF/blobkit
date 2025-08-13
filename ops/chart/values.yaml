@@ -57,6 +57,11 @@ environment:
     configMapKeyRef:
       name: blobkit-proxy
       key: kms-key-id
+- name: ETH_RPC_URL
+  valueFrom:
+    configMapKeyRef:
+      name: blobkit-proxy
+      key: eth-rpc-url
 - name: RPC_URL
   valueFrom:
     configMapKeyRef:

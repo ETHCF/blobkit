@@ -71,6 +71,7 @@ export interface HealthResponse {
   uptime: number;
   signer: string;
   blocksLag?: number;
+  rpcHealthy: boolean;
   circuitBreakers?: Record<string, unknown>;
 }
 
