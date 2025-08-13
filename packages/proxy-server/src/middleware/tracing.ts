@@ -90,17 +90,18 @@ export function tracingMiddleware(serviceName: string = 'blobkit-proxy') {
     const originalSend = send.bind(res);
     res.send = function (data: unknown) {
       const duration = Date.now() - startTime;
-
-      // Log response with trace context
-      logger.info('Request completed', {
-        traceId,
-        spanId,
-        method: req.method,
-        path: req.path,
-        statusCode: res.statusCode,
-        duration,
-        contentLength: res.get('content-length')
-      });
+      if(!reqPath.startsWith('/api/v1/health') && !reqPath.startsWith('/health')) {
+        // Log response with trace context
+        logger.info('Request completed', {
+          traceId,
+          spanId,
+          method: req.method,
+          path: req.path,
+          statusCode: res.statusCode,
+          duration,
+          contentLength: res.get('content-length')
+        });
+      }
 
       // Add trace metadata to response headers
       res.setHeader('X-Response-Time', `${duration}ms`);

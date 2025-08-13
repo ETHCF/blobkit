@@ -41,6 +41,42 @@ export class PaymentManager {
     }
   }
 
+  private async findDepositTx(jobId: string): Promise<ethers.TransactionReceipt | null> {
+    try {
+      const contract = await this.getContract();
+      const provider = contract.runner?.provider;
+      
+      if (!provider) {
+        throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'No provider available');
+      }
+
+      // Create event filter for JobCreated with specific jobId
+      // JobCreated(bytes32 indexed jobId, address indexed user, uint256 amount)
+
+      const filter = contract.filters.JobCreated(jobId);
+
+      // Query events from the last 10000 blocks to avoid scanning too far back
+      const currentBlock = await provider.getBlockNumber();
+      const fromBlock = Math.max(0, currentBlock - 10000);
+      
+      const events = await contract.queryFilter(filter, fromBlock, currentBlock);
+      
+      if (events.length === 0) {
+        return null;
+      }
+
+      // Get the transaction for the first matching event
+      const event = events[0];
+      const tx = await provider.getTransactionReceipt(event.transactionHash);
+      
+      return tx;
+    } catch (error) {
+      // Log error but don't throw - this is a helper function
+      console.warn(`Failed to find deposit transaction for job ${jobId}:`, error);
+      return null;
+    }
+  }
+
   /**
    * Deposit payment for a blob job
    */
@@ -56,21 +92,21 @@ export class PaymentManager {
     const amountInWei = parseEther(amountInEth);
 
     try {
+
+      let receipt: ethers.TransactionReceipt | null = null;
       // Check if job already exists
       const existingJob = await this.getJobStatus(jobId);
       if (existingJob.exists) {
-        throw new BlobKitError(BlobKitErrorCode.JOB_ALREADY_EXISTS, `Job ${jobId} already exists`);
+        receipt = await this.findDepositTx(jobId);
+      }else{
+        // Submit deposit transaction
+        const signedContract = contract.connect(this.signer!) as BlobKitEscrowContract;
+        const tx = await signedContract.depositForBlob(jobId, {
+          value: amountInWei
+        });
+        // Wait for confirmation
+        receipt = await tx.wait();
       }
-
-      // Submit deposit transaction
-      const signedContract = contract.connect(this.signer!) as BlobKitEscrowContract;
-      const tx = await signedContract.depositForBlob(jobId, {
-        value: amountInWei
-      });
-
-      // Wait for confirmation
-      const receipt = await tx.wait();
-
       if (!receipt || receipt.status !== 1) {
         throw new BlobKitError(BlobKitErrorCode.TRANSACTION_FAILED, 'Payment transaction failed');
       }

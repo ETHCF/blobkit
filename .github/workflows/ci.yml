@@ -711,20 +711,3 @@ jobs:
       - name: 'Deploy'
         run: 'helm upgrade --install blobkit-proxy ./ops/chart --set version=${{ github.sha }} --set image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/blobkit/app --set projectId=${{ secrets.GCP_PROJECT }}'
 
-  notify:
-    name: Notification
-    runs-on: ubuntu-latest
-    needs: [production-readiness]
-    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v2')
-    steps:
-      - name: Notify on success
-        if: needs.production-readiness.result == 'success'
-        run: |
-          echo "BlobKit is ready for production"
-          echo "All tests passed and production readiness verified"
-
-      - name: Notify on failure
-        if: needs.production-readiness.result != 'success'
-        run: |
-          echo "BlobKit production readiness check failed"
-          echo "Review the test results and fix issues before deployment"

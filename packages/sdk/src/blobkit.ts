@@ -185,6 +185,8 @@ export class BlobKit {
       ...meta
     };
 
+    console.log(`Writing blob with job ID: ${generateJobId(userAddress, payloadHash, this.jobNonce)}`);
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         // Generate new job ID for each attempt
@@ -417,7 +419,6 @@ export class BlobKit {
     if (!this.proxyClient) {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Proxy client not initialized');
     }
-
     // Wait for job to appear on-chain
     await this.waitForJobOnChain(jobId);
 
