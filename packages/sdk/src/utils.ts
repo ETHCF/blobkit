@@ -109,7 +109,7 @@ export async function discoverProxyUrl(chainId: number): Promise<string> {
 
   // Fallback proxy URLs by chain
   const defaultProxies: Record<number, string> = {
-    1: 'https://proxy-mainnet.blobkit.org',
+    1: 'https://proxy.blobkit.org',
     11155111: 'https://proxy-sepolia.blobkit.org',
     17000: 'https://proxy-holesky.blobkit.org'
   };

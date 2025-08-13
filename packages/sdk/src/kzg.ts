@@ -157,9 +157,6 @@ async function loadSetupData(options?: KzgSetupOptions): Promise<Uint8Array> {
 
   // Option 4: Environment variable path
   if (typeof process !== 'undefined' && process.env?.BLOBKIT_KZG_TRUSTED_SETUP_PATH) {
-    if (process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH.startsWith('http://') || process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH.startsWith('https://')) {
-      return loadFromUrl(process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH);
-    }
     return loadFromFile(process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH);
   }
 
@@ -200,6 +197,9 @@ async function loadFromUrl(url: string): Promise<Uint8Array> {
  */
 async function loadFromFile(path: string): Promise<Uint8Array> {
   try {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return loadFromUrl(path);
+    }
     const fs = await import('fs');
     const buffer = await fs.promises.readFile(path);
     return new Uint8Array(buffer);
