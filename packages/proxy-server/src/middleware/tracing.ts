@@ -72,15 +72,16 @@ export function tracingMiddleware(serviceName: string = 'blobkit-proxy') {
 
     // Log request with trace context
     const { method, path: reqPath, headers } = req;
-    logger.info('Request received', {
-      traceId,
-      spanId,
-      parentSpanId,
-      method,
-      path: reqPath,
-      headers
-    });
-
+    if(!reqPath.startsWith('/api/v1/health') && !reqPath.startsWith('/health')) {
+      logger.info('Request received', {
+        traceId,
+        spanId,
+        parentSpanId,
+        method,
+        path: reqPath,
+        headers
+      });
+    }
     // Track response time
     const startTime = Date.now();
 

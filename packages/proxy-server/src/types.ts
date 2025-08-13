@@ -21,6 +21,7 @@ export interface ProxyConfig {
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   kzgTrustedSetupPath: string;
   requestSigningSecret: string;
+  http_proxy_count: number;
 }
 
 /**

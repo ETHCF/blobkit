@@ -46,6 +46,8 @@ environment:
   value: "8080"
 - name: CHAIN_ID
   value: "1"  # Mainnet chain ID
+- name: HTTP_PROXY_COUNT
+  value: "1"
 - name: PROXY_FEE_PERCENT
   value: "0"  # 0% fee
 - name: MAX_BLOB_SIZE

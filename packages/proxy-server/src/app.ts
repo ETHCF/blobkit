@@ -66,6 +66,9 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
   app.use(metricsMiddleware());
 
   // Rate limiting
+  if(config.httpProxyCount > 0 ){
+    app.set('trust proxy', 1);
+  }
   const rateLimiter = createRateLimit(config.rateLimitRequests, config.rateLimitWindow);
   app.use('/api/v1/blob', rateLimiter);
 

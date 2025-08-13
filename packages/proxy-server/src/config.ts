@@ -27,6 +27,8 @@ export const loadConfig = (): ProxyConfig => {
     throw new Error('REQUEST_SIGNING_SECRET environment variable is required');
   }
 
+  const httpProxyCount = parseInt(process.env.HTTP_PROXY_COUNT || '0');
+
   return {
     port: parseInt(process.env.PORT || '3000'),
     host: process.env.HOST || '0.0.0.0',
@@ -41,7 +43,8 @@ export const loadConfig = (): ProxyConfig => {
     jobTimeout: parseInt(process.env.JOB_TIMEOUT || '300000'), // 5 minutes in milliseconds
     logLevel: (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info',
     kzgTrustedSetupPath,
-    requestSigningSecret
+    requestSigningSecret,
+    httpProxyCount
   };
 };
 
