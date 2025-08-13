@@ -14,7 +14,6 @@ export { PaymentManager } from './payment.js';
 export { ProxyClient } from './proxy-client.js';
 export { BlobSubmitter } from './blob-submitter.js';
 export { BlobReader } from './blob-reader.js';
-export { signRequest, verifySignature } from './signing.js';
 
 // Core types and interfaces
 export type {

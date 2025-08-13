@@ -69,11 +69,6 @@ environment:
     configMapKeyRef:
       name: blobkit-proxy
       key: eth-rpc-url
-- name: REQUEST_SIGNING_SECRET
-  valueFrom:
-    secretKeyRef:
-      name: blobkit-proxy
-      key: request-signing-secret
 - name: REDIS_URL
   valueFrom:
     secretKeyRef:

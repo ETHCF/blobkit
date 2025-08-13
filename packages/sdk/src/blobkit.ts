@@ -10,7 +10,6 @@ import {
   BlobKitEnvironment,
   BlobMeta,
   BlobReceipt,
-  BlobPaymentResult,
   BlobReadResult,
   CostEstimate,
   Signer,
@@ -35,9 +34,11 @@ import {
   formatEther,
   isValidAddress,
   validateEnvironmentConfig,
-  sleep
+  sleep,
+  hexToBytes
 } from './utils.js';
 import { initializeKzg, requireKzg } from './kzg.js';
+import { sign } from 'crypto';
 
 /**
  * BlobKit SDK - Main class for blob storage operations
@@ -85,7 +86,6 @@ export class BlobKit {
       logLevel: config.logLevel ?? 'info',
       kzgSetup: config.kzgSetup,
       metricsHooks: config.metricsHooks,
-      requestSigningSecret: config.requestSigningSecret ?? process.env?.REQUEST_SIGNING_SECRET
     };
 
     this.signer = signer;
@@ -422,11 +422,17 @@ export class BlobKit {
     // Wait for job to appear on-chain
     await this.waitForJobOnChain(jobId);
 
+    const signature = await this.signer?.signMessage(payload);
+    if(!signature) {
+      throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG,'Failed to sign payload')
+    }
+
     // Submit to proxy
     const result = await this.proxyClient.submitBlob({
       jobId,
       paymentTxHash,
       payload,
+      signature: hexToBytes(signature),
       meta
     });
 

@@ -184,7 +184,6 @@ export class ProxyServerManager {
         CHAIN_ID: '31337',
         PRIVATE_KEY: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
         ESCROW_CONTRACT: escrowContract,
-        REQUEST_SIGNING_SECRET: 'test-secret-for-integration-testing-minimum-32-chars',
         KZG_TRUSTED_SETUP_PATH: path.join(process.cwd(), 'test/fixtures/mini-trusted-setup.txt'),
         LOG_LEVEL: 'debug',
         PROXY_FEE_PERCENT: '0',

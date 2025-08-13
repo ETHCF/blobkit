@@ -190,7 +190,6 @@ interface BlobKitConfig {
 RPC_URL=https://rpc.flashbots.net  # Use blob-compatible RPC
 ESCROW_CONTRACT=0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838  # Mainnet escrow
 KZG_TRUSTED_SETUP_PATH=./trusted_setup.txt
-REQUEST_SIGNING_SECRET=your-secret-minimum-32-characters
 
 # Optional Configuration
 CHAIN_ID=1

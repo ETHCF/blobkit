@@ -122,7 +122,6 @@ export interface BlobKitConfig {
   maxProxyFeePercent?: number;
   callbackUrl?: string;
   logLevel?: 'debug' | 'info' | 'silent';
-  requestSigningSecret?: string;
 
   // KZG configuration
   kzgSetup?: KzgSetupOptions;

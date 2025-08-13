@@ -20,7 +20,6 @@ export interface ProxyConfig {
   jobTimeout: number;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   kzgTrustedSetupPath: string;
-  requestSigningSecret: string;
   httpProxyCount: number;
 }
 
@@ -31,6 +30,7 @@ export interface BlobWriteRequest {
   jobId: string;
   paymentTxHash: string;
   payload: string; // Base64 encoded binary data
+  signature: string; // Base64 encoded signature of the payload
   meta: {
     appId: string;
     codec: string;

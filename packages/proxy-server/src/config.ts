@@ -22,11 +22,6 @@ export const loadConfig = (): ProxyConfig => {
     throw new Error('KZG_TRUSTED_SETUP_PATH environment variable is required');
   }
 
-  const requestSigningSecret = process.env.REQUEST_SIGNING_SECRET;
-  if (!requestSigningSecret) {
-    throw new Error('REQUEST_SIGNING_SECRET environment variable is required');
-  }
-
   const httpProxyCount = parseInt(process.env.HTTP_PROXY_COUNT || '0');
 
   return {
@@ -43,7 +38,6 @@ export const loadConfig = (): ProxyConfig => {
     jobTimeout: parseInt(process.env.JOB_TIMEOUT || '300000'), // 5 minutes in milliseconds
     logLevel: (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info',
     kzgTrustedSetupPath,
-    requestSigningSecret,
     httpProxyCount
   };
 };
@@ -82,7 +76,4 @@ export const validateConfig = (config: ProxyConfig): void => {
     throw new Error('Job timeout must be between 1 minute and 24 hours (in milliseconds)');
   }
 
-  if (!config.requestSigningSecret || config.requestSigningSecret.length < 32) {
-    throw new Error('Request signing secret must be at least 32 characters long');
-  }
 };

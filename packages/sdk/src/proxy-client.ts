@@ -5,7 +5,6 @@
  */
 
 import { BlobMeta, ProxyHealthResponse, BlobKitError, BlobKitErrorCode } from './types.js';
-import { signRequest } from './signing.js';
 import { sleep } from './utils.js';
 import { Logger } from './logger.js';
 
@@ -39,6 +38,7 @@ export class ProxyClient {
     jobId: string;
     paymentTxHash: string;
     payload: Uint8Array;
+    signature: Uint8Array;
     meta: BlobMeta;
   }): Promise<BlobSubmitResult> {
     const maxRetries = 3;
@@ -50,6 +50,7 @@ export class ProxyClient {
           jobId: data.jobId,
           paymentTxHash: data.paymentTxHash,
           payload: Buffer.from(data.payload).toString('base64'),
+          signature: Buffer.from(data.signature).toString('base64'),
           meta: data.meta
         };
 
@@ -57,16 +58,6 @@ export class ProxyClient {
           'Content-Type': 'application/json'
         };
 
-        // Add request signature if secret is configured
-        if (this.config.requestSigningSecret) {
-          const { signature, timestamp, nonce } = signRequest(
-            requestBody,
-            this.config.requestSigningSecret
-          );
-          headers['X-BlobKit-Signature'] = signature;
-          headers['X-BlobKit-Timestamp'] = timestamp.toString();
-          headers['X-BlobKit-Nonce'] = nonce;
-        }
 
         const response = await fetch(`${this.config.proxyUrl}/api/v1/blob/write`, {
           method: 'POST',

@@ -13,7 +13,6 @@ import { PersistentJobQueue } from './services/persistent-job-queue.js';
 import { createRateLimit } from './middleware/rate-limit.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { tracingMiddleware } from './middleware/tracing.js';
-import { createSignatureVerification } from './middleware/signature-verification.js';
 import { createHealthRouter } from './routes/health.js';
 import { createBlobRouter } from './routes/blob.js';
 import { createMetricsRouter } from './routes/metrics.js';
@@ -71,13 +70,6 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
   }
   const rateLimiter = createRateLimit(config.rateLimitRequests, config.rateLimitWindow);
   app.use('/api/v1/blob', rateLimiter);
-
-  // Signature verification for blob endpoints (always required)
-  const signatureVerifier = createSignatureVerification({
-    secret: config.requestSigningSecret,
-    required: true
-  });
-  app.use('/api/v1/blob', signatureVerifier);
 
   // Request logging (now includes trace context from tracing middleware)
   app.use('/api/v1/blob', (req: express.Request, res: express.Response, next: express.NextFunction) => {

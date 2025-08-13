@@ -82,13 +82,6 @@ RATE_LIMIT_REQUESTS=100
 RATE_LIMIT_WINDOW_MS=60000  # 1 minute
 ```
 
-### 3. Request Signing
-
-Enable request signing between SDK and proxy:
-
-```bash
-REQUEST_SIGNING_SECRET="minimum-32-character-secret-here"
-```
 
 ## Monitoring
 
@@ -163,7 +156,6 @@ CHAIN_ID=1
 
 # Security
 AWS_KMS_KEY_ID=arn:aws:kms:...  # OR use PRIVATE_KEY for dev
-REQUEST_SIGNING_SECRET=your-32-char-secret
 
 # Redis
 REDIS_URL=redis://redis.example.com:6379

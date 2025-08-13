@@ -112,9 +112,6 @@ JOB_TIMEOUT=3600
 # KZG Trusted Setup
 KZG_TRUSTED_SETUP_PATH=./trusted_setup.txt
 
-# Request Signing Secret (required)
-REQUEST_SIGNING_SECRET=development-secret-minimum-32-characters-long
-
 # AWS KMS (optional - for production)
 # AWS_KMS_KEY_ID=
 # AWS_REGION=us-east-1

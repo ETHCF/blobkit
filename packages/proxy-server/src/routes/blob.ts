@@ -9,6 +9,7 @@ import { createLogger } from '../utils/logger.js';
 import { MetricsCollector } from '../monitoring/metrics.js';
 import { getPrometheusMetrics } from '../monitoring/prometheus-metrics.js';
 import { getTraceContext, TracingService } from '../middleware/tracing.js';
+import {bytesToHex} from "@blobkit/sdk"
 
 const logger = createLogger('BlobRoute');
 const tracingService = new TracingService('blobkit-blob-route');
@@ -80,7 +81,7 @@ export const createBlobRouter = (
     async (req: Request, res: Response) => {
       const startTime = Date.now();
       const requestBody: BlobWriteRequest = req.body;
-      const { jobId, paymentTxHash, payload, meta } = requestBody;
+      const { jobId, paymentTxHash, payload, meta, signature } = requestBody;
 
       const traceContext = getTraceContext(req);
       const span = tracingService.startSpan('blob.write', traceContext);
@@ -112,6 +113,17 @@ export const createBlobRouter = (
         // Decode base64 payload
         const payloadBuffer = Buffer.from(payload, 'base64');
         const payloadArray = new Uint8Array(payloadBuffer);
+
+        const signatureBuffer = Buffer.from(signature, 'base64');
+        const signatureArray = new Uint8Array(signatureBuffer);
+
+        if (verification.user !== ethers.verifyMessage(payloadArray, bytesToHex(signatureArray))) {
+          tracedLogger.warn(`Signature verification failed for job ${jobId}`);
+          return res.status(400).json({
+            error: 'SIGNATURE_INVALID',
+            message: 'Job signature verification failed'
+          });
+        }
 
         // Validate payload size
         if (payloadArray.length > config.maxBlobSize) {
