@@ -33,6 +33,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY packages/proxy-server/package*.json ./packages/proxy-server/
 COPY packages/sdk/package*.json ./packages/sdk/
+COPY packages/proxy-server/openapi.yaml .
 
 RUN npm ci --workspace=packages/proxy-server --workspace=packages/sdk --production
 

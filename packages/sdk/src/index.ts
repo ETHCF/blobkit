@@ -66,7 +66,6 @@ export {
   commitmentToVersionedHash,
   loadTrustedSetupFromURL,
   loadTrustedSetupFromFile,
-  // bytesToHex,
   FIELD_ELEMENTS_PER_BLOB,
   BYTES_PER_FIELD_ELEMENT,
   BLOB_SIZE

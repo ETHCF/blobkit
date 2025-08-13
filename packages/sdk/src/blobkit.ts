@@ -160,6 +160,7 @@ export class BlobKit {
   async writeBlob(
     data: Uint8Array | string | object,
     meta?: Partial<BlobMeta>,
+    jobId?: string,
     maxRetries: number = 3
   ): Promise<BlobReceipt> {
     const startTime = Date.now();
@@ -185,12 +186,16 @@ export class BlobKit {
       ...meta
     };
 
-    console.log(`Writing blob with job ID: ${generateJobId(userAddress, payloadHash, this.jobNonce)}`);
+    if (!jobId) {
+      jobId = generateJobId(userAddress, payloadHash, this.jobNonce++);
+    }
+
+    console.log(`Writing blob with job ID: ${jobId}`);
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         // Generate new job ID for each attempt
-        const jobId = generateJobId(userAddress, payloadHash, this.jobNonce++);
+        // const jobId = generateJobId(userAddress, payloadHash, this.jobNonce++);
 
         this.logger.info(
           `Attempting blob write (attempt ${attempt + 1}/${maxRetries}) with job ID: ${jobId}`
@@ -199,7 +204,7 @@ export class BlobKit {
         // Estimate and pay
         let paymentHash: undefined | string = undefined;
         // Submit blob
-        let result;
+        let result: DirectSubmitResult | BlobSubmitResult;
         if (this.shouldUseProxy()) {
           const estimate = await this.estimateCost(payload);
           const payment = await this.paymentManager.depositForBlob(jobId, estimate.totalETH);

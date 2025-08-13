@@ -39,11 +39,6 @@ interface KzgWasmLibrary {
     commitment: Uint8Array,
     proof: Uint8Array
   ) => boolean;
-  // verifyBlobKZGProofBatch: (
-  //   blobs: Array<Uint8Array | string>,
-  //   commitments: Uint8Array[],
-  //   proofs: Uint8Array[]
-  // ) => boolean;
   verifyKzgProof: (
     commitment: Uint8Array,
     z: Uint8Array,

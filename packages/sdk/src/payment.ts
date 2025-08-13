@@ -129,7 +129,7 @@ export class PaymentManager {
         throw new BlobKitError(BlobKitErrorCode.JOB_ALREADY_EXISTS, `Job ${jobId} already exists`);
       }
 
-      throw new BlobKitError(BlobKitErrorCode.PAYMENT_FAILED, `Payment failed: ${message}`);
+      throw new BlobKitError(BlobKitErrorCode.PAYMENT_FAILED, `Payment failed: ${message}`, error instanceof Error ? error : undefined);
     }
   }
 
