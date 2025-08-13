@@ -77,6 +77,7 @@ export class BlobSubmitter {
 
       // Construct blob transaction
       const tx: TransactionRequest = {
+        chainId: this.config.chainId,
         type: 3, // EIP-4844 blob transaction
         to: '0x0000000000000000000000000000000000000000', // must be 0
         data: '0x',
