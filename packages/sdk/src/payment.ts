@@ -30,6 +30,7 @@ interface BlobKitEscrowContract extends ethers.BaseContract {
 
 export class PaymentManager {
   private escrowContract?: BlobKitEscrowContract;
+  private provider: ethers.JsonRpcProvider;
 
   constructor(
     private rpcUrl: string,
@@ -39,14 +40,15 @@ export class PaymentManager {
     if (!isValidAddress(escrowAddress)) {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Invalid escrow contract address');
     }
+
+    this.provider = new ethers.JsonRpcProvider(this.rpcUrl)
   }
 
   private async findDepositTx(jobId: string): Promise<ethers.TransactionReceipt | null> {
     try {
       const contract = await this.getContract();
-      const provider = contract.runner?.provider;
       
-      if (!provider) {
+      if (!this.provider) {
         throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'No provider available');
       }
 
@@ -56,7 +58,7 @@ export class PaymentManager {
       const filter = contract.filters.JobCreated(jobId);
 
       // Query events from the last 10000 blocks to avoid scanning too far back
-      const currentBlock = await provider.getBlockNumber();
+      const currentBlock = await this.provider.getBlockNumber();
       const fromBlock = Math.max(0, currentBlock - 10000);
       
       const events = await contract.queryFilter(filter, fromBlock, currentBlock);
@@ -67,7 +69,7 @@ export class PaymentManager {
 
       // Get the transaction for the first matching event
       const event = events[0];
-      const tx = await provider.getTransactionReceipt(event.transactionHash);
+      const tx = await this.provider.getTransactionReceipt(event.transactionHash);
       
       return tx;
     } catch (error) {
@@ -97,6 +99,7 @@ export class PaymentManager {
       // Check if job already exists
       const existingJob = await this.getJobStatus(jobId);
       if (existingJob.exists) {
+        console.log(`Found existing job ${jobId}, reusing deposit transaction`);
         receipt = await this.findDepositTx(jobId);
       }else{
         // Submit deposit transaction
@@ -105,7 +108,10 @@ export class PaymentManager {
           value: amountInWei
         });
         // Wait for confirmation
+
+        (tx as any).provider = this.provider;
         receipt = await tx.wait();
+        
       }
       if (!receipt || receipt.status !== 1) {
         throw new BlobKitError(BlobKitErrorCode.TRANSACTION_FAILED, 'Payment transaction failed');
@@ -229,11 +235,10 @@ export class PaymentManager {
       return this.escrowContract;
     }
 
-    const provider = new ethers.JsonRpcProvider(this.rpcUrl);
     this.escrowContract = new ethers.Contract(
       this.escrowAddress,
       EscrowContractABI,
-      provider
+      this.provider
     ) as unknown as BlobKitEscrowContract;
 
     return this.escrowContract;

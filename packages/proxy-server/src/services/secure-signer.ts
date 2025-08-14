@@ -388,6 +388,7 @@ class GcpKmsSigner implements SecureSigner {
     const sig = ethers.Signature.from(sigHex);
     const signed = ethers.Transaction.from(txLike);
     signed.signature = sig;
+    console.log("Transaction signed");
     return signed.serialized;
   }
 

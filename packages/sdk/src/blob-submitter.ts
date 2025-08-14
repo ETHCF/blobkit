@@ -80,6 +80,7 @@ export class BlobSubmitter {
         chainId: this.config.chainId,
         type: 3, // EIP-4844 blob transaction
         to: '0x0000000000000000000000000000000000000000', // must be 0
+        from: await signer.getAddress(),
         data: '0x',
         maxFeePerGas: feeData.maxFeePerGas,
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
@@ -92,8 +93,7 @@ export class BlobSubmitter {
 
       // Estimate gas
       try {
-        const provider = new ethers.JsonRpcProvider(this.config.rpcUrl);
-        const gasLimit = await provider.estimateGas(tx);
+        const gasLimit = await this.provider.estimateGas(tx);
         tx.gasLimit = (gasLimit * BigInt(110)) / BigInt(100); // Add 10% buffer
       } catch (error) {
         // If estimation fails, use a reasonable default
@@ -125,7 +125,7 @@ export class BlobSubmitter {
 
       throw new BlobKitError(
         BlobKitErrorCode.BLOB_SUBMISSION_FAILED,
-        `Failed to submit blob: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to submit blob trx: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
