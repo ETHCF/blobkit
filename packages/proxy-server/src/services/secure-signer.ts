@@ -68,6 +68,7 @@ class EnvSigner implements SecureSigner {
   }
 
   async signTransaction(transaction: ethers.TransactionRequest): Promise<string> {
+    console.log({transaction})
     return this.signer.signTransaction(transaction);
   }
 
@@ -181,17 +182,10 @@ class AwsKmsSigner implements SecureSigner {
       blobs: tx.blobs
     };
 
-    const serialized = ethers.Transaction.from(txLike).unsignedSerialized;
-    const hash = ethers.keccak256(serialized);
+    const btx = ethers.Transaction.from(txLike);
+    btx.signature = ethers.Signature.from(await this.signDigest(btx.unsignedHash));
 
-    const signature = await this.signDigest(hash);
-    const sig = ethers.Signature.from(signature);
-
-    // Create a new transaction with the signature
-    const signedTx = ethers.Transaction.from(txLike);
-    signedTx.signature = sig;
-
-    return signedTx.serialized;
+    return btx.serialized;
   }
 
   private async signDigest(digest: string): Promise<string> {
@@ -349,6 +343,10 @@ export class GcpKmsSigner implements SecureSigner {
       throw new Error('Provider required for signing transactions');
     }
 
+    if(typeof transaction.chainId === 'undefined') {
+      throw new Error('chainId is required');
+    }
+
     const resolvedTx: ethers.TransactionRequest = {
       ...transaction,
       to: transaction.to
@@ -381,15 +379,14 @@ export class GcpKmsSigner implements SecureSigner {
       kzg: tx.kzg,
       blobs: tx.blobs
     };
+    console.trace();
 
-    const unsignedSerialized = ethers.Transaction.from(txLike).unsignedSerialized;
-    const digest = ethers.keccak256(unsignedSerialized);
-    const sigHex = await this.signDigest(digest);
-    const sig = ethers.Signature.from(sigHex);
-    const signed = ethers.Transaction.from(txLike);
-    signed.signature = sig;
-    console.log("Transaction signed");
-    return signed.serialized;
+    console.log({txLike, resolvedTx, tx})
+
+    const btx = ethers.Transaction.from(txLike);
+    btx.signature = ethers.Signature.from(await this.signDigest(btx.unsignedHash));
+
+    return btx.serialized;
   }
 
   connect(provider: ethers.Provider): SecureSigner {
