@@ -4,13 +4,13 @@ import { BlobWriteRequest, BlobWriteResponse, BlobJob, ProxyConfig, ProxyError }
 import { PaymentVerifier } from '../services/payment-verifier.js';
 import { BlobExecutor } from '../services/blob-executor.js';
 import { PersistentJobQueue } from '../services/persistent-job-queue.js';
+import { JobResultCache } from '../services/job-result-cache.js';
 import { validateBlobWrite, handleValidationErrors } from '../middleware/validation.js';
 import { createLogger } from '../utils/logger.js';
 import { MetricsCollector } from '../monitoring/metrics.js';
 import { getPrometheusMetrics } from '../monitoring/prometheus-metrics.js';
 import { getTraceContext, TracingService } from '../middleware/tracing.js';
-import {bytesToHex} from "@blobkit/sdk"
-import { error } from 'console';
+import { bytesToHex } from "@blobkit/sdk"
 
 const logger = createLogger('BlobRoute');
 const tracingService = new TracingService('blobkit-blob-route');
@@ -65,6 +65,7 @@ export const createBlobRouter = (
   paymentVerifier: PaymentVerifier,
   blobExecutor: BlobExecutor,
   jobCompletionQueue: PersistentJobQueue,
+  jobCache: JobResultCache,
   signer: ethers.Signer,
   metrics: MetricsCollector = new MetricsCollector()
 ) => {
@@ -83,6 +84,12 @@ export const createBlobRouter = (
       const startTime = Date.now();
       const requestBody: BlobWriteRequest = req.body;
       const { jobId, paymentTxHash, payload, meta, signature } = requestBody;
+
+
+      const cachedResult = await jobCache.get(jobId);
+      if(!!cachedResult) {
+        return res.json(cachedResult);
+      }
 
       const traceContext = getTraceContext(req);
       const span = tracingService.startSpan('blob.write', traceContext);
@@ -234,6 +241,8 @@ export const createBlobRouter = (
             tracedLogger.warn(`Callback execution failed for job ${jobId}:`, error);
           });
         }
+
+        await jobCache.set(jobId, response);
 
         return res.json(response);
       } catch (error) {
