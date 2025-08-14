@@ -198,6 +198,24 @@ export class PaymentVerifier {
     }
   }
 
+  private async _completeJob(contract:ethers.Contract & EscrowContractMethods, jobId: string, blobTxHash: string, proof: string, retries: number = 3): Promise<ethers.TransactionReceipt | null> {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const tx = await contract.completeJob(jobId, blobTxHash, proof);
+        return await tx.wait();
+      } catch (error) {
+        logger.error(`Failed to complete job ${jobId} (attempt ${i + 1}):`, error);
+        if (i === retries - 1) {
+          throw new ProxyError(
+            ProxyErrorCode.CONTRACT_ERROR,
+            `Failed to complete job: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            500
+          );
+        }
+      }
+    }
+    throw new Error("Something went wrong"); // Should not reach here
+  }
   /**
    * Completes a job in the escrow contract
    */
@@ -222,13 +240,7 @@ export class PaymentVerifier {
       // Sign the message hash - this will add the Ethereum prefix automatically
       const proof = await signer.signMessage(messageBytes);
 
-      const tx = await (contractWithSigner as ethers.Contract & EscrowContractMethods).completeJob(
-        jobId,
-        blobTxHash,
-        proof
-      );
-
-      const receipt = await tx.wait();
+      const receipt = await this._completeJob((contractWithSigner as ethers.Contract & EscrowContractMethods), jobId, blobTxHash, proof);
       if (!receipt) {
         throw new ProxyError(ProxyErrorCode.TRANSACTION_FAILED, 'Transaction receipt not found');
       }

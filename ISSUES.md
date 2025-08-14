@@ -4,7 +4,7 @@
 
 [ ] GCP KMS Signer incorrectly serializes the transaction, resulting in the transactions failure
 
-[ ] Proxy server will keep retrying already processed jobs
+[x] Proxy server will keep retrying already processed jobs
 
 [ ] When retrying job submission, change the job ID if not user provided and the job has expired
 

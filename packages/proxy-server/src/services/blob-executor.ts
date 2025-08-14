@@ -113,9 +113,9 @@ export class BlobExecutor {
               decodedPayload = job.payload;
             }
         }
-
+        
         // Execute blob write using the SDK
-        const result = await this.writeBlob(decodedPayload, job.meta);
+        const result = await this.writeBlob(decodedPayload, job.meta, job.jobId);
 
         tracedLogger.info(
           `Blob transaction executed successfully for job ${job.jobId}: ${result.blobTxHash}`
@@ -166,7 +166,8 @@ export class BlobExecutor {
    */
   private async writeBlob(
     payload: unknown,
-    meta: Record<string, unknown>
+    meta: Record<string, unknown>,
+    jobId: string
   ): Promise<{
     blobTxHash: string;
     blockNumber: number;
@@ -180,7 +181,7 @@ export class BlobExecutor {
       const blobkit = await this.ensureBlobKit();
 
       // Write blob directly (without proxy)
-      const result = await blobkit.writeBlob(payload as Uint8Array | string | object, meta);
+      const result = await blobkit.writeBlob(payload as Uint8Array | string | object, meta, jobId);
 
       return {
         blobTxHash: result.blobTxHash,
