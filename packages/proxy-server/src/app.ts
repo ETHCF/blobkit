@@ -10,7 +10,7 @@ import { ProxyConfig } from './types.js';
 import { PaymentVerifier } from './services/payment-verifier.js';
 import { BlobExecutor } from './services/blob-executor.js';
 import { PersistentJobQueue } from './services/persistent-job-queue.js';
-import { JobResultCache } from './services/job-result-cache.js';
+import { JobCache } from './services/job-cache.js';
 import { createRateLimit } from './middleware/rate-limit.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { tracingMiddleware } from './middleware/tracing.js';
@@ -102,8 +102,8 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
   );
   const jobCompletionQueue = new PersistentJobQueue(paymentVerifier, signer);
 
-  const jobResultStore = new JobResultCache()
-  await jobResultStore.connect()
+  const jobCache = new JobCache()
+  await jobCache.connect()
 
   // Note: jobCompletionQueue.start() is called after server starts listening
 
@@ -111,7 +111,7 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
   app.use('/api/v1', createHealthRouter(config, provider, signer));
   app.use(
     '/api/v1/blob',
-    createBlobRouter(config, paymentVerifier, blobExecutor, jobCompletionQueue, jobResultStore,signer)
+    createBlobRouter(config, paymentVerifier, blobExecutor, jobCompletionQueue, jobCache, signer)
   );
 
   // Metrics endpoint (not under /api to avoid rate limiting)

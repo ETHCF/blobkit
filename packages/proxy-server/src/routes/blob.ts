@@ -4,7 +4,7 @@ import { BlobWriteRequest, BlobWriteResponse, BlobJob, ProxyConfig, ProxyError }
 import { PaymentVerifier } from '../services/payment-verifier.js';
 import { BlobExecutor } from '../services/blob-executor.js';
 import { PersistentJobQueue } from '../services/persistent-job-queue.js';
-import { JobResultCache } from '../services/job-result-cache.js';
+import { JobCache } from '../services/job-cache.js';
 import { validateBlobWrite, handleValidationErrors } from '../middleware/validation.js';
 import { createLogger } from '../utils/logger.js';
 import { MetricsCollector } from '../monitoring/metrics.js';
@@ -65,7 +65,7 @@ export const createBlobRouter = (
   paymentVerifier: PaymentVerifier,
   blobExecutor: BlobExecutor,
   jobCompletionQueue: PersistentJobQueue,
-  jobCache: JobResultCache,
+  jobCache: JobCache,
   signer: ethers.Signer,
   metrics: MetricsCollector = new MetricsCollector()
 ) => {
@@ -163,11 +163,21 @@ export const createBlobRouter = (
 
         // Step 3: Execute blob transaction
         tracedLogger.debug(`Submitting job ${jobId} to executor`);
+        const lockAcquired = await jobCache.acquireLock(jobId);
+        if(!lockAcquired) {
+          tracedLogger.warn(`Job ${jobId} is already being processed`);
+          return res.status(425).json({
+            error: 'JOB_LOCKED',
+            message: 'Job is already being processed'
+          });
+        }
         metrics.blobSubmitted(payloadArray.length);
+        await jobCache.releaseLock(jobId);
 
         // Record Prometheus metrics for blob submission
         const promMetrics = getPrometheusMetrics();
         promMetrics.blobSizeBytes.observe({ codec: meta.codec || 'unknown' }, payloadArray.length);
+
 
         const blobResult = await blobExecutor.executeBlob(job, traceContext);
 
@@ -211,35 +221,39 @@ export const createBlobRouter = (
           jobId
         };
 
-        // Calculate fee collected (simplified - would need actual calculation)
-        const feePercent = BigInt(config.proxyFeePercent);
-        const jobAmount = BigInt(verification.amount);
-        const feeCollected = (jobAmount * feePercent) / 100n;
+        
 
-        metrics.jobCompleted(jobId, feeCollected);
-        tracedLogger.info(`Blob write completed successfully for job ${jobId}`);
+        
+        {
+          // Calculate fee collected (simplified - would need actual calculation)
+          const feePercent = BigInt(config.proxyFeePercent);
+          const jobAmount = BigInt(verification.amount);
+          const feeCollected = (jobAmount * feePercent) / 100n;
 
-        // Record Prometheus success metrics
-        promMetrics.blobSubmissions.inc({ status: 'success', error_type: 'none' });
-        promMetrics.jobProcessingDuration.observe(
-          { status: 'success' },
-          (Date.now() - startTime) / 1000
-        );
-        if (feeCollected > 0n) {
-          promMetrics.feesCollected.inc(Number(feeCollected));
-        }
+          metrics.jobCompleted(jobId, feeCollected);
+          tracedLogger.info(`Blob write completed successfully for job ${jobId}`);
+          // Record Prometheus success metrics
+          promMetrics.blobSubmissions.inc({ status: 'success', error_type: 'none' });
+          promMetrics.jobProcessingDuration.observe(
+            { status: 'success' },
+            (Date.now() - startTime) / 1000
+          );
+          if (feeCollected > 0n) {
+            promMetrics.feesCollected.inc(Number(feeCollected));
+          }
 
-        span.setAttribute('response.success', true);
-        span.setAttribute('response.blob_tx_hash', response.blobTxHash);
-        span.setAttribute('response.block_number', response.blockNumber);
-        span.setStatus({ code: 0 });
-        span.end();
+          span.setAttribute('response.success', true);
+          span.setAttribute('response.blob_tx_hash', response.blobTxHash);
+          span.setAttribute('response.block_number', response.blockNumber);
+          span.setStatus({ code: 0 });
+          span.end();
 
-        // Execute callback if provided
-        if (meta?.callbackUrl && typeof meta.callbackUrl === 'string') {
-          executeCallback(meta.callbackUrl, response, tracedLogger).catch(error => {
-            tracedLogger.warn(`Callback execution failed for job ${jobId}:`, error);
-          });
+          // Execute callback if provided
+          if (meta?.callbackUrl && typeof meta.callbackUrl === 'string') {
+            executeCallback(meta.callbackUrl, response, tracedLogger).catch(error => {
+              tracedLogger.warn(`Callback execution failed for job ${jobId}:`, error);
+            });
+          }
         }
 
         await jobCache.set(jobId, response);
@@ -267,6 +281,7 @@ export const createBlobRouter = (
           message: error instanceof Error ? error.message : 'Unknown error'
         });
         span.end();
+        await jobCache.releaseLock(jobId); // Release the lock so retries can occur sooner
 
         throw error; // Let error handler middleware handle it
       }

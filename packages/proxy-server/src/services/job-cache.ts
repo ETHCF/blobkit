@@ -5,12 +5,13 @@ import { createLogger } from '../utils/logger.js';
 const logger = createLogger('JobResultCache');
 
 /**
- * Redis-based cache for BlobWriteResponse objects using jobId as key
+ * Redis-based cache for BlobWriteResponse objects using jobId as key with locking support
  */
-export class JobResultCache {
+export class JobCache {
   private redis: RedisClientType;
   private isConnected = false;
   private readonly keyPrefix = 'blobkit:job_result:';
+  private readonly lockPrefix = 'blobkit:job_lock:';
   private readonly defaultTtl: number = 86400; // 24 hours in seconds
 
   constructor(
@@ -18,7 +19,7 @@ export class JobResultCache {
     private ttl: number = 86400
   ) {
     this.redis = createClient({ url: this.redisUrl });
-    this.defaultTtl = ttl;
+    this.defaultTtl = this.ttl;
 
     this.redis.on('error', (err: Error) => {
       logger.error('Redis connection error:', err);
@@ -26,7 +27,7 @@ export class JobResultCache {
     });
 
     this.redis.on('connect', () => {
-      logger.info('JobResultCache Redis connected');
+      logger.info('JobCache Redis connected');
       this.isConnected = true;
     });
   }
@@ -93,7 +94,56 @@ export class JobResultCache {
     }
   }
 
+  /**
+   * Acquire a lock for a job
+   */
+  async acquireLock(jobId: string, lockTtl: number = 150): Promise<boolean> {
+    try {
+      const key = this.getLockKey(jobId);
+      const result = await this.redis.set(key, 'locked', {
+        EX: lockTtl,
+        NX: true
+      });
+      return result === 'OK';
+    } catch (error) {
+      logger.error(`Failed to acquire lock for job ${jobId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Release a lock for a job
+   */
+  async releaseLock(jobId: string): Promise<boolean> {
+    try {
+      const key = this.getLockKey(jobId);
+      const deleted = await this.redis.del(key);
+      return deleted > 0;
+    } catch (error) {
+      logger.warn(`Failed to release lock for job ${jobId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if a job is locked
+   */
+  async isLocked(jobId: string): Promise<boolean> {
+    try {
+      const key = this.getLockKey(jobId);
+      const exists = await this.redis.exists(key);
+      return exists > 0;
+    } catch (error) {
+      logger.error(`Failed to check lock for job ${jobId}:`, error);
+      return false;
+    }
+  }
+
   private getKey(jobId: string): string {
     return `${this.keyPrefix}${jobId}`;
+  }
+
+  private getLockKey(jobId: string): string {
+    return `${this.lockPrefix}${jobId}`;
   }
 }
