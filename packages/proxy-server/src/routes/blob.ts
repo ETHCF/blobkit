@@ -10,6 +10,7 @@ import { MetricsCollector } from '../monitoring/metrics.js';
 import { getPrometheusMetrics } from '../monitoring/prometheus-metrics.js';
 import { getTraceContext, TracingService } from '../middleware/tracing.js';
 import {bytesToHex} from "@blobkit/sdk"
+import { error } from 'console';
 
 const logger = createLogger('BlobRoute');
 const tracingService = new TracingService('blobkit-blob-route');
@@ -106,6 +107,13 @@ export const createBlobRouter = (
           return res.status(400).json({
             error: 'PAYMENT_INVALID',
             message: 'Job payment verification failed'
+          });
+        }
+
+        if (verification.completed) {
+          return res.status(404).json({
+            error: 'JOB_ALREADY_COMPLETED',
+            message: 'Job already completed'
           });
         }
 

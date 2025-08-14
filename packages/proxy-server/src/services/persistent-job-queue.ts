@@ -223,10 +223,16 @@ export class PersistentJobQueue {
         `Retrying job completion for ${completion.jobId} (attempt ${completion.retryCount + 1})`
       );
 
-      // Attempt to complete the job
-      await this.paymentVerifier.completeJob(completion.jobId, completion.blobTxHash, this.signer);
+      const jobStatus = await this.paymentVerifier.checkJobStatus(completion.jobId);
 
-      // Success - remove from queue
+
+      if(!jobStatus.isExpired && !jobStatus.completed && jobStatus.exists && jobStatus.valid) {
+        // Attempt to complete the job
+        await this.paymentVerifier.completeJob(completion.jobId, completion.blobTxHash, this.signer);
+      }else{
+        logger.info(`Job ${completion.jobId} is not eligible for completion or is already completed`);
+      }
+      // Remove from queue
       await this.removeCompletion(completion.jobId);
       logger.info(
         `Successfully completed job ${completion.jobId} after ${completion.retryCount + 1} attempts`

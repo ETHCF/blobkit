@@ -309,7 +309,7 @@ class AwsKmsSigner implements SecureSigner {
 /**
  * GCP KMS Signer (EC_SECP256K1)
  */
-class GcpKmsSigner implements SecureSigner {
+export class GcpKmsSigner implements SecureSigner {
   private address: string | null = null;
   private provider: ethers.Provider | null = null;
   private keyName: string;

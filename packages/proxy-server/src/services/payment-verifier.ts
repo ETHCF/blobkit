@@ -34,6 +34,50 @@ export class PaymentVerifier {
     this.contract = new ethers.Contract(escrowContract, escrowAbi, this.provider);
   }
 
+  async checkJobStatus(jobId: string): Promise<JobVerification & {isExpired?: boolean}> {
+    try {
+      logger.debug(`Checking job status for job ${jobId}`);
+
+      // Get job details from contract
+      const job = await this.contract.jobs(jobId);
+
+      if (!job) {
+        logger.warn(`Job ${jobId} does not exist`);
+        return {
+          valid: false,
+          exists: false,
+          user: '',
+          amount: '0',
+          completed: false,
+          timestamp: 0,
+          isExpired: false
+        };
+      }
+
+      const verification: JobVerification = {
+        valid: true,
+        exists: true,
+        user: job.user,
+        amount: job.amount.toString(),
+        completed: job.completed,
+        timestamp: Number(job.timestamp)
+      };
+
+      const jobTimeout = await this.contract.getJobTimeout();
+      const currentTime = Math.floor(Date.now() / 1000);
+      const isExpired = currentTime > verification.timestamp + Number(jobTimeout);
+
+      return { ...verification, isExpired };
+    } catch (error) {
+      logger.error(`Failed to check job status for ${jobId}:`, error);
+      throw new ProxyError(
+        ProxyErrorCode.CONTRACT_ERROR,
+        `Failed to check job status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        500
+      );
+    }
+  }
+
   /**
    * Verifies that a job payment exists and is valid
    */
