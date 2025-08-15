@@ -230,8 +230,9 @@ export class BlobKit {
         };
       } catch (error) {
         lastError = error;
+
         this.logger.warn(
-          `Blob write attempt ${attempt + 1} failed: ${error instanceof Error ? error.message : String(error)}`);
+          `Blob write attempt ${attempt + 1} failed: ${error instanceof Error ? error.message + "\n" + error.stack : String(error)}`);
 
         // Don't retry on certain errors
         if (error instanceof BlobKitError) {
