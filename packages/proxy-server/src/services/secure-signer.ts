@@ -13,27 +13,66 @@ function normalizeLowS(r: bigint, s: bigint): { rHex: string; sHex: string } {
 }
 
 function parseDerEcdsaSignature(der: Buffer): { r: bigint; s: bigint } {
-    let idx = 0;
-    const expect = (val: number) => {
-      if (der[idx++] !== val) throw new Error('Invalid DER');
-    };
+  let idx = 0;
+  const expect = (val: number) => {
+    if (der[idx++] !== val) throw new Error('Invalid DER');
+  };
 
-    expect(0x30);
-    const totalLen = der[idx++];
-    expect(0x02);
-    const rLen = der[idx++];
-    let rBytes = der.slice(idx, idx + rLen);
-    idx += rLen;
-    expect(0x02);
-    const sLen = der[idx++];
-    let sBytes = der.slice(idx, idx + sLen);
-    // trim leading zeros
-    while (rBytes.length > 0 && rBytes[0] === 0x00) rBytes = rBytes.slice(1);
-    while (sBytes.length > 0 && sBytes[0] === 0x00) sBytes = sBytes.slice(1);
-    const r = BigInt('0x' + rBytes.toString('hex'));
-    const s = BigInt('0x' + sBytes.toString('hex'));
-    return { r, s };
+  expect(0x30);
+  const totalLen = der[idx++];
+  expect(0x02);
+  const rLen = der[idx++];
+  let rBytes = der.slice(idx, idx + rLen);
+  idx += rLen;
+  expect(0x02);
+  const sLen = der[idx++];
+  let sBytes = der.slice(idx, idx + sLen);
+  // trim leading zeros
+  while (rBytes.length > 0 && rBytes[0] === 0x00) rBytes = rBytes.slice(1);
+  while (sBytes.length > 0 && sBytes[0] === 0x00) sBytes = sBytes.slice(1);
+  const r = BigInt('0x' + rBytes.toString('hex'));
+  const s = BigInt('0x' + sBytes.toString('hex'));
+  return { r, s };
+}
+
+function extractSpkiEcPoint(spkiDer: Uint8Array): Uint8Array {
+  let i = 0;
+  const expect = (val: number) => {
+    if (spkiDer[i++] !== val) throw new Error('Invalid SPKI');
+  };
+  const readLen = (): number => {
+    let len = spkiDer[i++];
+    if (len & 0x80) {
+      const n = len & 0x7f;
+      len = 0;
+      for (let j = 0; j < n; j++) len = (len << 8) | spkiDer[i++];
+    }
+    return len;
+  };
+  expect(0x30);
+  readLen();
+  expect(0x30);
+  const algLen = readLen();
+  i += algLen;
+  expect(0x03);
+  const bitLen = readLen();
+  const unused = spkiDer[i++];
+  if (unused !== 0) throw new Error('Invalid EC public key bit string');
+  const key = spkiDer.slice(i, i + (bitLen - 1));
+  if (key[0] !== 0x04 || key.length !== 65) throw new Error('Expected uncompressed EC point');
+  return key;
+}
+
+function recoverV(digest: string, rHex: string, sHex: string, expected: string): number {
+  const base = `0x${rHex}${sHex}`;
+  for (const v of [27, 28]) {
+    const suffix = (v - 27).toString(16).padStart(2, '0');
+    const sig = ethers.Signature.from(`${base}${suffix}`);
+    const rec = ethers.recoverAddress(digest, sig);
+    if (ethers.getAddress(rec) === ethers.getAddress(expected)) return v;
   }
+  throw new Error('Failed to recover correct recovery id (v)');
+}
 
 /**
  * Abstract interface for secure signers
@@ -145,7 +184,7 @@ class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers
 
       // PublicKey is DER-encoded SPKI; extract uncompressed EC point
       const spki = Uint8Array.from(response.PublicKey);
-      const pub = this.extractSpkiEcPoint(spki);
+      const pub = extractSpkiEcPoint(spki);
       this.address = ethers.computeAddress(ethers.hexlify(pub));
 
       return this.address;
@@ -181,12 +220,13 @@ class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers
     }
 
     const tx = copyRequest(transaction)
-
+    // ENS Resolution
     const { to } = await ethers.resolveProperties({
-            to: (tx.to ? ethers.resolveAddress(tx.to, this): undefined),
-            from: (tx.from ? ethers.resolveAddress(tx.from, this): undefined)
-        });
-
+      to: (tx.to ? ethers.resolveAddress(tx.to, this) : undefined),
+    });
+    if (to != null) {
+      tx.to = to;
+    }
 
     if(tx.from != null) {
       delete tx.from
@@ -218,7 +258,7 @@ class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers
       const { r, s } = parseDerEcdsaSignature(Buffer.from(response.Signature));
       const { rHex, sHex } = normalizeLowS(r, s);
       const expected = await this.getAddress();
-      const v = this.recoverV(digest, rHex, sHex, expected);
+      const v = recoverV(digest, rHex, sHex, expected);
       return ethers.concat([`0x${rHex}`, `0x${sHex}`, ethers.hexlify(new Uint8Array([v]))]);
     } catch (error) {
       if (error instanceof Error && error.message.includes('Cannot find module')) {
@@ -233,46 +273,6 @@ class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers
       return new AwsKmsSigner(this.keyId, this.region);
     }
     return new AwsKmsSigner(this.keyId, this.region, provider);
-  }
-
-  private extractSpkiEcPoint(spkiDer: Uint8Array): Uint8Array {
-    let i = 0;
-    const expect = (val: number) => {
-      if (spkiDer[i++] !== val) throw new Error('Invalid SPKI');
-    };
-    const readLen = (): number => {
-      let len = spkiDer[i++];
-      if (len & 0x80) {
-        const n = len & 0x7f;
-        len = 0;
-        for (let j = 0; j < n; j++) len = (len << 8) | spkiDer[i++];
-      }
-      return len;
-    };
-    expect(0x30);
-    readLen();
-    expect(0x30);
-    const algLen = readLen();
-    i += algLen;
-    expect(0x03);
-    const bitLen = readLen();
-    const unused = spkiDer[i++];
-    if (unused !== 0) throw new Error('Invalid EC public key bit string');
-    const key = spkiDer.slice(i, i + (bitLen - 1));
-    if (key[0] !== 0x04 || key.length !== 65) throw new Error('Expected uncompressed EC point');
-    return key;
-  }
-  
-
-  private recoverV(digest: string, rHex: string, sHex: string, expected: string): number {
-    const base = `0x${rHex}${sHex}`;
-    for (const v of [27, 28]) {
-      const suffix = (v - 27).toString(16).padStart(2, '0');
-      const sig = ethers.Signature.from(`${base}${suffix}`);
-      const rec = ethers.recoverAddress(digest, sig);
-      if (ethers.getAddress(rec) === ethers.getAddress(expected)) return v;
-    }
-    throw new Error('Failed to recover correct recovery id (v)');
   }
 }
 
@@ -319,6 +319,14 @@ export class GcpKmsSigner extends ethers.AbstractSigner implements SecureSigner,
     }
 
     const tx = copyRequest(transaction)
+    // ENS Resolution
+    const { to } = await ethers.resolveProperties({
+      to: (tx.to ? ethers.resolveAddress(tx.to, this) : undefined),
+    });
+
+    if (to != null) {
+      tx.to = to;
+    }
 
     if(tx.from != null) {
       delete tx.from
@@ -345,41 +353,13 @@ export class GcpKmsSigner extends ethers.AbstractSigner implements SecureSigner,
       throw new Error('Failed to get public key from GCP KMS');
     }
     const der = this.pemToDer(publicKey.pem);
-    return this.extractSpkiEcPoint(der);
+    return extractSpkiEcPoint(der);
   }
 
   private pemToDer(pem: string): Uint8Array {
     const b64 = pem.replace(/-----BEGIN [^-]+-----|-----END [^-]+-----|\n/g, '')
       .replace(/\s+/g, '');
     return Uint8Array.from(Buffer.from(b64, 'base64'));
-  }
-
-  private extractSpkiEcPoint(spkiDer: Uint8Array): Uint8Array {
-    let i = 0;
-    const expect = (val: number) => {
-      if (spkiDer[i++] !== val) throw new Error('Invalid SPKI');
-    };
-    const readLen = (): number => {
-      let len = spkiDer[i++];
-      if (len & 0x80) {
-        const n = len & 0x7f;
-        len = 0;
-        for (let j = 0; j < n; j++) len = (len << 8) | spkiDer[i++];
-      }
-      return len;
-    };
-    expect(0x30);
-    readLen();
-    expect(0x30);
-    const algLen = readLen();
-    i += algLen;
-    expect(0x03);
-    const bitLen = readLen();
-    const unused = spkiDer[i++];
-    if (unused !== 0) throw new Error('Invalid EC public key bit string');
-    const key = spkiDer.slice(i, i + (bitLen - 1));
-    if (key[0] !== 0x04 || key.length !== 65) throw new Error('Expected uncompressed EC point');
-    return key;
   }
 
   private async signDigest(digest: string): Promise<string> {
@@ -391,29 +371,9 @@ export class GcpKmsSigner extends ethers.AbstractSigner implements SecureSigner,
     const { r, s } = parseDerEcdsaSignature(Buffer.from(resp.signature));
     const { rHex, sHex } = normalizeLowS(r, s);
     const expected = await this.getAddress();
-    const v = this.recoverV(digest, rHex, sHex, expected);
+    const v = recoverV(digest, rHex, sHex, expected);
     return ethers.concat([`0x${rHex}`, `0x${sHex}`, ethers.hexlify(new Uint8Array([v]))]);
   }
-
-  
-
-  private recoverV(digest: string, rHex: string, sHex: string, expected: string): number {
-    const base = `0x${rHex}${sHex}`;
-    for (const v of [27, 28]) {
-      const suffix = (v - 27).toString(16).padStart(2, '0');
-      const sig = ethers.Signature.from(`${base}${suffix}`);
-      const rec = ethers.recoverAddress(digest, sig);
-      if (ethers.getAddress(rec) === ethers.getAddress(expected)) return v;
-    }
-    throw new Error('Failed to recover correct recovery id (v)');
-  }
-
-  // override async sendTransaction(tx: ethers.TransactionRequest): Promise<ethers.TransactionResponse> {
-  //   const signedTx = await this.signTransaction(tx);
-  //   const txResp = await this.provider!.broadcastTransaction(signedTx);
-  //   console.log("The transaction has been broadcasted", txResp.hash)
-  //   return txResp;
-  // }
 }
 
 /**
