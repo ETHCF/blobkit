@@ -3,6 +3,16 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('SecureSigner');
 
+
+
+function normalizeLowS(r: bigint, s: bigint): { rHex: string; sHex: string } {
+    const n = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
+    const halfN = n >> BigInt(1);
+    const sNorm = s > halfN ? n - s : s;
+    const hex32 = (x: bigint) => x.toString(16).padStart(64, '0');
+    return { rHex: hex32(r), sHex: hex32(sNorm) };
+  }
+
 /**
  * Abstract interface for secure signers
  */
@@ -15,7 +25,7 @@ export interface SecureSigner {
     value: Record<string, unknown>
   ): Promise<string>;
   signTransaction(transaction: ethers.TransactionRequest): Promise<string>;
-  connect(provider: ethers.Provider): SecureSigner;
+  connect(provider: ethers.Provider | null): ethers.Signer;
 }
 
 /**
@@ -34,10 +44,11 @@ export type TypedDataTypes = Record<string, Array<{ name: string; type: string }
 /**
  * Environment variable signer (fallback with warning)
  */
-class EnvSigner implements SecureSigner {
+class EnvSigner extends ethers.AbstractSigner implements SecureSigner, ethers.Signer {
   private signer: ethers.Wallet;
 
   constructor(privateKey: string, provider?: ethers.Provider) {
+    super(provider);
     logger.warn(
       'Using private key from environment variable. This is not recommended for production.'
     );
@@ -72,7 +83,10 @@ class EnvSigner implements SecureSigner {
     return this.signer.signTransaction(transaction);
   }
 
-  connect(provider: ethers.Provider): SecureSigner {
+  connect(provider: null | ethers.Provider): ethers.Signer {
+    if (!provider){
+      return new EnvSigner(this.signer.privateKey);
+    }
     return new EnvSigner(this.signer.privateKey, provider);
   }
 }
@@ -81,16 +95,15 @@ class EnvSigner implements SecureSigner {
  * AWS KMS Signer
  * Requires AWS SDK to be installed: npm install @aws-sdk/client-kms
  */
-class AwsKmsSigner implements SecureSigner {
+class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers.Signer {
   private address: string | null = null;
-  private provider: ethers.Provider | null = null;
 
   constructor(
     private keyId: string,
     private region: string,
     provider?: ethers.Provider
   ) {
-    this.provider = provider || null;
+    super(provider);
     logger.info(`Initializing AWS KMS signer with key: ${keyId}`);
   }
 
@@ -206,7 +219,7 @@ class AwsKmsSigner implements SecureSigner {
       }
       // Parse DER, enforce low-s, compute recovery id by matching address
       const { r, s } = this.parseDerEcdsaSignature(Buffer.from(response.Signature));
-      const { rHex, sHex } = this.normalizeLowS(r, s);
+      const { rHex, sHex } = normalizeLowS(r, s);
       const expected = await this.getAddress();
       const v = this.recoverV(digest, rHex, sHex, expected);
       return ethers.concat([`0x${rHex}`, `0x${sHex}`, ethers.hexlify(new Uint8Array([v]))]);
@@ -218,7 +231,10 @@ class AwsKmsSigner implements SecureSigner {
     }
   }
 
-  connect(provider: ethers.Provider): SecureSigner {
+  connect(provider: ethers.Provider | null): ethers.Signer {
+    if(!provider) {
+      return new AwsKmsSigner(this.keyId, this.region);
+    }
     return new AwsKmsSigner(this.keyId, this.region, provider);
   }
 
@@ -280,13 +296,7 @@ class AwsKmsSigner implements SecureSigner {
     return { r, s };
   }
 
-  private normalizeLowS(r: bigint, s: bigint): { rHex: string; sHex: string } {
-    const n = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
-    const halfN = n >> BigInt(1);
-    const sNorm = s > halfN ? n - s : s;
-    const hex32 = (x: bigint) => x.toString(16).padStart(64, '0');
-    return { rHex: hex32(r), sHex: hex32(sNorm) };
-  }
+  
 
   private recoverV(digest: string, rHex: string, sHex: string, expected: string): number {
     const base = `0x${rHex}${sHex}`;
@@ -303,14 +313,13 @@ class AwsKmsSigner implements SecureSigner {
 /**
  * GCP KMS Signer (EC_SECP256K1)
  */
-export class GcpKmsSigner implements SecureSigner {
+export class GcpKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers.Signer {
   private address: string | null = null;
-  private provider: ethers.Provider | null = null;
   private keyName: string;
 
   constructor(keyName: string, provider?: ethers.Provider) {
+    super(provider);
     this.keyName = keyName;
-    this.provider = provider || null;
     logger.info(`Initializing GCP KMS signer with key: ${keyName}`);
   }
 
@@ -353,19 +362,13 @@ export class GcpKmsSigner implements SecureSigner {
         ? typeof transaction.to === 'string'
           ? transaction.to
           : await (transaction.to as ethers.Addressable).getAddress()
-        : null,
-      from: transaction.from
-        ? typeof transaction.from === 'string'
-          ? transaction.from
-          : await (transaction.from as ethers.Addressable).getAddress()
-        : undefined
+        : null
     };
 
     const tx = await ethers.resolveProperties(resolvedTx);
     const txLike: ethers.TransactionLike<string> = {
       type: tx.type,
       to: tx.to as string | null,
-      from: tx.from as string,
       nonce: tx.nonce,
       gasLimit: tx.gasLimit,
       gasPrice: tx.gasPrice,
@@ -379,9 +382,6 @@ export class GcpKmsSigner implements SecureSigner {
       kzg: tx.kzg,
       blobs: tx.blobs
     };
-    console.trace();
-
-    console.log({txLike, resolvedTx, tx})
 
     const btx = ethers.Transaction.from(txLike);
     btx.signature = ethers.Signature.from(await this.signDigest(btx.unsignedHash));
@@ -389,7 +389,10 @@ export class GcpKmsSigner implements SecureSigner {
     return btx.serialized;
   }
 
-  connect(provider: ethers.Provider): SecureSigner {
+  connect(provider: ethers.Provider| null): ethers.Signer {
+    if(!provider) {
+      return new GcpKmsSigner(this.keyName);
+    }
     return new GcpKmsSigner(this.keyName, provider);
   }
 
@@ -445,7 +448,7 @@ export class GcpKmsSigner implements SecureSigner {
     const [resp] = await client.asymmetricSign({ name: this.keyName, digest: { sha256: digestBytes } });
     if (!resp.signature) throw new Error('Failed to get signature from GCP KMS');
     const { r, s } = this.parseDerEcdsaSignature(Buffer.from(resp.signature));
-    const { rHex, sHex } = this.normalizeLowS(r, s);
+    const { rHex, sHex } = normalizeLowS(r, s);
     const expected = await this.getAddress();
     const v = this.recoverV(digest, rHex, sHex, expected);
     return ethers.concat([`0x${rHex}`, `0x${sHex}`, ethers.hexlify(new Uint8Array([v]))]);
@@ -474,14 +477,6 @@ export class GcpKmsSigner implements SecureSigner {
     return { r, s };
   }
 
-  private normalizeLowS(r: bigint, s: bigint): { rHex: string; sHex: string } {
-    const n = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
-    const halfN = n >> BigInt(1);
-    const sNorm = s > halfN ? n - s : s;
-    const hex32 = (x: bigint) => x.toString(16).padStart(64, '0');
-    return { rHex: hex32(r), sHex: hex32(sNorm) };
-  }
-
   private recoverV(digest: string, rHex: string, sHex: string, expected: string): number {
     const base = `0x${rHex}${sHex}`;
     for (const v of [27, 28]) {
@@ -492,6 +487,10 @@ export class GcpKmsSigner implements SecureSigner {
     }
     throw new Error('Failed to recover correct recovery id (v)');
   }
+
+  override async sendTransaction(tx: ethers.TransactionRequest): Promise<ethers.TransactionResponse> {
+    return await this.provider!.broadcastTransaction(await this.signTransaction(tx));
+  }
 }
 
 /**
@@ -500,7 +499,7 @@ export class GcpKmsSigner implements SecureSigner {
 export async function createSecureSigner(
   config: SecureSignerConfig,
   provider?: ethers.Provider
-): Promise<SecureSigner> {
+): Promise<ethers.Signer> {
   switch (config.type) {
     case 'env':
       if (!config.privateKey) {

@@ -19,7 +19,6 @@ import { createBlobRouter } from './routes/blob.js';
 import { createMetricsRouter } from './routes/metrics.js';
 import { createLogger } from './utils/logger.js';
 import { createSecureSigner, loadSignerConfig } from './services/secure-signer.js';
-import { wrapAsEthersSigner } from './services/ethers-signer-wrapper.js';
 import { metricsMiddleware } from './monitoring/prometheus-metrics.js';
 
 const logger = createLogger('App');
@@ -88,10 +87,7 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
 
   // Create secure signer
   const signerConfig = loadSignerConfig();
-  const secureSigner = await createSecureSigner(signerConfig, provider);
-
-  // Wrap as ethers.Signer for compatibility
-  const signer = wrapAsEthersSigner(secureSigner, provider);
+  const signer = await createSecureSigner(signerConfig, provider);
 
   const paymentVerifier = new PaymentVerifier(config.rpcUrl, config.escrowContract);
   const blobExecutor = new BlobExecutor(
