@@ -102,8 +102,6 @@ export class BlobSubmitter {
       // Submit transaction
       const txResponse = await signer.sendTransaction(tx);
 
-      console.log("Transaction sent:", txResponse.hash);
-
       // Wait for confirmation
       const receipt = await txResponse.wait();
 
