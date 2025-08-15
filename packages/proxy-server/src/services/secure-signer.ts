@@ -144,7 +144,7 @@ class EnvSigner extends ethers.AbstractSigner implements SecureSigner, ethers.Si
   }
 
   connect(provider: null | ethers.Provider): ethers.Signer {
-    if (!provider){
+    if (!provider) {
       return new EnvSigner(this.signer.privateKey);
     }
     return new EnvSigner(this.signer.privateKey, provider);
@@ -228,7 +228,7 @@ class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers
       tx.to = to;
     }
 
-    if(tx.from != null) {
+    if (tx.from != null) {
       delete tx.from
     }
 
@@ -269,7 +269,7 @@ class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers
   }
 
   connect(provider: ethers.Provider | null): ethers.Signer {
-    if(!provider) {
+    if (!provider) {
       return new AwsKmsSigner(this.keyId, this.region);
     }
     return new AwsKmsSigner(this.keyId, this.region, provider);
@@ -328,7 +328,7 @@ export class GcpKmsSigner extends ethers.AbstractSigner implements SecureSigner,
       tx.to = to;
     }
 
-    if(tx.from != null) {
+    if (tx.from != null) {
       delete tx.from
     }
 
@@ -339,7 +339,7 @@ export class GcpKmsSigner extends ethers.AbstractSigner implements SecureSigner,
   }
 
   connect(provider: ethers.Provider| null): ethers.Signer {
-    if(!provider) {
+    if (!provider) {
       return new GcpKmsSigner(this.keyName);
     }
     return new GcpKmsSigner(this.keyName, provider);
