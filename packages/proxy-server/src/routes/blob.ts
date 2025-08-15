@@ -163,7 +163,15 @@ export const createBlobRouter = (
 
         // Step 3: Execute blob transaction
         tracedLogger.debug(`Submitting job ${jobId} to executor`);
-        const lockAcquired = await jobCache.acquireLock(jobId);
+       
+        metrics.blobSubmitted(payloadArray.length);
+        
+
+        // Record Prometheus metrics for blob submission
+        const promMetrics = getPrometheusMetrics();
+        promMetrics.blobSizeBytes.observe({ codec: meta.codec || 'unknown' }, payloadArray.length);
+
+         const lockAcquired = await jobCache.acquireLock(jobId);
         if(!lockAcquired) {
           tracedLogger.warn(`Job ${jobId} is already being processed`);
           return res.status(425).json({
@@ -171,15 +179,8 @@ export const createBlobRouter = (
             message: 'Job is already being processed'
           });
         }
-        metrics.blobSubmitted(payloadArray.length);
-        await jobCache.releaseLock(jobId);
-
-        // Record Prometheus metrics for blob submission
-        const promMetrics = getPrometheusMetrics();
-        promMetrics.blobSizeBytes.observe({ codec: meta.codec || 'unknown' }, payloadArray.length);
-
-
         const blobResult = await blobExecutor.executeBlob(job, traceContext);
+        await jobCache.releaseLock(jobId);
 
         // Step 4: Complete job in escrow contract with retry handling
         tracedLogger.debug(`Completing job ${jobId} in escrow contract`);

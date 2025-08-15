@@ -38,7 +38,6 @@ import {
   hexToBytes
 } from './utils.js';
 import { initializeKzg, requireKzg } from './kzg.js';
-import { sign } from 'crypto';
 
 /**
  * BlobKit SDK - Main class for blob storage operations
@@ -207,11 +206,12 @@ export class BlobKit {
         let result: DirectSubmitResult | BlobSubmitResult;
         if (this.shouldUseProxy()) {
           const estimate = await this.estimateCost(payload);
+          this.logger.info(`Depositing payment into contract for the proxy write, job ID: ${jobId}`);
           const payment = await this.paymentManager.depositForBlob(jobId, estimate.totalETH);
           paymentHash = payment.paymentTxHash;
           result = await this.submitViaProxy(jobId, payment.paymentTxHash, payload, fullMeta);
         } else {
-          result = await this.submitDirectly(jobId, payload);
+          result = await this.submitDirectly(payload);
         }
 
         this.metrics.trackOperation('writeBlob', 'complete', Date.now() - startTime);
@@ -230,8 +230,9 @@ export class BlobKit {
         };
       } catch (error) {
         lastError = error;
+
         this.logger.warn(
-          `Blob write attempt ${attempt + 1} failed: ${error instanceof Error ? error.message : String(error)}`);
+          `Blob write attempt ${attempt + 1} failed: ${error instanceof Error ? error.message + "\n" + error.stack : String(error)}`);
 
         // Don't retry on certain errors
         if (error instanceof BlobKitError) {
@@ -448,14 +449,13 @@ export class BlobKit {
   }
 
   private async submitDirectly(
-    jobId: string,
     payload: Uint8Array
   ): Promise<DirectSubmitResult & { completionTxHash: string }> {
     if (!this.blobSubmitter || !this.signer) {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Direct submission not available');
     }
 
-    const result = await this.blobSubmitter.submitBlob(this.signer, jobId, payload, requireKzg());
+    const result = await this.blobSubmitter.submitBlob(this.signer, payload, requireKzg());
 
     return {
       ...result,

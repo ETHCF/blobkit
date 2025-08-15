@@ -1,7 +1,78 @@
-import { ethers } from 'ethers';
+import { ethers, copyRequest } from 'ethers';
 import { createLogger } from '../utils/logger.js';
-
 const logger = createLogger('SecureSigner');
+
+
+
+function normalizeLowS(r: bigint, s: bigint): { rHex: string; sHex: string } {
+  const n = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
+  const halfN = n >> BigInt(1);
+  const sNorm = s > halfN ? n - s : s;
+  const hex32 = (x: bigint) => x.toString(16).padStart(64, '0');
+  return { rHex: hex32(r), sHex: hex32(sNorm) };
+}
+
+function parseDerEcdsaSignature(der: Buffer): { r: bigint; s: bigint } {
+  let idx = 0;
+  const expect = (val: number) => {
+    if (der[idx++] !== val) throw new Error('Invalid DER');
+  };
+
+  expect(0x30);
+  const totalLen = der[idx++];
+  expect(0x02);
+  const rLen = der[idx++];
+  let rBytes = der.slice(idx, idx + rLen);
+  idx += rLen;
+  expect(0x02);
+  const sLen = der[idx++];
+  let sBytes = der.slice(idx, idx + sLen);
+  // trim leading zeros
+  while (rBytes.length > 0 && rBytes[0] === 0x00) rBytes = rBytes.slice(1);
+  while (sBytes.length > 0 && sBytes[0] === 0x00) sBytes = sBytes.slice(1);
+  const r = BigInt('0x' + rBytes.toString('hex'));
+  const s = BigInt('0x' + sBytes.toString('hex'));
+  return { r, s };
+}
+
+function extractSpkiEcPoint(spkiDer: Uint8Array): Uint8Array {
+  let i = 0;
+  const expect = (val: number) => {
+    if (spkiDer[i++] !== val) throw new Error('Invalid SPKI');
+  };
+  const readLen = (): number => {
+    let len = spkiDer[i++];
+    if (len & 0x80) {
+      const n = len & 0x7f;
+      len = 0;
+      for (let j = 0; j < n; j++) len = (len << 8) | spkiDer[i++];
+    }
+    return len;
+  };
+  expect(0x30);
+  readLen();
+  expect(0x30);
+  const algLen = readLen();
+  i += algLen;
+  expect(0x03);
+  const bitLen = readLen();
+  const unused = spkiDer[i++];
+  if (unused !== 0) throw new Error('Invalid EC public key bit string');
+  const key = spkiDer.slice(i, i + (bitLen - 1));
+  if (key[0] !== 0x04 || key.length !== 65) throw new Error('Expected uncompressed EC point');
+  return key;
+}
+
+function recoverV(digest: string, rHex: string, sHex: string, expected: string): number {
+  const base = `0x${rHex}${sHex}`;
+  for (const v of [27, 28]) {
+    const suffix = (v - 27).toString(16).padStart(2, '0');
+    const sig = ethers.Signature.from(`${base}${suffix}`);
+    const rec = ethers.recoverAddress(digest, sig);
+    if (ethers.getAddress(rec) === ethers.getAddress(expected)) return v;
+  }
+  throw new Error('Failed to recover correct recovery id (v)');
+}
 
 /**
  * Abstract interface for secure signers
@@ -15,10 +86,10 @@ export interface SecureSigner {
     value: Record<string, unknown>
   ): Promise<string>;
   signTransaction(transaction: ethers.TransactionRequest): Promise<string>;
-  connect(provider: ethers.Provider): SecureSigner;
+  connect(provider: ethers.Provider | null): ethers.Signer;
 }
 
-/**
+/** 
  * Signer configuration options
  */
 export interface SecureSignerConfig {
@@ -34,10 +105,11 @@ export type TypedDataTypes = Record<string, Array<{ name: string; type: string }
 /**
  * Environment variable signer (fallback with warning)
  */
-class EnvSigner implements SecureSigner {
+class EnvSigner extends ethers.AbstractSigner implements SecureSigner, ethers.Signer {
   private signer: ethers.Wallet;
 
   constructor(privateKey: string, provider?: ethers.Provider) {
+    super(provider);
     logger.warn(
       'Using private key from environment variable. This is not recommended for production.'
     );
@@ -68,11 +140,13 @@ class EnvSigner implements SecureSigner {
   }
 
   async signTransaction(transaction: ethers.TransactionRequest): Promise<string> {
-    console.log({transaction})
     return this.signer.signTransaction(transaction);
   }
 
-  connect(provider: ethers.Provider): SecureSigner {
+  connect(provider: null | ethers.Provider): ethers.Signer {
+    if (!provider) {
+      return new EnvSigner(this.signer.privateKey);
+    }
     return new EnvSigner(this.signer.privateKey, provider);
   }
 }
@@ -81,16 +155,15 @@ class EnvSigner implements SecureSigner {
  * AWS KMS Signer
  * Requires AWS SDK to be installed: npm install @aws-sdk/client-kms
  */
-class AwsKmsSigner implements SecureSigner {
+class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers.Signer {
   private address: string | null = null;
-  private provider: ethers.Provider | null = null;
 
   constructor(
     private keyId: string,
     private region: string,
     provider?: ethers.Provider
   ) {
-    this.provider = provider || null;
+    super(provider);
     logger.info(`Initializing AWS KMS signer with key: ${keyId}`);
   }
 
@@ -111,7 +184,7 @@ class AwsKmsSigner implements SecureSigner {
 
       // PublicKey is DER-encoded SPKI; extract uncompressed EC point
       const spki = Uint8Array.from(response.PublicKey);
-      const pub = this.extractSpkiEcPoint(spki);
+      const pub = extractSpkiEcPoint(spki);
       this.address = ethers.computeAddress(ethers.hexlify(pub));
 
       return this.address;
@@ -146,43 +219,20 @@ class AwsKmsSigner implements SecureSigner {
       throw new Error('Provider required for signing transactions');
     }
 
-    // Resolve any Addressable types to strings
-    const resolvedTx: ethers.TransactionRequest = {
-      ...transaction,
-      to: transaction.to
-        ? typeof transaction.to === 'string'
-          ? transaction.to
-          : await (transaction.to as ethers.Addressable).getAddress()
-        : null,
-      from: transaction.from
-        ? typeof transaction.from === 'string'
-          ? transaction.from
-          : await (transaction.from as ethers.Addressable).getAddress()
-        : undefined
-    };
+    const tx = copyRequest(transaction)
+    // ENS Resolution
+    const { to } = await ethers.resolveProperties({
+      to: (tx.to ? ethers.resolveAddress(tx.to, this) : undefined),
+    });
+    if (to != null) {
+      tx.to = to;
+    }
 
-    const tx = await ethers.resolveProperties(resolvedTx);
+    if (tx.from != null) {
+      delete tx.from
+    }
 
-    // Convert resolved properties to TransactionLike<string> format
-    const txLike: ethers.TransactionLike<string> = {
-      type: tx.type,
-      to: tx.to as string | null,
-      from: tx.from as string,
-      nonce: tx.nonce,
-      gasLimit: tx.gasLimit,
-      gasPrice: tx.gasPrice,
-      maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
-      maxFeePerGas: tx.maxFeePerGas,
-      data: tx.data,
-      value: tx.value,
-      chainId: tx.chainId,
-      accessList: tx.accessList,
-      blobVersionedHashes: tx.blobVersionedHashes,
-      kzg: tx.kzg,
-      blobs: tx.blobs
-    };
-
-    const btx = ethers.Transaction.from(txLike);
+    const btx = ethers.Transaction.from(<ethers.TransactionLike<string>>tx);
     btx.signature = ethers.Signature.from(await this.signDigest(btx.unsignedHash));
 
     return btx.serialized;
@@ -205,10 +255,10 @@ class AwsKmsSigner implements SecureSigner {
         throw new Error('Failed to get signature from KMS');
       }
       // Parse DER, enforce low-s, compute recovery id by matching address
-      const { r, s } = this.parseDerEcdsaSignature(Buffer.from(response.Signature));
-      const { rHex, sHex } = this.normalizeLowS(r, s);
+      const { r, s } = parseDerEcdsaSignature(Buffer.from(response.Signature));
+      const { rHex, sHex } = normalizeLowS(r, s);
       const expected = await this.getAddress();
-      const v = this.recoverV(digest, rHex, sHex, expected);
+      const v = recoverV(digest, rHex, sHex, expected);
       return ethers.concat([`0x${rHex}`, `0x${sHex}`, ethers.hexlify(new Uint8Array([v]))]);
     } catch (error) {
       if (error instanceof Error && error.message.includes('Cannot find module')) {
@@ -218,99 +268,24 @@ class AwsKmsSigner implements SecureSigner {
     }
   }
 
-  connect(provider: ethers.Provider): SecureSigner {
-    return new AwsKmsSigner(this.keyId, this.region, provider);
-  }
-
-  private extractSpkiEcPoint(spkiDer: Uint8Array): Uint8Array {
-    let i = 0;
-    const expect = (val: number) => {
-      if (spkiDer[i++] !== val) throw new Error('Invalid SPKI');
-    };
-    const readLen = (): number => {
-      let len = spkiDer[i++];
-      if (len & 0x80) {
-        const n = len & 0x7f;
-        len = 0;
-        for (let j = 0; j < n; j++) len = (len << 8) | spkiDer[i++];
-      }
-      return len;
-    };
-    expect(0x30);
-    readLen();
-    expect(0x30);
-    const algLen = readLen();
-    i += algLen;
-    expect(0x03);
-    const bitLen = readLen();
-    const unused = spkiDer[i++];
-    if (unused !== 0) throw new Error('Invalid EC public key bit string');
-    const key = spkiDer.slice(i, i + (bitLen - 1));
-    if (key[0] !== 0x04 || key.length !== 65) throw new Error('Expected uncompressed EC point');
-    return key;
-  }
-
-  private parseDerEcdsaSignature(der: Buffer): { r: bigint; s: bigint } {
-    let idx = 0;
-    const expect = (val: number) => {
-      if (der[idx++] !== val) throw new Error('Invalid DER');
-    };
-    const readLen = (): number => {
-      let len = der[idx++];
-      if (len & 0x80) {
-        const n = len & 0x7f;
-        len = 0;
-        for (let j = 0; j < n; j++) len = (len << 8) | der[idx++];
-      }
-      return len;
-    };
-    expect(0x30);
-    readLen();
-    expect(0x02);
-    const rLen = readLen();
-    let rBytes = der.slice(idx, idx + rLen);
-    idx += rLen;
-    expect(0x02);
-    const sLen = readLen();
-    let sBytes = der.slice(idx, idx + sLen);
-    while (rBytes.length > 0 && rBytes[0] === 0x00) rBytes = rBytes.slice(1);
-    while (sBytes.length > 0 && sBytes[0] === 0x00) sBytes = sBytes.slice(1);
-    const r = BigInt('0x' + rBytes.toString('hex'));
-    const s = BigInt('0x' + sBytes.toString('hex'));
-    return { r, s };
-  }
-
-  private normalizeLowS(r: bigint, s: bigint): { rHex: string; sHex: string } {
-    const n = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
-    const halfN = n >> BigInt(1);
-    const sNorm = s > halfN ? n - s : s;
-    const hex32 = (x: bigint) => x.toString(16).padStart(64, '0');
-    return { rHex: hex32(r), sHex: hex32(sNorm) };
-  }
-
-  private recoverV(digest: string, rHex: string, sHex: string, expected: string): number {
-    const base = `0x${rHex}${sHex}`;
-    for (const v of [27, 28]) {
-      const suffix = (v - 27).toString(16).padStart(2, '0');
-      const sig = ethers.Signature.from(`${base}${suffix}`);
-      const rec = ethers.recoverAddress(digest, sig);
-      if (ethers.getAddress(rec) === ethers.getAddress(expected)) return v;
+  connect(provider: ethers.Provider | null): ethers.Signer {
+    if (!provider) {
+      return new AwsKmsSigner(this.keyId, this.region);
     }
-    throw new Error('Failed to recover correct recovery id (v)');
+    return new AwsKmsSigner(this.keyId, this.region, provider);
   }
 }
 
 /**
  * GCP KMS Signer (EC_SECP256K1)
  */
-export class GcpKmsSigner implements SecureSigner {
+export class GcpKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers.Signer {
   private address: string | null = null;
-  private provider: ethers.Provider | null = null;
   private keyName: string;
 
   constructor(keyName: string, provider?: ethers.Provider) {
+    super(provider);
     this.keyName = keyName;
-    this.provider = provider || null;
     logger.info(`Initializing GCP KMS signer with key: ${keyName}`);
   }
 
@@ -343,53 +318,30 @@ export class GcpKmsSigner implements SecureSigner {
       throw new Error('Provider required for signing transactions');
     }
 
-    if(typeof transaction.chainId === 'undefined') {
-      throw new Error('chainId is required');
+    const tx = copyRequest(transaction)
+    // ENS Resolution
+    const { to } = await ethers.resolveProperties({
+      to: (tx.to ? ethers.resolveAddress(tx.to, this) : undefined),
+    });
+
+    if (to != null) {
+      tx.to = to;
     }
 
-    const resolvedTx: ethers.TransactionRequest = {
-      ...transaction,
-      to: transaction.to
-        ? typeof transaction.to === 'string'
-          ? transaction.to
-          : await (transaction.to as ethers.Addressable).getAddress()
-        : null,
-      from: transaction.from
-        ? typeof transaction.from === 'string'
-          ? transaction.from
-          : await (transaction.from as ethers.Addressable).getAddress()
-        : undefined
-    };
+    if (tx.from != null) {
+      delete tx.from
+    }
 
-    const tx = await ethers.resolveProperties(resolvedTx);
-    const txLike: ethers.TransactionLike<string> = {
-      type: tx.type,
-      to: tx.to as string | null,
-      from: tx.from as string,
-      nonce: tx.nonce,
-      gasLimit: tx.gasLimit,
-      gasPrice: tx.gasPrice,
-      maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
-      maxFeePerGas: tx.maxFeePerGas,
-      data: tx.data,
-      value: tx.value,
-      chainId: tx.chainId,
-      accessList: tx.accessList,
-      blobVersionedHashes: tx.blobVersionedHashes,
-      kzg: tx.kzg,
-      blobs: tx.blobs
-    };
-    console.trace();
-
-    console.log({txLike, resolvedTx, tx})
-
-    const btx = ethers.Transaction.from(txLike);
+    const btx = ethers.Transaction.from(<ethers.TransactionLike<string>>tx);
     btx.signature = ethers.Signature.from(await this.signDigest(btx.unsignedHash));
 
     return btx.serialized;
   }
 
-  connect(provider: ethers.Provider): SecureSigner {
+  connect(provider: ethers.Provider| null): ethers.Signer {
+    if (!provider) {
+      return new GcpKmsSigner(this.keyName);
+    }
     return new GcpKmsSigner(this.keyName, provider);
   }
 
@@ -401,7 +353,7 @@ export class GcpKmsSigner implements SecureSigner {
       throw new Error('Failed to get public key from GCP KMS');
     }
     const der = this.pemToDer(publicKey.pem);
-    return this.extractSpkiEcPoint(der);
+    return extractSpkiEcPoint(der);
   }
 
   private pemToDer(pem: string): Uint8Array {
@@ -410,87 +362,17 @@ export class GcpKmsSigner implements SecureSigner {
     return Uint8Array.from(Buffer.from(b64, 'base64'));
   }
 
-  private extractSpkiEcPoint(spkiDer: Uint8Array): Uint8Array {
-    let i = 0;
-    const expect = (val: number) => {
-      if (spkiDer[i++] !== val) throw new Error('Invalid SPKI');
-    };
-    const readLen = (): number => {
-      let len = spkiDer[i++];
-      if (len & 0x80) {
-        const n = len & 0x7f;
-        len = 0;
-        for (let j = 0; j < n; j++) len = (len << 8) | spkiDer[i++];
-      }
-      return len;
-    };
-    expect(0x30);
-    readLen();
-    expect(0x30);
-    const algLen = readLen();
-    i += algLen;
-    expect(0x03);
-    const bitLen = readLen();
-    const unused = spkiDer[i++];
-    if (unused !== 0) throw new Error('Invalid EC public key bit string');
-    const key = spkiDer.slice(i, i + (bitLen - 1));
-    if (key[0] !== 0x04 || key.length !== 65) throw new Error('Expected uncompressed EC point');
-    return key;
-  }
-
   private async signDigest(digest: string): Promise<string> {
     const { KeyManagementServiceClient } = await import('@google-cloud/kms');
     const client = new KeyManagementServiceClient();
     const digestBytes = Buffer.from(digest.replace(/^0x/, ''), 'hex');
     const [resp] = await client.asymmetricSign({ name: this.keyName, digest: { sha256: digestBytes } });
     if (!resp.signature) throw new Error('Failed to get signature from GCP KMS');
-    const { r, s } = this.parseDerEcdsaSignature(Buffer.from(resp.signature));
-    const { rHex, sHex } = this.normalizeLowS(r, s);
+    const { r, s } = parseDerEcdsaSignature(Buffer.from(resp.signature));
+    const { rHex, sHex } = normalizeLowS(r, s);
     const expected = await this.getAddress();
-    const v = this.recoverV(digest, rHex, sHex, expected);
+    const v = recoverV(digest, rHex, sHex, expected);
     return ethers.concat([`0x${rHex}`, `0x${sHex}`, ethers.hexlify(new Uint8Array([v]))]);
-  }
-
-  private parseDerEcdsaSignature(der: Buffer): { r: bigint; s: bigint } {
-    let idx = 0;
-    const expect = (val: number) => {
-      if (der[idx++] !== val) throw new Error('Invalid DER');
-    };
-
-    expect(0x30);
-    const totalLen = der[idx++];
-    expect(0x02);
-    const rLen = der[idx++];
-    let rBytes = der.slice(idx, idx + rLen);
-    idx += rLen;
-    expect(0x02);
-    const sLen = der[idx++];
-    let sBytes = der.slice(idx, idx + sLen);
-    // trim leading zeros
-    while (rBytes.length > 0 && rBytes[0] === 0x00) rBytes = rBytes.slice(1);
-    while (sBytes.length > 0 && sBytes[0] === 0x00) sBytes = sBytes.slice(1);
-    const r = BigInt('0x' + rBytes.toString('hex'));
-    const s = BigInt('0x' + sBytes.toString('hex'));
-    return { r, s };
-  }
-
-  private normalizeLowS(r: bigint, s: bigint): { rHex: string; sHex: string } {
-    const n = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
-    const halfN = n >> BigInt(1);
-    const sNorm = s > halfN ? n - s : s;
-    const hex32 = (x: bigint) => x.toString(16).padStart(64, '0');
-    return { rHex: hex32(r), sHex: hex32(sNorm) };
-  }
-
-  private recoverV(digest: string, rHex: string, sHex: string, expected: string): number {
-    const base = `0x${rHex}${sHex}`;
-    for (const v of [27, 28]) {
-      const suffix = (v - 27).toString(16).padStart(2, '0');
-      const sig = ethers.Signature.from(`${base}${suffix}`);
-      const rec = ethers.recoverAddress(digest, sig);
-      if (ethers.getAddress(rec) === ethers.getAddress(expected)) return v;
-    }
-    throw new Error('Failed to recover correct recovery id (v)');
   }
 }
 
@@ -500,7 +382,7 @@ export class GcpKmsSigner implements SecureSigner {
 export async function createSecureSigner(
   config: SecureSignerConfig,
   provider?: ethers.Provider
-): Promise<SecureSigner> {
+): Promise<ethers.Signer> {
   switch (config.type) {
     case 'env':
       if (!config.privateKey) {

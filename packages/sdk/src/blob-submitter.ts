@@ -47,7 +47,6 @@ export class BlobSubmitter {
    */
   async submitBlob(
     signer: Signer,
-    jobId: string,
     payload: Uint8Array,
     kzg: ethers.KzgLibraryLike
   ): Promise<DirectSubmitResult> {

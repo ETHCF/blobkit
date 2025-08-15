@@ -97,7 +97,7 @@ export class JobCache {
   /**
    * Acquire a lock for a job
    */
-  async acquireLock(jobId: string, lockTtl: number = 150): Promise<boolean> {
+  async acquireLock(jobId: string, lockTtl: number = 60): Promise<boolean> {
     try {
       const key = this.getLockKey(jobId);
       const result = await this.redis.set(key, 'locked', {
