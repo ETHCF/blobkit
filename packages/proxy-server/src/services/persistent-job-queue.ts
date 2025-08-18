@@ -263,7 +263,7 @@ export class PersistentJobQueue {
         );
       }
     }finally {
-      this.jobCache.releaseLock(completion.jobId)
+      await this.jobCache.releaseLock(completion.jobId)
     }
   }
 
