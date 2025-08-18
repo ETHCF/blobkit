@@ -10,8 +10,8 @@ services:
     args: ["packages/proxy-server/dist/index.js"]
     serviceAccountName: blobkit-proxy
     resources:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 500m
+      memory: 512Mi
     paths:
     - /
     healthPath: /api/v1/health
