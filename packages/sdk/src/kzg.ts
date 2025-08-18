@@ -351,7 +351,7 @@ export function decodeBlob(blob: Uint8Array): Uint8Array {
       // Start of a new element, this byte is always empty
       continue
     }
-    data[i - BLOB_HEADER_SIZE - 1] = blob[i];
+    data[dataCounter] = blob[i];
     dataCounter++;
   }
 
