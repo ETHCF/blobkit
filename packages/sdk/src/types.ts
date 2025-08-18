@@ -192,8 +192,6 @@ export interface BlobPaymentResult {
 export interface BlobReadResult {
   /** Raw blob data */
   data: Uint8Array;
-  /** Transaction hash containing the blob */
-  blobTxHash: string;
   /** Index of the blob within the transaction */
   blobIndex: number;
   /** Source of the blob data */

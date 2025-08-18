@@ -278,13 +278,31 @@ export function requireKzg(): KzgWasmLibrary {
   return cachedKzg;
 }
 
+const BLOB_HEADER_SIZE = 4;
+
+function blobWithHeader(data: Uint8Array): Uint8Array {
+  const out = new Uint8Array(BLOB_HEADER_SIZE + data.length);
+  const header = new Uint8Array(BLOB_HEADER_SIZE);
+  // The first 3 bytes are reserved for the payload length,
+  // we reserve an additional byte for future use
+  header[0] = (data.length >> 16) & 0xFF;
+  header[1] = (data.length >> 8) & 0xFF;
+  header[2] = data.length & 0xFF;
+  header[3] = 0;
+
+  out.set(header, 0);
+  out.set(data, BLOB_HEADER_SIZE);
+  return out;
+}
+
 /**
  * Encode data into EIP-4844 blob format
  */
-export function encodeBlob(data: Uint8Array): Uint8Array {
-  if (!data || data.length === 0) {
+export function encodeBlob(inputData: Uint8Array): Uint8Array {
+  if (!inputData || inputData.length === 0) {
     throw new BlobKitError(BlobKitErrorCode.INVALID_PAYLOAD, 'Data cannot be empty');
   }
+  const data = blobWithHeader(inputData);
 
   if (data.length > FIELD_ELEMENTS_PER_BLOB * BYTES_PER_FIELD_ELEMENT) {
     throw new BlobKitError(
@@ -294,6 +312,7 @@ export function encodeBlob(data: Uint8Array): Uint8Array {
   }
 
   const blob = new Uint8Array(BLOB_SIZE);
+  
 
   // Pack data into field elements
   for (let i = 0; i < FIELD_ELEMENTS_PER_BLOB; i++) {
@@ -311,6 +330,32 @@ export function encodeBlob(data: Uint8Array): Uint8Array {
   }
 
   return blob;
+}
+
+/**
+ * Decode EIP-4844 blob format back to original data
+ */
+export function decodeBlob(blob: Uint8Array): Uint8Array {
+  if (blob.length !== BLOB_SIZE) {
+    throw new BlobKitError(
+      BlobKitErrorCode.INVALID_PAYLOAD,
+      `Invalid blob size: expected ${BLOB_SIZE}, got ${blob.length}`
+    );
+  }
+
+  let dataLength = blob[1] << 16 | blob[2] << 8 | blob[3]; // first byte is always 0
+  const data = new Uint8Array(dataLength);
+  let dataCounter = 0
+  for(let i = BLOB_HEADER_SIZE+1; i < blob.length && dataCounter < dataLength; i++) {
+    if(i % 32 == 0){
+      // Start of a new element, this byte is always empty
+      continue
+    }
+    data[i - BLOB_HEADER_SIZE - 1] = blob[i];
+    dataCounter++;
+  }
+
+  return data;
 }
 
 /**
