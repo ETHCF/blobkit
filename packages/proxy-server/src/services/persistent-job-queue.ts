@@ -227,6 +227,7 @@ export class PersistentJobQueue {
 
 
       if(!jobStatus.isExpired && !jobStatus.completed && jobStatus.exists && jobStatus.valid) {
+        logger.info(`Job ${completion.jobId} is eligible for completion`);
         // Attempt to complete the job
         await this.paymentVerifier.completeJob(completion.jobId, completion.blobTxHash, this.signer);
       }else{
