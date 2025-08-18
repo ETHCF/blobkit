@@ -31,23 +31,84 @@ export class AnvilInstance {
         '--accounts',
         '10',
         '--balance',
-        '10000',
-        '--silent'
+        '10000'
+        // Removed --silent to see startup output
       ]);
 
-      this.process.stderr?.on('data', data => {
+      let started = false;
+
+      // Listen to both stdout and stderr for startup messages
+      this.process.stdout?.on('data', data => {
         const output = data.toString();
-        if (output.includes('Listening')) {
+        console.log('Anvil stdout:', output);
+        if ((output.includes('Listening') || output.includes('Started')) && !started) {
+          started = true;
           this.parseAccounts(output);
-          resolve();
+          // Add a delay and health check before resolving
+          setTimeout(async () => {
+            try {
+              await this.healthCheck();
+              resolve();
+            } catch (error) {
+              console.error('Anvil health check failed:', error);
+              reject(error);
+            }
+          }, 1000);
         }
       });
 
-      this.process.on('error', reject);
+      this.process.stderr?.on('data', data => {
+        const output = data.toString();
+        console.log('Anvil stderr:', output);
+        if ((output.includes('Listening') || output.includes('Started')) && !started) {
+          started = true;
+          this.parseAccounts(output);
+          // Add a delay and health check before resolving
+          setTimeout(async () => {
+            try {
+              await this.healthCheck();
+              resolve();
+            } catch (error) {
+              console.error('Anvil health check failed:', error);
+              reject(error);
+            }
+          }, 1000);
+        }
+      });
+
+      this.process.on('error', error => {
+        console.error('Anvil process error:', error);
+        reject(error);
+      });
+
+      this.process.on('exit', (code, signal) => {
+        if (!started) {
+          console.error(`Anvil exited early with code ${code}, signal ${signal}`);
+          reject(new Error(`Anvil exited early with code ${code}`));
+        }
+      });
 
       // Timeout after 10 seconds
-      setTimeout(() => reject(new Error('Anvil failed to start')), 10000);
+      setTimeout(() => {
+        if (!started) {
+          console.error('Anvil startup timeout - killing process');
+          this.process?.kill();
+          reject(new Error('Anvil failed to start within 10 seconds'));
+        }
+      }, 10000);
     });
+  }
+
+  private async healthCheck(): Promise<void> {
+    const { ethers } = await import('ethers');
+    const provider = new ethers.JsonRpcProvider(`http://localhost:${this.port}`);
+    
+    try {
+      const blockNumber = await provider.getBlockNumber();
+      console.log(`Anvil health check passed - current block: ${blockNumber}`);
+    } catch (error) {
+      throw new Error(`Anvil health check failed: ${(error as Error).message}`);
+    }
   }
 
   private parseAccounts(output: string): void {
@@ -66,6 +127,22 @@ export class AnvilInstance {
         });
       }
     }
+
+    // If no accounts were parsed, use default anvil accounts
+    if (this.accounts.length === 0) {
+      console.log('No accounts parsed from anvil output, using defaults');
+      this.accounts = [
+        {
+          address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+          privateKey: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+        },
+        {
+          address: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+          privateKey: '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d'
+        }
+      ];
+    }
+    console.log(`Parsed ${this.accounts.length} anvil accounts`);
   }
 
   getTestAccounts(): TestAccount[] {
@@ -94,23 +171,23 @@ export class ContractDeployer {
 
   async deployEscrowContract(): Promise<string> {
     // Deploy the BlobKitEscrow contract
-    const contractPath = path.join(__dirname, '../../contracts/dist/BlobKitEscrow.json');
+    const contractPath = path.join(__dirname, '../../../packages/contracts/out/BlobKitEscrow.sol/BlobKitEscrow.json');
     const contractJson = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
 
     const factory = new ethers.ContractFactory(
       contractJson.abi,
-      contractJson.bytecode,
+      contractJson.bytecode.object,
       this.signer
     );
 
-    const contract = await factory.deploy();
+    const contract = await factory.deploy(await this.signer.getAddress());
     await contract.waitForDeployment();
 
     return await contract.getAddress();
   }
 
   getEscrowContract(address: string): ethers.Contract {
-    const contractPath = path.join(__dirname, '../../contracts/dist/BlobKitEscrow.json');
+    const contractPath = path.join(__dirname, '../../../packages/contracts/out/BlobKitEscrow.sol/BlobKitEscrow.json');
     const contractJson = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
 
     return new ethers.Contract(address, contractJson.abi, this.signer);
@@ -136,26 +213,70 @@ export class ProxyServerManager {
         ...process.env,
         PORT: this.port.toString(),
         RPC_URL: this.config.rpcUrl,
+        ETH_RPC_URL: this.config.rpcUrl,  // Also set this
+        ETHEREUM_RPC_URL: this.config.rpcUrl,  // Also set this as backup
         CHAIN_ID: this.config.chainId.toString(),
         PRIVATE_KEY: this.config.privateKey,
         ESCROW_CONTRACT: this.config.escrowContract,
         PROXY_FEE_PERCENT: '0',
-        LOG_LEVEL: 'silent',
-        NODE_ENV: 'test'
+        LOG_LEVEL: 'debug',  // Changed from silent to debug to see startup messages
+        NODE_ENV: 'test',
+        KZG_TRUSTED_SETUP_PATH: './test/shrek-trusted-setup.txt',
+        REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379'
       };
 
-      this.process = spawn('node', [path.join(__dirname, '../../dist/index.js')], { env });
+      console.log('Starting proxy server with config:', {
+        port: this.port,
+        rpcUrl: this.config.rpcUrl,
+        chainId: this.config.chainId,
+        escrowContract: this.config.escrowContract,
+        privateKey: this.config.privateKey.substring(0, 10) + '...',
+        kzgPath: env.KZG_TRUSTED_SETUP_PATH,
+        redisUrl: env.REDIS_URL
+      });
+
+      this.process = spawn('node', [path.join(__dirname, '../dist/index.js')], { env });
+
+      let started = false;
 
       this.process.stdout?.on('data', data => {
-        if (data.toString().includes('Server running')) {
+        const output = data.toString();
+        console.log('Proxy stdout:', output);
+        if ((output.includes('Proxy server running') || output.includes('Server running') || output.includes('listening') || output.includes('started')) && !started) {
+          started = true;
           resolve();
         }
       });
 
-      this.process.on('error', reject);
+      this.process.stderr?.on('data', data => {
+        const output = data.toString();
+        console.error('Proxy stderr:', output);
+        // Don't resolve on stderr, but capture it for debugging
+      });
+
+      this.process.on('error', error => {
+        console.error('Proxy process error:', error);
+        reject(error);
+      });
+
+      this.process.on('exit', (code, signal) => {
+        if (!started) {
+          console.error(`Proxy server exited early with code ${code}, signal ${signal}`);
+          // Give a small delay to let any final stderr output arrive
+          setTimeout(() => {
+            reject(new Error(`Proxy server exited early with code ${code}`));
+          }, 100);
+        }
+      });
 
       // Timeout after 10 seconds
-      setTimeout(() => reject(new Error('Proxy server failed to start')), 10000);
+      setTimeout(() => {
+        if (!started) {
+          console.error('Proxy server startup timeout');
+          this.process?.kill();
+          reject(new Error('Proxy server failed to start within 10 seconds'));
+        }
+      }, 10000);
     });
   }
 
@@ -196,6 +317,31 @@ export class IntegrationTestEnvironment {
     const deployer = new ethers.Wallet(accounts[0].privateKey, this.provider);
     const contractDeployer = new ContractDeployer(this.provider, deployer);
     this.escrowAddress = await contractDeployer.deployEscrowContract();
+
+    // Authorize the proxy in the escrow contract
+    try {
+      const escrowContract = contractDeployer.getEscrowContract(this.escrowAddress);
+      const proxyAddress = accounts[1].address; // This will be the proxy's address
+      // Use getFunction to call the method with proper typing
+      const tx = await escrowContract.connect(deployer).getFunction('setProxyAuthorization')(proxyAddress, true);
+      await tx.wait();
+      console.log(`Authorized proxy ${proxyAddress} in escrow contract`);
+    } catch (error) {
+      console.log('Could not authorize proxy, proceeding anyway:', (error as Error).message);
+    }
+
+    // Wait for Anvil to be fully ready before starting proxy server
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Double-check that Anvil is accessible
+    try {
+      const testProvider = new ethers.JsonRpcProvider('http://localhost:8545');
+      await testProvider.getBlockNumber();
+      console.log('Verified Anvil is accessible before starting proxy server');
+    } catch (error) {
+      console.error('Anvil is not accessible:', (error as Error).message);
+      throw new Error('Anvil not ready for proxy server startup');
+    }
 
     // Start proxy server
     this.proxyServer = new ProxyServerManager({

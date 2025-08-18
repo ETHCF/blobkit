@@ -16,8 +16,28 @@ import {
   generateTestBlobData,
   validateBlobTransaction
 } from '../utils';
-import { app } from '../../src/app';
-import type { ProxyConfig } from '../../src/types';
+
+/**
+ * Health check for anvil RPC URL
+ * Verifies that the RPC endpoint is accessible and responsive
+ */
+async function checkAnvilHealth(rpcUrl: string, maxRetries: number = 10): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      const blockNumber = await provider.getBlockNumber();
+      console.log(`Anvil health check passed at ${rpcUrl}, block: ${blockNumber}`);
+      return true;
+    } catch (error) {
+      console.log(`Anvil health check attempt ${i + 1}/${maxRetries} failed:`, (error as Error).message);
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+  console.error(`Anvil health check failed after ${maxRetries} attempts`);
+  return false;
+}
 
 describe('Proxy Server Integration', () => {
   let env: IntegrationTestEnvironment;
@@ -38,6 +58,13 @@ describe('Proxy Server Integration', () => {
     escrowAddress = setupResult.escrowAddress;
     proxyUrl = setupResult.proxyUrl;
 
+    // Verify anvil health
+    const rpcUrl = 'http://localhost:8545';
+    const isHealthy = await checkAnvilHealth(rpcUrl);
+    if (!isHealthy) {
+      throw new Error('Anvil RPC health check failed - cannot proceed with tests');
+    }
+
     // Get test signers
     const accounts = env.anvil.getTestAccounts();
     userSigner = new ethers.Wallet(accounts[0].privateKey, provider);
@@ -50,7 +77,7 @@ describe('Proxy Server Integration', () => {
     // Initialize user's BlobKit (configured for proxy usage)
     userBlobKit = new BlobKit(
       {
-        rpcUrl: provider.connection.url,
+        rpcUrl: 'http://localhost:8545',
         chainId: 31337,
         proxyUrl,
         escrowContract: escrowAddress,
@@ -100,7 +127,7 @@ describe('Proxy Server Integration', () => {
       // Step 2: Deposit to escrow
       const depositTx = await escrowContract
         .connect(userSigner)
-        .depositForBlob(jobId, { value: paymentAmount });
+        .getFunction('depositForBlob')(jobId, { value: paymentAmount });
       const depositReceipt = await depositTx.wait();
 
       expect(depositReceipt.status).toBe(1);
@@ -153,7 +180,7 @@ describe('Proxy Server Integration', () => {
             // Deposit for each job
             const tx = await escrowContract
               .connect(userSigner)
-              .depositForBlob(jobId, { value: ethers.parseEther('0.01') });
+              .getFunction('depositForBlob')(jobId, { value: ethers.parseEther('0.01') });
             await tx.wait();
 
             return { jobId, data, paymentTxHash: tx.hash };
@@ -192,7 +219,7 @@ describe('Proxy Server Integration', () => {
 
   describe('Payment Validation', () => {
     test('should reject blob without payment', async () => {
-      const jobId = '0x' + 'n'.repeat(64);
+      const jobId = '0x' + '1'.repeat(64);
 
       const response = await request(proxyUrl)
         .post('/api/v1/blob/write')
@@ -221,7 +248,7 @@ describe('Proxy Server Integration', () => {
       const insufficientAmount = ethers.parseEther('0.00001'); // Too small
       const tx = await escrowContract
         .connect(userSigner)
-        .depositForBlob(jobId, { value: insufficientAmount });
+        .getFunction('depositForBlob')(jobId, { value: insufficientAmount });
       await tx.wait();
 
       const response = await request(proxyUrl)
@@ -249,7 +276,7 @@ describe('Proxy Server Integration', () => {
 
       const tx = await escrowContract
         .connect(userSigner)
-        .depositForBlob(jobId, { value: ethers.parseEther('0.01') });
+        .getFunction('depositForBlob')(jobId, { value: ethers.parseEther('0.01') });
       await tx.wait();
 
       // Submit once
@@ -290,7 +317,7 @@ describe('Proxy Server Integration', () => {
 
       const tx = await escrowContract
         .connect(userSigner)
-        .depositForBlob(jobId, { value: ethers.parseEther('0.1') }); // Higher payment for large blob
+        .getFunction('depositForBlob')(jobId, { value: ethers.parseEther('0.1') }); // Higher payment for large blob
       await tx.wait();
 
       const response = await request(proxyUrl)
@@ -361,7 +388,7 @@ describe('Proxy Server Integration', () => {
       // Create job
       const tx = await escrowContract
         .connect(userSigner)
-        .depositForBlob(jobId, { value: ethers.parseEther('0.01') });
+        .getFunction('depositForBlob')(jobId, { value: ethers.parseEther('0.01') });
       await tx.wait();
 
       // Check pending job
@@ -418,7 +445,7 @@ describe('Proxy Server Integration', () => {
 
       const tx = await escrowContract
         .connect(userSigner)
-        .depositForBlob(jobId, { value: ethers.parseEther('0.01') });
+        .getFunction('depositForBlob')(jobId, { value: ethers.parseEther('0.01') });
       await tx.wait();
 
       // Submit multiple requests concurrently
@@ -472,7 +499,7 @@ describe('Proxy Server Integration', () => {
 
       const tx = await escrowContract
         .connect(userSigner)
-        .depositForBlob(jobId, { value: ethers.parseEther('0.01') });
+        .getFunction('depositForBlob')(jobId, { value: ethers.parseEther('0.01') });
       await tx.wait();
 
       const response = await request(proxyUrl)
