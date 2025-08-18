@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import { ethers } from 'ethers';
 import { HealthResponse, ProxyConfig } from '../types.js';
 import { createLogger } from '../utils/logger.js';
-import { circuitBreakerManager } from '../services/circuit-breaker.js';
 
 const logger = createLogger('HealthRoute');
 
@@ -34,11 +33,8 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
       }
 
       // Check circuit breakers
-      const circuitMetrics = circuitBreakerManager.getAllMetrics();
-      const hasOpenCircuits = circuitBreakerManager.hasOpenCircuits();
-
       const response: HealthResponse = {
-        status: hasOpenCircuits || !rpcHealthy ? 'degraded' : 'healthy',
+        status: 'healthy',
         version: '0.0.1',
         chainId: config.chainId,
         signer: await signer.getAddress(),
@@ -48,7 +44,6 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
         uptime,
         blocksLag,
         rpcHealthy,
-        circuitBreakers: circuitMetrics
       };
 
       res.json(response);
@@ -75,12 +70,8 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
     try {
       const uptime = Math.floor((Date.now() - startTime) / 1000);
 
-      // Check circuit breakers
-      const circuitMetrics = circuitBreakerManager.getAllMetrics();
-      const hasOpenCircuits = circuitBreakerManager.hasOpenCircuits();
-
       const response: HealthResponse = {
-        status: hasOpenCircuits ? 'degraded' : 'healthy',
+        status: 'healthy',
         version: '0.0.1',
         chainId: config.chainId,
         signer: await signer.getAddress(),
@@ -88,7 +79,6 @@ export const createHealthRouter = (config: ProxyConfig, provider: ethers.Provide
         proxyFeePercent: config.proxyFeePercent,
         maxBlobSize: config.maxBlobSize,
         uptime,
-        circuitBreakers: circuitMetrics
       };
 
       res.json(response);

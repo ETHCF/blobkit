@@ -73,7 +73,6 @@ export interface HealthResponse {
   signer: string;
   blocksLag?: number;
   rpcHealthy?: boolean;
-  circuitBreakers?: Record<string, unknown>;
 }
 
 /**

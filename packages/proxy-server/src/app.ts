@@ -96,10 +96,11 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
     signer,
     config.kzgTrustedSetupPath
   );
-  const jobCompletionQueue = new PersistentJobQueue(paymentVerifier, signer);
-
   const jobCache = new JobCache()
   await jobCache.connect()
+  const jobCompletionQueue = new PersistentJobQueue(paymentVerifier, signer, jobCache);
+
+ 
 
   // Note: jobCompletionQueue.start() is called after server starts listening
 

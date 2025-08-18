@@ -29,31 +29,24 @@ async function verifyProxyAuthorization(config: ProxyConfig): Promise<void> {
   ];
   const escrowContract = new ethers.Contract(config.escrowContract, escrowAbi, provider);
 
-  // Create a simple circuit breaker for startup check
-  const { CircuitBreaker, DEFAULT_CONFIGS } = await import('./services/circuit-breaker.js');
-  const startupBreaker = new CircuitBreaker({
-    ...DEFAULT_CONFIGS.escrowContract,
-    name: 'startup-escrow-check'
-  });
 
   try {
-    await startupBreaker.execute(async () => {
-      // Try both method names for compatibility
-      let isAuthorized = false;
-      try {
-        isAuthorized = await escrowContract.isProxyAuthorized(proxyAddress);
-      } catch {
-        // Fallback to old method name
-        isAuthorized = await escrowContract.authorizedProxies(proxyAddress);
-      }
+    // Try both method names for compatibility
+    let isAuthorized = false;
+    try {
+      isAuthorized = await escrowContract.isProxyAuthorized(proxyAddress);
+    } catch {
+      // Fallback to old method name
+      isAuthorized = await escrowContract.authorizedProxies(proxyAddress);
+    }
 
-      if (!isAuthorized) {
-        throw new Error(
-          `Proxy ${proxyAddress} is not authorized in escrow contract ${config.escrowContract}`
-        );
-      }
-      logger.info(`Proxy ${proxyAddress} is authorized in escrow contract`);
-    });
+    if (!isAuthorized) {
+      throw new Error(
+        `Proxy ${proxyAddress} is not authorized in escrow contract ${config.escrowContract}`
+      );
+    }
+    logger.info(`Proxy ${proxyAddress} is authorized in escrow contract`);
+
   } catch (error) {
     if (error instanceof Error && error.message.includes('not authorized')) {
       logger.error('CRITICAL: Proxy is not authorized in escrow contract!');

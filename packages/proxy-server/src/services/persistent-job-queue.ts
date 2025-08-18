@@ -2,7 +2,7 @@ import { createClient, RedisClientType } from 'redis';
 import { ethers } from 'ethers';
 import { createLogger } from '../utils/logger.js';
 import { PaymentVerifier } from './payment-verifier.js';
-import { CircuitBreaker, DEFAULT_CONFIGS, circuitBreakerManager } from './circuit-breaker.js';
+import { JobCache } from './job-cache.js';
 
 const logger = createLogger('PersistentJobQueue');
 
@@ -27,18 +27,14 @@ export class PersistentJobQueue {
   private readonly maxRetries = 10;
   private readonly retryDelayMs = 30000; // 30 seconds
   private isConnected = false;
-  private circuitBreaker: CircuitBreaker;
 
   constructor(
     private paymentVerifier: PaymentVerifier,
     private signer: ethers.Signer,
-    private redisUrl: string = process.env.REDIS_URL || 'redis://localhost:6379'
+    private jobCache: JobCache,
+    private redisUrl: string = process.env.REDIS_URL || 'redis://localhost:6379',
   ) {
     this.redis = createClient({ url: this.redisUrl });
-
-    // Initialize circuit breaker
-    this.circuitBreaker = new CircuitBreaker(DEFAULT_CONFIGS.redisConnection);
-    circuitBreakerManager.register(this.circuitBreaker, DEFAULT_CONFIGS.redisConnection);
 
     this.redis.on('error', (err: Error) => {
       logger.error('Redis connection error:', err);
@@ -219,6 +215,11 @@ export class PersistentJobQueue {
    */
   private async retryCompletion(completion: PendingCompletion): Promise<void> {
     try {
+      const lockAcquired = await this.jobCache.acquireLock(completion.jobId);
+      if (!lockAcquired) {
+        logger.warn(`Lock not acquired for job ${completion.jobId}, skipping retry`);
+        return;
+      }
       logger.info(
         `Retrying job completion for ${completion.jobId} (attempt ${completion.retryCount + 1})`
       );
@@ -261,6 +262,8 @@ export class PersistentJobQueue {
           `Job ${completion.jobId} completion failed, will retry (${completion.retryCount}/${this.maxRetries})`
         );
       }
+    }finally {
+      this.jobCache.releaseLock(completion.jobId)
     }
   }
 
