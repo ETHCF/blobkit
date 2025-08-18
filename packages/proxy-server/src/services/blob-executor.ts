@@ -25,7 +25,7 @@ export class BlobExecutor {
   /**
    * Initialize BlobKit asynchronously
    */
-  private async ensureBlobKit(): Promise<BlobKit> {
+  async ensureBlobKit(): Promise<BlobKit> {
     if (!this.blobkit) {
       // Initialize BlobKit with KZG setup for Node.js environment
       this.blobkit = await BlobKit.init(

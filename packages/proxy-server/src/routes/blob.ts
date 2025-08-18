@@ -222,11 +222,6 @@ export const createBlobRouter = (
           jobId
         };
 
-        
-
-        
-
-        
         {
           // Calculate fee collected (simplified - would need actual calculation)
           const feePercent = BigInt(config.proxyFeePercent);
@@ -260,7 +255,6 @@ export const createBlobRouter = (
         }
 
         await jobCache.set(jobId, response);
-        await jobCache.releaseLock(jobId);
 
         return res.json(response);
       } catch (error) {
@@ -285,11 +279,13 @@ export const createBlobRouter = (
           message: error instanceof Error ? error.message : 'Unknown error'
         });
         span.end();
-        if (lockAcquired) {
-          await jobCache.releaseLock(jobId); // Release the lock so retries can occur sooner
-        }
+        
 
         throw error; // Let error handler middleware handle it
+      }finally{
+        if (lockAcquired) { 
+          await jobCache.releaseLock(jobId); // Release the lock so retries can occur
+        }
       }
     }
   );

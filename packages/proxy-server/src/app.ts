@@ -96,6 +96,7 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
     signer,
     config.kzgTrustedSetupPath
   );
+  await blobExecutor.ensureBlobKit()
   const jobCache = new JobCache()
   await jobCache.connect()
   const jobCompletionQueue = new PersistentJobQueue(paymentVerifier, signer, jobCache);
