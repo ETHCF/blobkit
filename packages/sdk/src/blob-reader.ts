@@ -2,12 +2,15 @@ import { ethers } from 'ethers';
 import { BlobMeta, BlobReadResult, BlobKitError, BlobKitConfig, BlobKitErrorCode } from './types';
 import { decodeBlob } from './kzg';
 import { defaultCodecRegistry } from './codecs';
+import { hexToBytes } from './utils';
 
 export class BlobReader {
   private provider: ethers.JsonRpcProvider;
+  private archiveUrl?: string;
 
-  constructor(private config: BlobKitConfig) {
+  constructor(config: BlobKitConfig) {
     this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
+    this.archiveUrl = config.archiveUrl;
   }
 
   async readBlob(blobHashOrTxHash: string, index: number = 0): Promise<BlobReadResult> {
@@ -42,17 +45,20 @@ export class BlobReader {
 
 
   private async getBlobByHash(blobHash: string): Promise<BlobReadResult> {
-    let blob = await this.fetchBlobFromNode(blobHash);
-    
-    if (!blob && this.config.archiveUrl) {
+
+    let blob: Uint8Array<ArrayBufferLike> | null = null;
+    if (this.archiveUrl) {
       blob = await this.fetchBlobFromArchive(blobHash);
+    }
+    if (!blob ) {
+      blob = await this.fetchBlobFromNode(blobHash);
     }
 
     if (!blob) {
       throw new BlobKitError(BlobKitErrorCode.BLOB_NOT_FOUND, `Blob not found: ${blobHash}`);
     }
 
-    const blobData =  decodeBlob(blob);
+    const blobData = decodeBlob(blob);
     return {
       data: blobData,
       blobIndex: 0,
@@ -66,20 +72,26 @@ export class BlobReader {
       if (result?.[0]?.blob) {
         return ethers.getBytes(result[0].blob);
       }
-    } catch {
-      // Node doesn't have blob
+    } catch (error) {
+      console.error('Error fetching blob from node:', error);
     }
     return null;
   }
 
   private async fetchBlobFromArchive(blobHash: string): Promise<Uint8Array | null> {
     try {
-      const response = await fetch(`${this.config.archiveUrl}/blob/${blobHash}`);
+      const endpointUrl = `${this.archiveUrl}/blobs/${blobHash}/data`
+      const response = await fetch(endpointUrl);
       if (response.ok) {
-        const arrayBuffer = await response.arrayBuffer();
-        return new Uint8Array(arrayBuffer);
+        let dataHex = await response.text();
+        if(dataHex[0]=='"')
+          dataHex = dataHex.slice(1, -1);
+        return hexToBytes(dataHex)
+      }else{
+        console.error(await response.text())
       }
-    } catch {
+    } catch (error) {
+      console.error('Error fetching blob from archive:', error);
       // Archive fetch failed
     }
     return null;
