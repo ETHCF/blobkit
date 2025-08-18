@@ -97,7 +97,7 @@ export const createBlobRouter = (
       span.setAttribute('job.payment_tx', paymentTxHash);
 
       const tracedLogger = tracingService.getLoggerWithTrace(logger, traceContext);
-
+      let lockAcquired = false;
       try {
         tracedLogger.info(`Processing blob write request for job ${jobId}`);
         metrics.jobStarted(jobId);
@@ -171,7 +171,7 @@ export const createBlobRouter = (
         const promMetrics = getPrometheusMetrics();
         promMetrics.blobSizeBytes.observe({ codec: meta.codec || 'unknown' }, payloadArray.length);
 
-         const lockAcquired = await jobCache.acquireLock(jobId);
+        lockAcquired = await jobCache.acquireLock(jobId);
         if(!lockAcquired) {
           tracedLogger.warn(`Job ${jobId} is already being processed`);
           return res.status(425).json({
@@ -180,7 +180,7 @@ export const createBlobRouter = (
           });
         }
         const blobResult = await blobExecutor.executeBlob(job, traceContext);
-        await jobCache.releaseLock(jobId);
+        
 
         // Step 4: Complete job in escrow contract with retry handling
         tracedLogger.debug(`Completing job ${jobId} in escrow contract`);
@@ -225,6 +225,8 @@ export const createBlobRouter = (
         
 
         
+
+        
         {
           // Calculate fee collected (simplified - would need actual calculation)
           const feePercent = BigInt(config.proxyFeePercent);
@@ -258,6 +260,7 @@ export const createBlobRouter = (
         }
 
         await jobCache.set(jobId, response);
+        await jobCache.releaseLock(jobId);
 
         return res.json(response);
       } catch (error) {
@@ -282,7 +285,9 @@ export const createBlobRouter = (
           message: error instanceof Error ? error.message : 'Unknown error'
         });
         span.end();
-        await jobCache.releaseLock(jobId); // Release the lock so retries can occur sooner
+        if (lockAcquired) {
+          await jobCache.releaseLock(jobId); // Release the lock so retries can occur sooner
+        }
 
         throw error; // Let error handler middleware handle it
       }
