@@ -1,2 +1,2 @@
 [ ] When retrying job submission, change the job ID if not user provided and the job has expired
-[ ] Reading a blob still does not work (getting not supported error, but skeptical that it is the RPC, since yet to see if work)
+[x] Reading a blob still does not work (getting not supported error, but skeptical that it is the RPC, since yet to see if work)
