@@ -83,6 +83,7 @@ export function createFromEnv(signer?: Signer): BlobKit {
 
   const config: BlobKitConfig = {
     rpcUrl: env.BLOBKIT_RPC_URL || 'http://localhost:8545',
+    archiveUrl: env.BLOBKIT_ARCHIVE_URL || 'https://api.blobscan.com',
     chainId: env.BLOBKIT_CHAIN_ID ? parseInt(env.BLOBKIT_CHAIN_ID, 10) : 31337,
     proxyUrl: env.BLOBKIT_PROXY_URL,
     logLevel: env.BLOBKIT_LOG_LEVEL || 'info'

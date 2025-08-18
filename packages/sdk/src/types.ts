@@ -41,6 +41,7 @@ export interface ProcessEnv {
   readonly BLOBKIT_ESCROW_11155111?: string;
   readonly BLOBKIT_ESCROW_17000?: string;
   readonly BLOBKIT_RPC_URL?: string;
+  readonly BLOBKIT_ARCHIVE_URL?: string;
   readonly BLOBKIT_CHAIN_ID?: string;
   readonly BLOBKIT_PROXY_URL?: string;
   readonly BLOBKIT_LOG_LEVEL?: 'debug' | 'info' | 'silent';
@@ -192,8 +193,6 @@ export interface BlobPaymentResult {
 export interface BlobReadResult {
   /** Raw blob data */
   data: Uint8Array;
-  /** Transaction hash containing the blob */
-  blobTxHash: string;
   /** Index of the blob within the transaction */
   blobIndex: number;
   /** Source of the blob data */

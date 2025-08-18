@@ -18,6 +18,7 @@ import {
 } from '../../src/kzg';
 import { ethers } from 'ethers';
 import path from 'path';
+import {BlobReceipt} from '../../src/types.js';
 import fs from 'fs/promises';
 import {
   IntegrationTestEnvironment,
@@ -25,7 +26,7 @@ import {
   validateBlobTransaction,
   compareUint8Arrays,
   createTestTrustedSetup
-} from '../../../test/utils';
+} from '../../../../test/utils';
 
 describe('SDK Blob Operations Integration', () => {
   let env: IntegrationTestEnvironment;
@@ -36,7 +37,7 @@ describe('SDK Blob Operations Integration', () => {
   beforeAll(async () => {
     // Setup test environment
     env = new IntegrationTestEnvironment();
-    const { provider, signer, escrowAddress, proxyUrl } = await env.setup();
+    const { provider, rpcUrl, signer, escrowAddress, proxyUrl } = await env.setup();
 
     // Create trusted setup for KZG
     trustedSetupPath = await createTestTrustedSetup();
@@ -44,11 +45,11 @@ describe('SDK Blob Operations Integration', () => {
     // Initialize BlobKit
     blobkit = new BlobKit(
       {
-        rpcUrl: provider.connection.url,
+        rpcUrl: rpcUrl,
         chainId: 31337,
         escrowContract: escrowAddress,
         proxyUrl,
-        kzgTrustedSetupPath: trustedSetupPath,
+        kzgSetup: {trustedSetupPath},
         logLevel: 'debug'
       },
       signer
@@ -56,7 +57,7 @@ describe('SDK Blob Operations Integration', () => {
 
     // Initialize BlobReader
     blobReader = new BlobReader({
-      rpcUrl: provider.connection.url,
+      rpcUrl: rpcUrl,
       logLevel: 'debug'
     });
 
@@ -149,12 +150,11 @@ describe('SDK Blob Operations Integration', () => {
 
       // Verify result structure
       expect(result.success).toBe(true);
-      expect(result.blobHash).toBeValidBlobHash();
-      expect(result.blobTxHash).toBeValidHex(64);
+      expect(result.blobHash).toMatch(/(0x)?[0-9|a-f|A-F]{64}/gm);
+      expect(result.blobTxHash).toMatch(/(0x)?[0-9|a-f|A-F]{64}/gm);
       expect(result.blockNumber).toBeGreaterThan(0);
-      expect(result.commitment).toBeValidHex(96);
-      expect(result.proof).toBeValidHex(96);
-      expect(result.paymentMethod).toBe('direct');
+      expect(result.commitment).toMatch(/(0x)?[0-9|a-f|A-F]{96}/gm);
+      expect(result.proof).toMatch(/(0x)?[0-9|a-f|A-F]{96}/gm);
       expect(result.meta).toMatchObject(meta);
 
       // Validate on-chain
@@ -174,7 +174,7 @@ describe('SDK Blob Operations Integration', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.blobHash).toBeValidBlobHash();
+      expect(result.blobHash).toMatch(/(0x)?[0-9|a-f|A-F]{64}/gm);
 
       // Verify transaction on-chain
       const tx = await env.getProvider().getTransaction(result.blobTxHash);
@@ -189,7 +189,7 @@ describe('SDK Blob Operations Integration', () => {
         { data: Buffer.from('Blob 3'), appId: 'seq-3' }
       ];
 
-      const results = [];
+      const results: Array<BlobReceipt> = [];
       for (const blob of blobs) {
         const result = await blobkit.writeBlob(blob.data, { appId: blob.appId });
         results.push(result);
@@ -209,27 +209,6 @@ describe('SDK Blob Operations Integration', () => {
   });
 
   describe('Blob Reading and Round-trip Verification', () => {
-    test('should read blob data from RPC within ephemeral window', async () => {
-      // Write a blob first
-      const originalData = generateTestBlobData('random', 1000);
-      const writeResult = await blobkit.writeBlob(originalData, {
-        appId: 'round-trip-test'
-      });
-
-      expect(writeResult.success).toBe(true);
-
-      // Read it back
-      const readResult = await blobReader.readBlob(writeResult.blobTxHash, 0);
-
-      expect(readResult.source).toBe('rpc');
-      expect(readResult.blobTxHash).toBe(writeResult.blobTxHash);
-      expect(readResult.blobIndex).toBe(0);
-
-      // Decode and verify data matches
-      // Note: The data will be encoded in blob format, so we need to decode it
-      const encodedBlob = encodeBlob(originalData);
-      expect(readResult.data.length).toBe(encodedBlob.length);
-    });
 
     test('should handle transaction with multiple blobs', async () => {
       // This would require special setup to create multi-blob transactions

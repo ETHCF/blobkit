@@ -267,6 +267,7 @@ export class IntegrationTestEnvironment {
 
   async setup(): Promise<{
     provider: ethers.JsonRpcProvider;
+    rpcUrl: string;
     signer: ethers.Wallet;
     escrowAddress: string;
     proxyUrl: string;
@@ -288,6 +289,7 @@ export class IntegrationTestEnvironment {
 
     return {
       provider: this.provider,
+      rpcUrl: this.anvil.getRpcUrl(),
       signer: this.signer,
       escrowAddress: this.escrowAddress,
       proxyUrl: this.proxy.getUrl()
