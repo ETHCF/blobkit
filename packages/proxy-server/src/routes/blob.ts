@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ethers } from 'ethers';
-import { BlobWriteRequest, BlobWriteResponse, BlobJob, ProxyConfig, ProxyError } from '../types.js';
+import { BlobWriteRequest, BlobWriteResponse, BlobJob, ProxyConfig, ProxyError, ProxyErrorCode } from '../types.js';
 import { PaymentVerifier } from '../services/payment-verifier.js';
 import { BlobExecutor } from '../services/blob-executor.js';
 import { PersistentJobQueue } from '../services/persistent-job-queue.js';
@@ -73,7 +73,7 @@ export const createBlobRouter = (
 
 
   router.get('/address', async (req: Request, res: Response) => {
-    res.json({ address: await signer.getAddress() });
+    return res.json({ address: await signer.getAddress() });
   });
 
   router.post(
@@ -112,14 +112,14 @@ export const createBlobRouter = (
         if (!verification.valid) {
           tracedLogger.warn(`Payment verification failed for job ${jobId}`);
           return res.status(400).json({
-            error: 'PAYMENT_INVALID',
+            error: ProxyErrorCode.PAYMENT_INVALID,
             message: 'Job payment verification failed'
           });
         }
 
         if (verification.completed) {
           return res.status(404).json({
-            error: 'JOB_ALREADY_COMPLETED',
+            error: ProxyErrorCode.JOB_ALREADY_COMPLETED,
             message: 'Job already completed'
           });
         }
@@ -135,7 +135,7 @@ export const createBlobRouter = (
         if (verification.user !== ethers.verifyMessage(payloadArray, bytesToHex(signatureArray))) {
           tracedLogger.warn(`Signature verification failed for job ${jobId}`);
           return res.status(400).json({
-            error: 'SIGNATURE_INVALID',
+            error: ProxyErrorCode.SIGNATURE_INVALID,
             message: 'Job signature verification failed'
           });
         }
@@ -143,7 +143,7 @@ export const createBlobRouter = (
         // Validate payload size
         if (payloadArray.length > config.maxBlobSize) {
           return res.status(400).json({
-            error: 'BLOB_TOO_LARGE',
+            error: ProxyErrorCode.BLOB_TOO_LARGE,
             message: `Payload size ${payloadArray.length} exceeds maximum ${config.maxBlobSize} bytes`
           });
         }
@@ -175,7 +175,7 @@ export const createBlobRouter = (
         if(!lockAcquired) {
           tracedLogger.warn(`Job ${jobId} is already being processed`);
           return res.status(425).json({
-            error: 'JOB_LOCKED',
+            error: ProxyErrorCode.JOB_LOCKED,
             message: 'Job is already being processed'
           });
         }
