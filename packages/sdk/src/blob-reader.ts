@@ -39,19 +39,33 @@ export class BlobReader {
     if (!blobHashes?.length) {
       throw new BlobKitError(BlobKitErrorCode.BLOB_NOT_FOUND, 'No blobs found in transaction');
     }
+    
+    if (index < 0 || index >= blobHashes.length) {
+      throw new BlobKitError(BlobKitErrorCode.BLOB_NOT_FOUND, `Invalid blob index: ${index}. Transaction has ${blobHashes.length} blobs.`);
+    }
 
-    return this.getBlobByHash(blobHashes[index]);
+    const result = await this.getBlobByHash(blobHashes[index]);
+    result.blobIndex = index;
+    return result;
   }
 
 
   private async getBlobByHash(blobHash: string): Promise<BlobReadResult> {
-
-    let blob: Uint8Array<ArrayBufferLike> | null = null;
+    let blob: Uint8Array | null = null;
+    let source: 'rpc' | 'archive' | 'fallback' = 'rpc';
+    
     if (this.archiveUrl) {
       blob = await this.fetchBlobFromArchive(blobHash);
+      if (blob) {
+        source = 'archive';
+      }
     }
-    if (!blob ) {
+    
+    if (!blob) {
       blob = await this.fetchBlobFromNode(blobHash);
+      if (blob) {
+        source = 'rpc';
+      }
     }
 
     if (!blob) {
@@ -62,8 +76,8 @@ export class BlobReader {
     return {
       data: blobData,
       blobIndex: 0,
-      source: 'rpc'
-    }
+      source: source
+    };
   }
 
   private async fetchBlobFromNode(blobHash: string): Promise<Uint8Array | null> {
@@ -73,26 +87,24 @@ export class BlobReader {
         return ethers.getBytes(result[0].blob);
       }
     } catch (error) {
-      console.error('Error fetching blob from node:', error);
+      // Silently handle error - blob not available from node
     }
     return null;
   }
 
   private async fetchBlobFromArchive(blobHash: string): Promise<Uint8Array | null> {
     try {
-      const endpointUrl = `${this.archiveUrl}/blobs/${blobHash}/data`
+      const endpointUrl = `${this.archiveUrl}/blobs/${blobHash}/data`;
       const response = await fetch(endpointUrl);
       if (response.ok) {
         let dataHex = await response.text();
-        if(dataHex[0]=='"')
+        if (dataHex[0] === '"') {
           dataHex = dataHex.slice(1, -1);
-        return hexToBytes(dataHex)
-      }else{
-        console.error(await response.text())
+        }
+        return hexToBytes(dataHex);
       }
     } catch (error) {
-      console.error('Error fetching blob from archive:', error);
-      // Archive fetch failed
+      // Archive fetch failed - silently handle
     }
     return null;
   }

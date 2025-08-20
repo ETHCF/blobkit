@@ -61,6 +61,7 @@ export {
 export {
   initializeKzg,
   encodeBlob,
+  decodeBlob,
   blobToKzgCommitment,
   computeKzgProof,
   commitmentToVersionedHash,
