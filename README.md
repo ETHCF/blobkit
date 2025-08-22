@@ -6,387 +6,312 @@
 ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░     ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░  ░▒▓█▓▒░     
 ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░     ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░  ░▒▓█▓▒░     
 ░▒▓███████▓▒░░▒▓████████▓▒░▒▓██████▓▒░░▒▓███████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░  ░▒▓█▓▒░     
-                                                                                     
 ```
+
 
 # BlobKit
 
-[![NPM Version](https://img.shields.io/npm/v/blobkit.svg)](https://www.npmjs.com/package/blobkit)
-[![NPM Downloads](https://img.shields.io/npm/dm/blobkit.svg)](https://www.npmjs.com/package/blobkit)
-[![License](https://img.shields.io/npm/l/blobkit.svg)](https://github.com/ETHCF/blobkit/blob/main/LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/ETHCF/blobkit/ci.yml?branch=main)](https://github.com/ETHCF/blobkit/actions)
+**EIP-4844 blob storage for Ethereum**
 
-Enterprise-grade TypeScript SDK for Ethereum blob transactions (EIP-4844).
+[![Mainnet Status](https://img.shields.io/badge/Mainnet-Live-success)](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838)
+[![Contract](https://img.shields.io/badge/Escrow-0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838-blue)](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-BlobKit provides a complete solution for using Ethereum's blob space as an ephemeral, verifiable data layer. Perfect for temporary data storage with cryptographic guarantees including ephemeral messaging, gaming state, proof-of-existence, or any data that benefits from Ethereum's security without permanent on-chain storage costs.
+## Overview
 
-## About
+BlobKit enables applications to store data on Ethereum using blob transactions (EIP-4844). 
 
-Built by [**Zak Cole**](https://x.com/0xzak) ([@zscole](https://github.com/zscole)) at [**Number Group**](https://numbergroup.xyz) for the [**Ethereum Community Foundation**](https://ethcf.org).
+### Key Features
 
-**Package**: [blobkit on NPM](https://www.npmjs.com/package/blobkit)
+- **TypeScript SDK** with browser and Node.js support
+- **Trust-minimized proxy** server for wallets without EIP-4844 support
+- **Smart contract escrow** system for payment and job management
+- **KZG cryptography** implementation for blob commitments
+- **Cost-efficient:** ~$0.01 per blob vs ~$50 for calldata
 
-**Contact**: For questions, support, or contributions, reach out to Zak at [zcole@linux.com](mailto:zcole@linux.com) or [@0xzak](https://x.com/0xzak) on X.
+## Architecture
 
-## Features
+### Components
 
-- **Production Ready**: Comprehensive input validation and error handling
-- **Type Safe**: Full TypeScript support with runtime type guards
-- **Secure**: Built-in validation for private keys, hashes, and configurations
-- **Optimized**: High-performance blob encoding with memory-efficient operations
-- **Developer Friendly**: Environment variable support with clear error messages
-- **Extensible**: Pluggable codec system for custom data formats
-- **Well Documented**: Complete JSDoc documentation for all APIs
+**SDK** (`@blobkit/sdk`)
+
+- Handles blob encoding and KZG commitments
+- Manages payments through escrow contract
+- Supports both direct submission and proxy routing
+
+**Proxy Server** (`@blobkit/proxy-server`)
+
+- Executes blob transactions on behalf of users
+- Verifies payments before processing
+- Implements circuit breakers and rate limiting
+
+**Escrow Contract** (`@blobkit/contracts`)
+
+- Holds user payments until job completion
+- Enforces timeouts with automatic refunds
+- Prevents replay attacks via signature verification
+
+### Flow
+
+1. User deposits ETH into escrow contract with unique job ID
+2. User submits blob data and payment proof to proxy
+3. Proxy verifies payment and submits blob transaction
+4. Proxy claims payment from escrow upon completion
+5. If proxy fails, user can refund after timeout
 
 ## Installation
 
 ```bash
-npm install blobkit
+npm install @blobkit/sdk
 ```
+
+### Prerequisites
+
+- Node.js 18+ or modern browser
+- Ethereum wallet or signer
+- RPC endpoint (see [Infrastructure Requirements](#infrastructure-requirements))
 
 ## Quick Start
 
-Create a `.env` file in your project root:
-
-```bash
-# Required
-RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY
-PRIVATE_KEY=0x1234567890abcdef...
-
-# Optional
-CHAIN_ID=1
-ARCHIVE_URL=https://your-blob-archive.com
-DEFAULT_CODEC=application/json
-COMPRESSION_LEVEL=3
-```
-
-**Security Note**: Never commit your `.env` file or private keys to version control. Add `.env` to your `.gitignore`.
+### Direct Submission (Node.js)
 
 ```typescript
-import { createFromEnv, initialize } from 'blobkit';
-import dotenv from 'dotenv';
+import { BlobKit } from '@blobkit/sdk';
+import { Wallet } from 'ethers';
 
-dotenv.config();
-
-// Initialize with Ethereum mainnet trusted setup (auto-downloads)
-await initialize();
-
-// Create client from environment variables with automatic validation
-const blobkit = createFromEnv();
-
-// Write blob with automatic compression and validation
-const receipt = await blobkit.writeBlob({
-  message: 'Hello blob space',
-  timestamp: Date.now()
-});
-
-// Read blob with automatic decompression
-const data = await blobkit.readBlob(receipt.blobHash);
-
-// Verify blob integrity and authenticity
-const isValid = await blobkit.verifyBlob(data, receipt.blobHash);
-```
-
-## Configuration
-
-### Environment Variables
-
-BlobKit validates all environment variables and provides clear error messages for invalid configurations:
-
-```bash
-# Required
-RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY    # Must be valid HTTP/HTTPS URL
-PRIVATE_KEY=0x1234567890abcdef...                           # Must be 64-character hex string
-
-# Optional
-CHAIN_ID=1                        # Integer between 1 and 2^32-1 (default: 1)
-ARCHIVE_URL=https://archive.com   # Valid HTTP/HTTPS URL for historical blob data
-DEFAULT_CODEC=application/json    # Default codec for encoding (default: application/json)
-COMPRESSION_LEVEL=3               # Brotli compression level 0-11 (default: 3)
-```
-
-### KZG Setup
-
-BlobKit handles all the complexity of KZG trusted setup for you:
-
-```typescript
-import { initialize } from 'blobkit';
-
-// That's it! Works everywhere - browser, Node.js, serverless
-await initialize();
-```
-
-**What happens under the hood:**
-- **Browser**: Downloads from CDN with automatic fallbacks (jsDelivr → Cloudflare → GitHub)
-- **Node.js**: Checks for cached file, downloads if needed, saves for next time
-- **Serverless**: Works immediately with minimal memory footprint
-- **Offline**: Falls back to minimal setup with console warning
-
-For development/testing (instant, no download):
-```typescript
-import { initializeForDevelopment } from 'blobkit';
-await initializeForDevelopment(); // Mock setup - DO NOT use in production
-```
-
-## Cost Disclaimer
-
-**Submitting blobs to Ethereum mainnet is not free.** Each blob-bearing transaction incurs two types of cost:
-
-- **Standard gas fees** for the transaction envelope (e.g. ~21,000 gas)
-- **A blob-specific base fee** that fluctuates independently from normal gas, based on network demand
-
-Blob fees operate under a separate EIP-1559-style market. The cost can range from negligible to substantial depending on congestion.
-
-### Blob Cost Formula
-
-```
-Total Cost = L1 Gas Cost + (blob_base_fee_per_blob × number_of_blobs)
-```
-
-- `blob_base_fee_per_blob` is denominated in wei
-- Each blob is 128 kB; transactions can include 1 to 6 blobs
-- This fee is dynamic and recalculated every block
-
-### What You're Responsible For
-
-BlobKit does not manage fee estimation or cost controls for you. You are expected to:
-
-- Monitor blob base fees before sending blobs
-- Implement safeguards for cost spikes
-- Test thoroughly on testnets
-- Query `eth_getBlockByNumber` to track blob fee pressure
-
-**Do not rely on static pricing assumptions.**
-
-*Current metrics: [Blobscan](https://blobscan.com/) | [Ultra Sound Money](https://ultrasound.money/)*
-
-## API Reference
-
-### Creating Clients
-
-```typescript
-import { BlobKit, createFromEnv, createReadOnlyFromEnv } from 'blobkit';
-
-// From environment variables (recommended)
-const blobkit = createFromEnv();
-
-// Read-only client (no private key needed)
-const readOnlyClient = createReadOnlyFromEnv();
-
-// Manual configuration with validation
-const blobkit = new BlobKit({
-  rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY',
-  chainId: 1,
-  archiveUrl: 'https://your-archive.com',
-  defaultCodec: 'application/json',
-  compressionLevel: 3
-}, 'your-private-key');
-```
-
-### Writing Blobs
-
-```typescript
-// Simple data
-const receipt = await blobkit.writeBlob({ message: 'Hello World' });
-
-// With metadata
-const receipt = await blobkit.writeBlob(
-  { gameState: { level: 5, score: 1000 } },
-  { 
-    appId: 'my-game',
-    codec: 'application/json',
-    ttlBlocks: 100 
-  }
+const signer = new Wallet(process.env.PRIVATE_KEY);
+const blobkit = await BlobKit.init(
+  {
+     rpcUrl: process.env.BLOBKIT_RPC_URL!, // Recommended: blob-compatible RPC
+    chainId: 1
+    // Escrow contract auto-configured for mainnet
+  },
+  signer
 );
+
+const data = Buffer.from('Hello, blobs!');
+const result = await blobkit.writeBlob(data);
+console.log(`Blob tx: ${result.blobTxHash}`);
+```
+
+### Proxy Submission (Browser)
+
+```typescript
+import { BlobKit } from '@blobkit/sdk/browser';
+
+const blobkit = await BlobKit.init(
+  {
+     rpcUrl: process.env.BLOBKIT_RPC_URL!, // Recommended: blob-compatible RPC
+    chainId: 1,
+    proxyUrl: 'https://proxy.blobkit.org' // Your proxy server URL
+  },
+  window.ethereum
+);
+
+const data = new TextEncoder().encode('Hello from browser!');
+const result = await blobkit.writeBlob(data);
 ```
 
 ### Reading Blobs
 
 ```typescript
-// By blob hash or transaction hash
-const data = await blobkit.readBlob('0x01...' /* blob hash */);
-const data = await blobkit.readBlob('0xab...' /* tx hash */);
+// Read blob data by transaction hash
+const blobData = await blobkit.readBlob(txHash);
+console.log('Raw data:', blobData.data);
 
-// With metadata
-const blobData = await blobkit.readBlobWithMeta('0x01...');
-console.log(blobData.meta.appId); // Access metadata
+// Read and decode as text
+const text = await blobkit.readBlobAsString(txHash);
+console.log('Text:', text);
+
+// Read and decode as JSON
+const json = await blobkit.readBlobAsJSON(txHash);
+console.log('JSON:', json);
 ```
 
-### Verification
+## Infrastructure Requirements
+
+### Blob Transaction Support
+
+⚠️ **Important:** Standard RPC endpoints (Alchemy, Infura) do not support blob transactions. You need a blob-compatible RPC:
+
+#### Recommended Options
+
+1. **Flashbots RPC (FREE, Recommended)**
+
+   ```typescript
+   rpcUrl: 'https://rpc.flashbots.net';
+   ```
+
+   - Free to use
+   - Supports blob transactions
+   - No registration required
+
+2. **Run Your Own Node**
+
+   ```bash
+   # Requires both execution and consensus clients
+   geth + lighthouse/prysm/teku
+   ```
+
+3. **Use Specialized Services**
+   - bloXroute Gateway
+   - MEV relays with blob support
+   - Dedicated node providers
+
+### Why Special Infrastructure?
+
+Blob transactions (EIP-4844) require coordination between:
+
+- **Execution Layer:** Transaction processing
+- **Consensus Layer:** Blob data storage
+
+Standard RPCs only handle execution layer, while blobs need both layers.
+
+## Configuration
+
+### SDK Options
 
 ```typescript
-// Verify blob integrity
-const isValid = await blobkit.verifyBlob(data, blobHash);
-
-// Verify with block inclusion
-const isValid = await blobkit.verifyBlob(data, blobHash, blockNumber);
-
-// Verify entire transaction
-const result = await blobkit.verifyBlobTransaction(txHash);
-console.log(result.valid, result.blobHashes, result.blockNumber);
-```
-
-## Error Handling
-
-BlobKit provides comprehensive error handling with structured error codes:
-
-```typescript
-import { BlobKitError } from 'blobkit';
-
-try {
-  const receipt = await blobkit.writeBlob(data);
-} catch (error) {
-  if (error instanceof BlobKitError) {
-    console.log('Error code:', error.code);
-    console.log('Error message:', error.message);
-    console.log('Error details:', error.details);
-    
-    // Handle specific errors
-    switch (error.code) {
-      case 'INVALID_PRIVATE_KEY':
-        console.log('Check your private key format');
-        break;
-      case 'DATA_TOO_LARGE':
-        console.log('Reduce data size or increase compression');
-        break;
-      case 'NO_WALLET':
-        console.log('Private key required for write operations');
-        break;
-    }
-  }
+interface BlobKitConfig {
+  rpcUrl: string; // Use blob-compatible RPC (e.g., Flashbots)
+  chainId?: number; // Network chain ID (default: 1 for mainnet)
+  archiveUrl?: string; // Blob archive endpoint for reading
+  proxyUrl?: string; // Proxy server URL (auto-discovered)
+  escrowContract?: string; // Auto-configured for mainnet/testnets
+  requestSigningSecret?: string; // HMAC secret for proxy auth
+  logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent';
 }
 ```
 
-## Input Validation
-
-BlobKit automatically validates all inputs and provides helpful error messages:
-
-```typescript
-import { isValidBlobHash, isValidTxHash, isValidHexString } from 'blobkit';
-
-// Type guards for runtime validation
-if (isValidBlobHash(hash)) {
-  // Safe to use as blob hash
-}
-
-if (isValidTxHash(hash)) {
-  // Safe to use as transaction hash
-}
-
-if (isValidHexString(value, 64)) {
-  // Valid 64-character hex string
-}
-```
-
-## Custom Codecs
-
-Extend BlobKit with custom data encoding:
-
-```typescript
-import { registerCodec } from 'blobkit';
-
-registerCodec('application/protobuf', {
-  encode: (data) => new Uint8Array(/* protobuf encoding */),
-  decode: (bytes) => /* protobuf decoding */
-});
-```
-
-## Browser Support
-
-BlobKit v1.0.8 supports:
-- Reading blobs in browsers (full support)
-- KZG trusted setup initialization in browsers  
-- All cryptographic operations in browsers
-
-❌ Writing blobs in browsers requires a proxy service (see below)
-
-### Browser Blob Uploads
-
-Browser wallets (MetaMask, WalletConnect, etc.) do not yet support EIP-4844 blob transactions.
-
-For browser blob uploads, you need to set up a proxy service:
-
-1. **Backend service** with BlobKit + private key
-2. **Browser sends data** to your service  
-3. **Service creates blob transactions** and returns hash
-4. **Browser receives transaction hash** for downloads
-
-### Future Versions
-BlobKit v1.1.x will include built-in proxy service support with:
-- Automatic proxy detection and routing
-- Ready-to-deploy service templates  
-- Simplified browser integration
-
-Until then, browser apps require custom proxy implementation.
-  
-## Performance
-
-BlobKit is optimized for high-throughput applications:
-
-- **Memory Efficient**: Uses `subarray()` instead of `slice()` for zero-copy operations
-- **Pre-allocated Buffers**: Minimizes garbage collection pressure
-- **Optimized Compression**: Tuned Brotli settings for blob data characteristics
-- **Efficient Field Element Packing**: Optimized blob encoding/decoding algorithms
-
-## Project Structure
-
-- `kzg/` - KZG commitment implementation and trusted setup management
-- `blob/` - Blob encoding/decoding utilities with EIP-4844 compliance
-- `writer/` - Transaction construction and submission with fee estimation
-- `verifier/` - Blob verification and integrity checks with inclusion proofs
-- `codecs/` - Data encoding system (JSON, raw binary, extensible)
-- `types/` - TypeScript type definitions and validation utilities
-
-## Testing and Development
+### Environment Variables
 
 ```bash
-npm test              # Run comprehensive test suite (128 tests)
-npm run lint          # Run ESLint with TypeScript rules
-npm run typecheck     # Run TypeScript type checking
-npm run build         # Build production distribution
-npm run format        # Format code with Prettier
+# Required for Proxy Server
+RPC_URL=https://rpc.flashbots.net  # Use blob-compatible RPC
+ESCROW_CONTRACT=0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838  # Mainnet escrow
+KZG_TRUSTED_SETUP_PATH=./trusted_setup.txt
+
+# Optional Configuration
+CHAIN_ID=1
+PORT=3000
+PROXY_FEE_PERCENT=1
+MAX_BLOB_SIZE=131072
+REDIS_URL=redis://localhost:6379
+JOB_TIMEOUT_SECONDS=300
+
+# Production Key Management (choose one)
+PRIVATE_KEY=0x...                                    # Dev only
+AWS_KMS_KEY_ID=arn:aws:kms:region:account:key/id   # Production
 ```
 
-## Security Considerations
+## Security
 
-- All user inputs are validated before processing
-- Private keys are validated for correct format
-- RPC URLs are validated for security
-- Environment variables are sanitized
-- Cryptographic operations use audited libraries (`@noble/curves`, `@noble/hashes`)
-- No sensitive data is logged or exposed in error messages
+### Payment Protection
 
-## Browser Support
+- Funds held in escrow until job completion
+- Automatic refunds after timeout period
+- Signature verification prevents unauthorized claims
 
-BlobKit works in modern browsers with proper bundling. Note that private key operations should only be performed in secure environments.
+### Proxy Security
+
+- HMAC-SHA256 request signing (required)
+- Rate limiting per IP address
+- Input validation for all blob parameters
+- AWS KMS and GCP KMS key management support
+- Circuit breakers for Redis/RPC failures
+
+### Best Practices
+
+- Always verify proxy authorization before use
+- Monitor gas prices for cost optimization
+- Implement retry logic for network failures
+- Use environment variables for sensitive configuration
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+
+- Foundry (for contracts)
+- Redis (for proxy server)
+
+### Quick Start
+
+```bash
+# One-click development setup
+./dev.sh
+
+# Manual setup
+git clone https://github.com/blobkit/blobkit.git
+cd blobkit
+npm install
+npm run build
+
+# Deploy contracts locally
+cd packages/contracts
+forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
+
+# Start proxy server
+npm run dev --workspace=packages/proxy-server
+```
+
+### Testing
+
+```bash
+# Unit tests
+npm test
+
+# Integration tests
+npm run test:integration
+
+# Gas benchmarks
+cd packages/contracts && forge test --gas-report
+```
+
+## Deployment
+
+### Mainnet Deployment Status
+
+| Network     | Contract Address                                                                                                        | Status |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------- | ------ |
+| **Mainnet** | [`0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838`](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838) | Live   |
+
+### Deploy Your Own Contracts
+
+```bash
+cd packages/contracts
+forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast
+```
+
+### Proxy Server
+
+```bash
+docker build -t blobkit-proxy .
+docker run -p 3000:3000 --env-file .env blobkit-proxy
+```
+
+## Documentation
+
+### Core Documentation
+
+- [SDK API Reference](packages/sdk/README.md)
+- [Proxy Server API](packages/proxy-server/README.md)
+- [Smart Contracts](packages/contracts/README.md)
+
+### Infrastructure Guides
+
+- [Blob Infrastructure Requirements](blob-infrastructure-requirements.md)
+- [Mainnet Deployment Guide](MAINNET_DEPLOYMENT_GUIDE.md)
+- [Production Audit Report](PRODUCTION_AUDIT_REPORT.md)
 
 ## Contributing
 
-We welcome contributions! Please see our contributing guidelines and ensure all tests pass before submitting pull requests.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 
-Apache 2.0
+MIT - see [LICENSE](LICENSE) for details.
 
----
+## Author
 
-## About the Project
-
-**BlobKit** is developed and maintained by [**Zak Cole**](https://x.com/0xzak) at [**Number Group**](https://numbergroup.xyz) with support from the [**Ethereum Community Foundation**](https://ethcf.org).
-
-### Links
-
-- **NPM Package**: [blobkit](https://www.npmjs.com/package/blobkit)
-- **GitHub Repository**: [ETHCF/blobkit](https://github.com/ETHCF/blobkit)
-- **Number Group**: [numbergroup.xyz](https://numbergroup.xyz)
-- **Ethereum Community Foundation**: [ethcf.org](https://ethcf.org)
-
-### Contact & Support
-
-For questions, bug reports, or contributions:
-
-- **Email**: [zcole@linux.com](mailto:zcole@linux.com)
-- **X/Twitter**: [@0xzak](https://x.com/0xzak)
-- **GitHub**: [@zscole](https://github.com/zscole)
-- **Issues**: [GitHub Issues](https://github.com/ETHCF/blobkit/issues)
+Built by [Zak Cole](https://x.com/0xzak) at [Number Group](https://numbergroup.xyz) for the [Ethereum Community Foundation](https://ethcf.org).

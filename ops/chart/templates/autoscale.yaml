@@ -1,0 +1,41 @@
+{{- $name := include "name" . -}}
+{{- $chart := include "chart" . -}}
+
+{{- range $service, $val := $.Values.services }}
+{{- if and (not .disabled) (or .maxReplicas .targetCPUUtil) }}
+{{- $serviceName := printf "%s-%s" $name $service -}}
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $serviceName }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $serviceName }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    app.kubernetes.io/version: {{ $.Values.version | quote }}
+    app.kubernetes.io/component: {{ $service }}
+    helm.sh/chart: {{ $chart }}
+    {{- if .labels}}
+{{ toYaml .labels | nindent 4 }}
+    {{- end }}
+spec:
+  minReplicas: {{ default .replicas .minReplicas }}
+  maxReplicas: {{ default 10 .maxReplicas }}
+
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $serviceName }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization:  {{ default 70 .targetCPUUtil }}
+
+---
+{{- end }}
+{{- end }}

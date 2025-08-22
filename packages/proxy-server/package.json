@@ -1,0 +1,88 @@
+{
+  "name": "@blobkit/proxy-server",
+  "version": "1.0.0",
+  "description": "Express.js proxy server for blob transaction execution with payment verification",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "blobkit-proxy": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "openapi.yaml",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts dev-proxy",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "docker:build": "docker build -t blobkit-proxy .",
+    "docker:run": "docker run -p 3000:3000 blobkit-proxy"
+  },
+  "keywords": [
+    "ethereum",
+    "blob",
+    "proxy",
+    "eip-4844",
+    "server",
+    "express"
+  ],
+  "author": {
+    "name": "Zak Cole",
+    "email": "zcole@linux.com",
+    "url": "https://x.com/0xzak"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-kms": "^3.485.0",
+    "@google-cloud/kms": "^4.3.0",
+    "@blobkit/sdk": "file:../sdk",
+    "@opentelemetry/api": "^1.7.0",
+    "commander": "^14.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "ethers": "^6.7.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "express-validator": "^7.0.1",
+    "helmet": "^8.1.0",
+    "prom-client": "^15.0.0",
+    "redis": "^4.6.12",
+    "swagger-ui-express": "^5.0.0",
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0",
+    "yamljs": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.16",
+    "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.2.0",
+    "@types/supertest": "^6.0.3",
+    "@types/swagger-ui-express": "^4.1.6",
+    "@types/uuid": "^9.0.7",
+    "@types/yamljs": "^0.2.34",
+    "eslint": "^9.32.0",
+    "jest": "^30.0.5",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.3",
+    "typescript": "^5.3.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blobkit/blobkit.git",
+    "directory": "packages/proxy-server"
+  },
+  "bugs": {
+    "url": "https://github.com/blobkit/blobkit/issues"
+  },
+  "homepage": "https://github.com/blobkit/blobkit/tree/main/packages/proxy-server#readme"
+}

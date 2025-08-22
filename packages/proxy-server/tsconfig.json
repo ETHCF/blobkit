@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "declarationMap": true,
+    "types": ["node", "jest"],
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "paths": {
+      "@blobkit/sdk": ["../sdk/dist/index.d.ts"],
+      "@blobkit/sdk/*": ["../sdk/dist/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["**/*.test.ts", "**/*.spec.ts", "dist", "../sdk/src/**/*"]
+}

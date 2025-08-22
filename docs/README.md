@@ -1,0 +1,106 @@
+# BlobKit Documentation
+
+## Production Status
+
+**BlobKit is live on Ethereum mainnet!**
+
+- **Escrow Contract:** [`0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838`](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838)
+- **Status:** ✅ Fully operational
+- **Tested:** Complete end-to-end verification on mainnet
+
+## Documentation Index
+
+### Getting Started
+
+- [Quick Start](quick-start.md) - Development setup and basics
+- [Infrastructure Requirements](infrastructure.md) - RPC setup for blob support
+- [Architecture Overview](architecture.md) - System design and components
+
+### Deployment & Operations
+
+- [Deployment Guide](deployment-guide.md) - Deploy contracts to mainnet and production hardening
+
+### Component Documentation
+
+- [SDK Documentation](sdk/README.md) - TypeScript SDK reference
+- [Proxy Server](proxy/README.md) - Proxy server setup and API
+- [Smart Contracts](contracts/README.md) - Escrow contract documentation
+
+### Advanced Topics
+
+- [Secure Deployment](secure-deployment.md) - Security best practices
+- [Distributed Tracing](distributed-tracing.md) - Monitoring and observability
+- [Contributing](../CONTRIBUTING.md) - How to develop and contribute
+- [Security Policy](../SECURITY.md) - Vulnerability reporting and policy
+
+## Quick Start
+
+### 1. Choose Your RPC
+
+**Important:** Standard RPCs (Alchemy, Infura) don't support blobs. Use:
+
+```typescript
+// Recommended: Flashbots (FREE)
+const RPC = process.env.BLOBKIT_RPC_URL!;
+```
+
+### 2. Install SDK
+
+```bash
+npm install @blobkit/sdk
+```
+
+### 3. Write Your First Blob
+
+```typescript
+import { BlobKit } from '@blobkit/sdk';
+import { Wallet } from 'ethers';
+
+const signer = new Wallet(process.env.PRIVATE_KEY);
+const blobkit = await BlobKit.init(
+  {
+    rpcUrl: 'https://rpc.flashbots.net', // Must use blob-compatible RPC
+    chainId: 1
+  },
+  signer
+);
+
+const data = Buffer.from('Hello, Ethereum blobs!');
+const receipt = await blobkit.writeBlob(data);
+console.log(`Blob stored: ${receipt.blobTxHash}`);
+```
+
+## Mainnet Verification
+
+The system has been fully tested on mainnet with real transactions:
+
+| Test           | Transaction                                                                                                  | Result     |
+| -------------- | ------------------------------------------------------------------------------------------------------------ | ---------- |
+| Job Creation   | [`0x2d968d9...`](https://etherscan.io/tx/0x2d968d9cd4869b53a78c77ce2daad71e1935753ad7bbcfdcac472d93bf5dbade) | ✅ Success |
+| Job Completion | [`0x3c05906...`](https://etherscan.io/tx/0x3c05906995b76d5625b84f7020f225b67084ae844a2ba4b06a9ca68af1514213) | ✅ Success |
+
+## Architecture
+
+```
+User → SDK → Escrow Contract → Proxy Server → Blob Transaction
+                ↓                    ↓              ↓
+            Payment Held      Verify Payment   Submit to L1
+                ↓                    ↓              ↓
+            Timeout Refund    Claim Payment    Store Blob
+```
+
+## Key Insights
+
+1. **RPC Choice Matters:** Must use blob-compatible RPC (Flashbots recommended)
+2. **Cost Efficient:** Blobs cost ~$0.01 vs ~$50 for equivalent calldata
+3. **Production Ready:** All components tested and verified on mainnet
+4. **Trust Minimized:** Escrow ensures payment security
+
+## Support
+
+- **GitHub Issues:** [Report issues](https://github.com/blobkit/blobkit/issues)
+- **Email:** zcole@linux.com
+
+## License
+
+MIT - See [LICENSE](../LICENSE) for details.

@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+packages/*/node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+coverage/
+.next/
+
+# Contract artifacts
+packages/contracts/artifacts/
+packages/contracts/cache/
+packages/contracts/lib/
+
+# Generated files
+*.generated.*
+*.min.js
+*.min.css
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Misc
+.git/
+.DS_Store
+*.log
