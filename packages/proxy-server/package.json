@@ -73,7 +73,7 @@
     "eslint": "^9.32.0",
     "jest": "^30.0.5",
     "supertest": "^7.1.4",
-    "tsx": "^4.20.3",
+    "tsx": "^4.20.4",
     "typescript": "^5.3.3"
   },
   "repository": {
