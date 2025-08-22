@@ -55,7 +55,7 @@
     "express-validator": "^7.0.1",
     "helmet": "^8.1.0",
     "prom-client": "^15.0.0",
-    "redis": "^4.6.12",
+    "redis": "^5.8.2",
     "swagger-ui-express": "^5.0.0",
     "uuid": "^9.0.1",
     "winston": "^3.11.0",
