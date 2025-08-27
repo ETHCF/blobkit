@@ -45,11 +45,11 @@
     "typescript"
   ],
   "author": {
-    "name": "Zak Cole",
-    "email": "zcole@linux.com",
-    "url": "https://x.com/0xzak"
+    "name": "Ethereum Community Foundation",
+    "email": "engineering@ethcf.org",
+    "url": "https://ethcf.org/"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "ethers": "^6.15.0",
     "kzg-wasm": "^0.4.0"
