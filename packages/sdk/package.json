@@ -1,6 +1,6 @@
 {
   "name": "@blobkit/sdk",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "TypeScript SDK for blob storage with EIP-4844 support and browser compatibility",
   "type": "module",
   "main": "dist/index.js",
@@ -45,11 +45,11 @@
     "typescript"
   ],
   "author": {
-    "name": "Zak Cole",
-    "email": "zcole@linux.com",
-    "url": "https://x.com/0xzak"
+    "name": "Ethereum Community Foundation",
+    "email": "engineering@ethcf.org",
+    "url": "https://ethcf.org/"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "ethers": "^6.15.0",
     "kzg-wasm": "^0.4.0"

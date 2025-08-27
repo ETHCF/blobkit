@@ -35,11 +35,11 @@
     "eip-4844"
   ],
   "author": {
-    "name": "Zak Cole",
-    "email": "zcole@linux.com",
-    "url": "https://x.com/0xzak"
+    "name": "Ethereum Community Foundation",
+    "email": "engineering@ethcf.org",
+    "url": "https://ethcf.org/"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@types/node": "^24.2.0",
     "typescript": "^5.2.0"
