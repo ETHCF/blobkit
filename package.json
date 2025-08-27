@@ -5,10 +5,11 @@
   "type": "module",
   "private": true,
   "author": {
-    "name": "Zak Cole",
-    "email": "zcole@linux.com",
-    "url": "https://x.com/0xzak"
+    "name": "Ethereum Community Foundation",
+    "email": "engineering@ethcf.org",
+    "url": "https://ethcf.org/"
   },
+  "license": "Apache-2.0",
   "contributors": [
     {
       "name": "Zak Cole",
@@ -58,7 +59,6 @@
     "type": "git",
     "url": "https://github.com/blobkit/blobkit.git"
   },
-  "license": "MIT",
   "bugs": {
     "url": "https://github.com/blobkit/blobkit/issues"
   },
