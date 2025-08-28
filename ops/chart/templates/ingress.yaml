@@ -19,8 +19,8 @@ metadata:
     {{- if .labels}}
 {{ toYaml .labels | nindent 4 }}
     {{- end }}
-  {{- if $.Values.ingress.annotations }}
-  {{- with $.Values.ingress.annotations }}
+  {{- if .ingress.annotations }}
+  {{- with .ingress.annotations }}
   annotations:
 {{ toYaml . | nindent 4 }}
   {{- end }}
@@ -28,11 +28,11 @@ metadata:
 spec:
   tls:
   - hosts:
-      - {{ $.Values.ingress.domain | quote }}
-    secretName: {{ $.Values.ingress.tlsSecret }}
+      - {{ .ingress.domain | quote }}
+    secretName: {{ .ingress.tlsSecret }}
 
   rules:
-    - host: {{ $.Values.ingress.domain | quote }}
+    - host: {{ .ingress.domain | quote }}
       http:
         paths:
           {{- range .paths }}
