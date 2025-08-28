@@ -43,10 +43,10 @@
     "env:check:proxy": "node scripts/check-env.mjs proxy"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.9.2",
-    "@types/node": "^24.2.1",
-    "@typescript-eslint/eslint-plugin": "^8.39.1",
-    "@typescript-eslint/parser": "^8.39.1",
+    "@changesets/cli": "^2.29.6",
+    "@types/node": "^24.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.41.0",
+    "@typescript-eslint/parser": "^8.41.0",
     "markdownlint-cli": "0.45.0",
     "prettier": "^3.6.2",
     "ts-node": "^10.9.2"
