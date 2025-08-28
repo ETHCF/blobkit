@@ -16,6 +16,7 @@ export class JobCache {
 
   constructor(
     private redisUrl: string = process.env.REDIS_URL || 'redis://localhost:6379',
+    private chainId: string = process.env.CHAIN_ID || '1',
     private ttl: number = 86400
   ) {
     this.redis = createClient({ url: this.redisUrl });
@@ -140,10 +141,10 @@ export class JobCache {
   }
 
   private getKey(jobId: string): string {
-    return `${this.keyPrefix}${jobId}`;
+    return `${this.chainId}:${this.keyPrefix}${jobId}`;
   }
 
   private getLockKey(jobId: string): string {
-    return `${this.lockPrefix}${jobId}`;
+    return `${this.chainId}:${this.lockPrefix}${jobId}`;
   }
 }

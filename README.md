@@ -31,7 +31,6 @@ BlobKit enables applications to store data on Ethereum using blob transactions (
 
 ## Architecture
 
-### Components
 
 **SDK** (`@blobkit/sdk`)
 
@@ -272,9 +271,10 @@ cd packages/contracts && forge test --gas-report
 
 ### Mainnet Deployment Status
 
-| Network     | Contract Address                                                                                                        | Status |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------- | ------ |
-| **Mainnet** | [`0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838`](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838) | Live   |
+| Network     | Contract Address                                                                                                                 | Status |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **Mainnet** | [`0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838`](https://etherscan.io/address/0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838)          | Live   |
+| **Sepolia** | [`0x1B345402377A44F674376d6e0f6212e3B9991798`](https://sepolia.etherscan.io/address/0x1B345402377A44F674376d6e0f6212e3B9991798)  | Live   |
 
 ### Deploy Your Own Contracts
 
