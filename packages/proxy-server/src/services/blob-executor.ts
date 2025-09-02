@@ -1,4 +1,5 @@
 import { BlobKit } from '@blobkit/sdk';
+import type { KzgSetupOptions } from "@blobkit/sdk/dist/types.js";
 import { ethers } from 'ethers';
 import { BlobJob, ProxyError, ProxyErrorCode } from '../types.js';
 import { createLogger } from '../utils/logger.js';
@@ -13,12 +14,16 @@ const tracingService = new TracingService('blobkit-blob-executor');
  */
 export class BlobExecutor {
   private blobkit: BlobKit | null = null;
-  private config: { rpcUrl: string; chainId: number; kzgTrustedSetupPath: string };
+  private config: { rpcUrl: string; chainId: number; kzgConfig: KzgSetupOptions };
   private signer: ethers.Signer;
   private logger = createLogger('BlobExecutor');
 
-  constructor(rpcUrl: string, chainId: number, signer: ethers.Signer, kzgTrustedSetupPath: string) {
-    this.config = { rpcUrl, chainId, kzgTrustedSetupPath };
+  constructor(rpcUrl: string, chainId: number, signer: ethers.Signer, kzgConfig: KzgSetupOptions | string) {
+    if (typeof kzgConfig === 'string') {
+      this.config = { rpcUrl, chainId, kzgConfig: { trustedSetupPath: kzgConfig } };
+    } else {
+      this.config = { rpcUrl, chainId, kzgConfig };
+    }
     this.signer = signer;
   }
 
@@ -33,9 +38,7 @@ export class BlobExecutor {
           rpcUrl: this.config.rpcUrl,
           chainId: this.config.chainId,
           logLevel: 'info',
-          kzgSetup: {
-            trustedSetupPath: this.config.kzgTrustedSetupPath
-          }
+          kzgSetup: this.config.kzgConfig
         },
         this.signer
       );
