@@ -60,7 +60,7 @@
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.4",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.2.1",
+    "@types/node": "^24.3.1",
     "eslint": "^9.33.0",
     "jest": "^30.0.5",
     "rollup": "^4.46.2",
