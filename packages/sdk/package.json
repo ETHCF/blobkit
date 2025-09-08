@@ -64,7 +64,7 @@
     "eslint": "^9.33.0",
     "jest": "^30.0.5",
     "rollup": "^4.46.2",
-    "rollup-plugin-dts": "^6.2.1",
+    "rollup-plugin-dts": "^6.2.3",
     "ts-jest": "^29.4.1",
     "typedoc": "^0.28.10",
     "typedoc-plugin-markdown": "^4.8.1",
