@@ -1,6 +1,6 @@
 {
   "name": "@blobkit/proxy-server",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "description": "Express.js proxy server for blob transaction execution with payment verification",
   "type": "module",
   "main": "dist/index.js",

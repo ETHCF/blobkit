@@ -77,7 +77,6 @@ export class BlobKit {
       chainId: config.chainId ?? 1,
       archiveUrl: config.archiveUrl ?? config.rpcUrl,
       defaultCodec: config.defaultCodec ?? 'application/json',
-      compressionLevel: config.compressionLevel ?? 6,
       proxyUrl: config.proxyUrl ?? '',
       escrowContract: config.escrowContract ?? getDefaultEscrowContract(config.chainId ?? 1),
       maxProxyFeePercent: config.maxProxyFeePercent ?? 5,
