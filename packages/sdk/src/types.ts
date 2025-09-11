@@ -111,11 +111,27 @@ export interface MetricsHooks {
  */
 export interface BlobKitConfig {
   // Core configuration
-  rpcUrl: string;
+  rpcUrl?: string;
+  ethereumRpcUrl?: string; // Alternative name for rpcUrl
   chainId?: number;
   archiveUrl?: string;
+  archiveApiUrl?: string; // Alternative name for archiveUrl
   defaultCodec?: string;
   compressionLevel?: number;
+
+  // Native reader configuration
+  enableNativeReader?: boolean;
+  beaconApiUrl?: string;
+  beaconApiUrls?: string[];
+  finalityPolicy?: 'allow-optimistic' | 'disallow-optimistic' | 'require-finalized';
+  currentSlot?: number;
+  retentionWindow?: number;
+  maxRetries?: number;
+  retryDelayMs?: number;
+  cacheConfig?: {
+    maxEntries?: number;
+    maxSizeBytes?: number;
+  };
 
   // Proxy configuration
   proxyUrl?: string;

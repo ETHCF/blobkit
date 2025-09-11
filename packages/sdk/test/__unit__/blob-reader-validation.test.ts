@@ -52,7 +52,7 @@ describe('BlobReader - Validation and Normalization', () => {
 
     it('should reject invalid beacon block root', () => {
       const invalidRoot = '0x' + 'a'.repeat(63); // Not 32 bytes
-      expect(() => normalizeBlockId(invalidRoot)).toThrow('Invalid beacon block root');
+      expect(() => normalizeBlockId(invalidRoot)).toThrow('Invalid blockId');
     });
 
     it('should reject invalid block tags', () => {

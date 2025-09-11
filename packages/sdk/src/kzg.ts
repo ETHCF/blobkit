@@ -8,6 +8,7 @@
 import { loadKZG } from 'kzg-wasm';
 import { BlobKitError, BlobKitErrorCode, KzgLibrary, KzgSetupOptions } from './types.js';
 import { createHash } from 'crypto';
+import { hexToBytes } from './utils';
 
 // Constants
 export const FIELD_ELEMENTS_PER_BLOB = 4096;
@@ -473,3 +474,43 @@ class CachedKzgLibrary implements KzgLibrary {
 }
 
 export const kzgLibrary: KzgLibrary = new CachedKzgLibrary();
+
+/**
+ * Verify a single blob KZG proof
+ */
+export async function verifyBlobKzgProof(
+  blob: Uint8Array,
+  commitment: Uint8Array | string,
+  proof: Uint8Array | string
+): Promise<boolean> {
+  await initializeKzg();
+  const kzg = requireKzg();
+  
+  const commitmentBytes = typeof commitment === 'string' ? hexToBytes(commitment) : commitment;
+  const proofBytes = typeof proof === 'string' ? hexToBytes(proof) : proof;
+  
+  return kzg.verifyBlobKzgProof(blob, commitmentBytes, proofBytes);
+}
+
+
+// Verify multiple blob KZG proofs in batch
+export async function verifyBlobKzgProofBatch(
+  blobs: Uint8Array[],
+  commitments: (Uint8Array | string)[],
+  proofs: (Uint8Array | string)[]
+): Promise<boolean> {
+  if (blobs.length !== commitments.length || commitments.length !== proofs.length) {
+    throw new Error('Mismatched array lengths for batch verification');
+  }
+  
+  // Verify each blob individually
+  // Note: kzg-wasm doesn't have batch verification, so we do it sequentially
+  for (let i = 0; i < blobs.length; i++) {
+    const valid = await verifyBlobKzgProof(blobs[i], commitments[i], proofs[i]);
+    if (!valid) {
+      return false;
+    }
+  }
+  
+  return true;
+}

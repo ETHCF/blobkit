@@ -40,6 +40,17 @@ export const BYTES_PER_FIELD_ELEMENT = 32;
 export const TEST_COMMITMENT: Bytes48 = '0xb5bc96b70df0dfcc2c38f50d4ca3ff4e8f457d7a0c6a6a1e69c0b84c5e6857f37f3d4e6b0098765432109876543210ab';
 export const TEST_PROOF: Bytes48 = '0xa1b2c3d4e5f6789012345678901234567890123456789012345678901234567890123456789012345678901234567890';
 
+// Generate realistic test data
+export function createTestTxHash(seed: number = 0): Hex {
+  const hash = createHash('sha256').update(`tx${seed}`).digest();
+  return ('0x' + hash.toString('hex')) as Hex;
+}
+
+export function createTestBlockHash(seed: number = 0): Hex {
+  const hash = createHash('sha256').update(`block${seed}`).digest();
+  return ('0x' + hash.toString('hex')) as Hex;
+}
+
 // Helper functions
 export function toVersionedHash(commitment: Bytes48): Hex {
   // Versioned hash = 0x01 || sha256(commitment)[1:]
@@ -66,13 +77,27 @@ export function hexToBytes(hex: Hex): Uint8Array {
   return Buffer.from(hex.slice(2), 'hex');
 }
 
-export function createTestSidecar(index: number, seed: number = 0): BlobSidecar {
+export function createTestSidecar(index: number, seed: number = 0, slot: number = 1000000): BlobSidecar {
   const blob = createTestBlob(seed);
   return {
     index: index.toString(),
     blob: blobToHex(blob),
     kzg_commitment: TEST_COMMITMENT,
-    kzg_proof: TEST_PROOF
+    kzg_proof: TEST_PROOF,
+    // Add required fields per Beacon API spec
+    signed_block_header: {
+      message: {
+        slot: slot.toString(),
+        proposer_index: '12345',
+        parent_root: '0x' + '1'.repeat(64),
+        state_root: '0x' + '2'.repeat(64),
+        body_root: '0x' + '3'.repeat(64)
+      },
+      signature: '0x' + '4'.repeat(192)  // BLS signature is 96 bytes
+    },
+    kzg_commitment_inclusion_proof: Array(17).fill(0).map((_, i) => 
+      '0x' + (i + 1).toString(16).padStart(64, '0')
+    )
   };
 }
 
