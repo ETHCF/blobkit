@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.6",
-    "@types/node": "^24.3.0",
+    "@types/node": "^24.5.0",
     "@typescript-eslint/eslint-plugin": "^8.41.0",
     "@typescript-eslint/parser": "^8.41.0",
     "markdownlint-cli": "0.45.0",
