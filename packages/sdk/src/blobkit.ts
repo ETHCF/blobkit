@@ -415,7 +415,7 @@ export class BlobKit {
     return ProxyClient.discover(this.config.chainId);
   }
 
-  private async submitViaProxy(
+  async submitViaProxy(
     jobId: string,
     paymentTxHash: string,
     payload: Uint8Array,
