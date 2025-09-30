@@ -77,7 +77,6 @@ export class BlobKit {
       chainId: config.chainId ?? 1,
       archiveUrl: config.archiveUrl ?? config.rpcUrl,
       defaultCodec: config.defaultCodec ?? 'application/json',
-      compressionLevel: config.compressionLevel ?? 6,
       proxyUrl: config.proxyUrl ?? '',
       escrowContract: config.escrowContract ?? getDefaultEscrowContract(config.chainId ?? 1),
       maxProxyFeePercent: config.maxProxyFeePercent ?? 5,
@@ -416,7 +415,7 @@ export class BlobKit {
     return ProxyClient.discover(this.config.chainId);
   }
 
-  private async submitViaProxy(
+  async submitViaProxy(
     jobId: string,
     paymentTxHash: string,
     payload: Uint8Array,

@@ -115,7 +115,6 @@ export interface BlobKitConfig {
   chainId?: number;
   archiveUrl?: string;
   defaultCodec?: string;
-  compressionLevel?: number;
 
   // Proxy configuration
   proxyUrl?: string;
