@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+
+.terminal-box {
+  background-color: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+}
+
+.cyber-grid {
+  background-image: 
+    linear-gradient(rgba(0, 255, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 0, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+.glow-text {
+  text-shadow: 0 0 10px currentColor;
+}
+
+.text-magenta-400 {
+  color: #f0f;
+}
+
+.text-magenta-300 {
+  color: #f6f;
+}
+
+.hover\:text-magenta-300:hover {
+  color: #f6f;
+}
