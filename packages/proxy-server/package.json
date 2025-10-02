@@ -51,7 +51,7 @@
     "dotenv": "^17.2.1",
     "ethers": "^6.7.1",
     "express": "^5.1.0",
-    "express-rate-limit": "^8.0.1",
+    "express-rate-limit": "^8.1.0",
     "express-validator": "^7.0.1",
     "helmet": "^8.1.0",
     "prom-client": "^15.0.0",
