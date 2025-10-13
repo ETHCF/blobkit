@@ -24,6 +24,7 @@ export interface BlobSubmitterConfig {
   rpcUrl: string;
   chainId: number;
   escrowAddress: string;
+  txTimeoutMs?: number; // Optional timeout for transactions
 }
 
 export interface DirectSubmitResult {
@@ -107,7 +108,7 @@ export class BlobSubmitter {
       const txResponse = await signer.sendTransaction(tx);
 
       // Wait for confirmation
-      const receipt = await txResponse.wait();
+      const receipt = await txResponse.wait(undefined, this.config.txTimeoutMs);
 
       if (!receipt || receipt.status !== 1) {
         throw new BlobKitError(BlobKitErrorCode.TRANSACTION_FAILED, 'Blob transaction failed');
