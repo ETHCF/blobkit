@@ -190,6 +190,8 @@ export class BlobKit {
 
     console.log(`Writing blob with job ID: ${jobId}`);
 
+    const shouldUseProxy = this.shouldUseProxy();
+    let gasPriceMultiplier = 1;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         // Generate new job ID for each attempt
@@ -203,14 +205,14 @@ export class BlobKit {
         let paymentHash: undefined | string = undefined;
         // Submit blob
         let result: DirectSubmitResult | BlobSubmitResult;
-        if (this.shouldUseProxy()) {
+        if (shouldUseProxy) {
           const estimate = await this.estimateCost(payload);
           this.logger.info(`Depositing payment into contract for the proxy write, job ID: ${jobId}`);
           const payment = await this.paymentManager.depositForBlob(jobId, estimate.totalETH);
           paymentHash = payment.paymentTxHash;
           result = await this.submitViaProxy(jobId, payment.paymentTxHash, payload, fullMeta);
         } else {
-          result = await this.submitDirectly(payload);
+          result = await this.submitDirectly(payload, gasPriceMultiplier);
         }
 
         this.metrics.trackOperation('writeBlob', 'complete', Date.now() - startTime);
@@ -229,9 +231,15 @@ export class BlobKit {
         };
       } catch (error) {
         lastError = error;
+        const errStr = `${error instanceof Error ? error.message + "\n" + error.stack : String(error)}`;
+
+        if (errStr.includes("replacement fee too low")) {
+          gasPriceMultiplier *= 1.5;
+          gasPriceMultiplier = Math.min(gasPriceMultiplier, 5); // Cap multiplier
+        }
 
         this.logger.warn(
-          `Blob write attempt ${attempt + 1} failed: ${error instanceof Error ? error.message + "\n" + error.stack : String(error)}`);
+          `Blob write attempt ${attempt + 1} failed: ${errStr}`);
 
         // Don't retry on certain errors
         if (error instanceof BlobKitError) {
@@ -448,13 +456,14 @@ export class BlobKit {
   }
 
   private async submitDirectly(
-    payload: Uint8Array
+    payload: Uint8Array,
+    gasPriceMultiplier: number = 1
   ): Promise<DirectSubmitResult & { completionTxHash: string }> {
     if (!this.blobSubmitter || !this.signer) {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Direct submission not available');
     }
 
-    const result = await this.blobSubmitter.submitBlob(this.signer, payload, requireKzg());
+    const result = await this.blobSubmitter.submitBlob(this.signer, payload, requireKzg(), gasPriceMultiplier);
 
     return {
       ...result,
