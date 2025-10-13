@@ -48,7 +48,8 @@ export class BlobSubmitter {
   async submitBlob(
     signer: Signer,
     payload: Uint8Array,
-    kzg: ethers.KzgLibraryLike
+    kzg: ethers.KzgLibraryLike,
+    gasPriceMultiplier: number = 1
   ): Promise<DirectSubmitResult> {
     try {
       // Encode blob data
@@ -68,6 +69,9 @@ export class BlobSubmitter {
         );
       }
 
+      const maxFeePerGas = feeData.maxFeePerGas * BigInt(Math.floor(gasPriceMultiplier * 100)) / BigInt(100);
+      const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * BigInt(Math.floor(gasPriceMultiplier * 100)) / BigInt(100);
+
       // Get blob base fee
       const block = await this.provider.getBlock('latest');
       if (!block) {
@@ -81,8 +85,8 @@ export class BlobSubmitter {
         to: '0x0000000000000000000000000000000000000000', // must be 0
         from: await signer.getAddress(),
         data: '0x',
-        maxFeePerGas: feeData.maxFeePerGas,
-        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
+        maxFeePerGas: maxFeePerGas,
+        maxPriorityFeePerGas: maxPriorityFeePerGas,
         maxFeePerBlobGas: BigInt(1000000000), // 1 gwei default
         blobs: [blob],
         kzgCommitments: ['0x' + Buffer.from(commitment).toString('hex')],

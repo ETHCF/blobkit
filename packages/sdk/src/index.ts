@@ -100,7 +100,3 @@ export function createFromEnv(signer?: Signer): BlobKit {
   return new BlobKit(config, signer);
 }
 
-/**
- * Package version
- */
-export const VERSION = '1.1.0';

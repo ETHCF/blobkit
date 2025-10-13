@@ -1,6 +1,6 @@
 {
   "name": "@blobkit/sdk",
-  "version": "2.0.1",
+  "version": "2.0.4",
   "description": "TypeScript SDK for blob storage with EIP-4844 support and browser compatibility",
   "type": "module",
   "main": "dist/index.js",
@@ -10,13 +10,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-      
     },
     "./browser": {
       "types": "./dist/browser.d.ts",
       "import": "./dist/browser.js",
       "require": "./dist/browser.cjs"
-      
     }
   },
   "files": [
@@ -72,7 +70,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/blobkit/blobkit.git",
+    "url": "git+https://github.com/blobkit/blobkit.git",
     "directory": "packages/sdk"
   },
   "bugs": {
