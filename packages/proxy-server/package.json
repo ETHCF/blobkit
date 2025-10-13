@@ -42,7 +42,7 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.876.0",
+    "@aws-sdk/client-kms": "^3.908.0",
     "@google-cloud/kms": "^5.1.0",
     "@blobkit/sdk": "^2.0.0",
     "@opentelemetry/api": "^1.7.0",
