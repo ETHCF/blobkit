@@ -84,6 +84,7 @@ export class BlobKit {
       logLevel: config.logLevel ?? 'info',
       kzgSetup: config.kzgSetup,
       metricsHooks: config.metricsHooks,
+      txTimeoutMs: config.txTimeoutMs ?? 120000,
     };
 
     this.signer = signer;
@@ -138,7 +139,8 @@ export class BlobKit {
       this.blobSubmitter = new BlobSubmitter({
         rpcUrl: this.config.rpcUrl,
         chainId: this.config.chainId,
-        escrowAddress: this.config.escrowContract
+        escrowAddress: this.config.escrowContract,
+        txTimeoutMs: this.config.txTimeoutMs,
       });
     }
   }
@@ -231,11 +233,15 @@ export class BlobKit {
         };
       } catch (error) {
         lastError = error;
-        const errStr = `${error instanceof Error ? error.message + "\n" + error.stack : String(error)}`;
+        let errStr = `${error instanceof Error ? error.message + "\n" + error.stack : String(error)}`;
 
         if (errStr.includes("replacement fee too low")) {
           gasPriceMultiplier *= 1.5;
           gasPriceMultiplier = Math.min(gasPriceMultiplier, 5); // Cap multiplier
+        }
+
+        if(errStr.length > 20000 ) {
+          errStr = errStr.slice(0,2000) + '... '+errStr.slice(-1500);
         }
 
         this.logger.warn(

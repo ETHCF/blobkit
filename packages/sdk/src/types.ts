@@ -116,6 +116,8 @@ export interface BlobKitConfig {
   archiveUrl?: string;
   defaultCodec?: string;
 
+  txTimeoutMs?: number;
+
   // Proxy configuration
   proxyUrl?: string;
   escrowContract?: string;
