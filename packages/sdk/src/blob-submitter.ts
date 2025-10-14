@@ -25,6 +25,7 @@ export interface BlobSubmitterConfig {
   chainId: number;
   escrowAddress: string;
   txTimeoutMs?: number; // Optional timeout for transactions
+  eip7918?: boolean; // Whether to use EIP-7918 for fee payment, active after Fukasa upgrade
 }
 
 export interface DirectSubmitResult {
@@ -35,6 +36,12 @@ export interface DirectSubmitResult {
   proof: string;
   blobIndex: number;
 }
+
+const BLOB_BASE_FEE_UPDATE_FRACTION = 3338477n;
+const MIN_BASE_FEE_PER_BLOB_GAS = 1n;
+const GAS_PER_BLOB = 131072n; // (1 blob = 131072 gas)
+const BLOB_BASE_COST = 8192n;
+const TARGET_BLOB_GAS_PER_BLOCK = 393216n;
 
 export class BlobSubmitter {
   private provider: ethers.JsonRpcProvider;
@@ -61,23 +68,7 @@ export class BlobSubmitter {
       const proof = computeKzgProof(blob, commitment);
       const versionedHash = await commitmentToVersionedHash(commitment);
 
-      // Get current fee data
-      const feeData = await this.provider.getFeeData();
-      if (!feeData.maxFeePerGas || !feeData.maxPriorityFeePerGas) {
-        throw new BlobKitError(
-          BlobKitErrorCode.NETWORK_ERROR,
-          'Unable to fetch current gas prices'
-        );
-      }
-
-      const maxFeePerGas = feeData.maxFeePerGas * BigInt(Math.floor(gasPriceMultiplier * 100)) / BigInt(100);
-      const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * BigInt(Math.floor(gasPriceMultiplier * 100)) / BigInt(100);
-
-      // Get blob base fee
-      const block = await this.provider.getBlock('latest');
-      if (!block) {
-        throw new BlobKitError(BlobKitErrorCode.NETWORK_ERROR, 'Unable to fetch latest block');
-      }
+      const cost = await this.estimateCost(1);
 
       // Construct blob transaction
       const tx: TransactionRequest = {
@@ -86,9 +77,9 @@ export class BlobSubmitter {
         to: '0x0000000000000000000000000000000000000000', // must be 0
         from: await signer.getAddress(),
         data: '0x',
-        maxFeePerGas: maxFeePerGas,
-        maxPriorityFeePerGas: maxPriorityFeePerGas,
-        maxFeePerBlobGas: BigInt(1000000000), // 1 gwei default
+        maxFeePerGas: cost.maxFeePerGas,
+        maxPriorityFeePerGas: cost.maxPriorityFeePerGas,
+        maxFeePerBlobGas: cost.maxFeePerBlobGas,
         blobs: [blob],
         kzgCommitments: ['0x' + Buffer.from(commitment).toString('hex')],
         kzgProofs: ['0x' + Buffer.from(proof).toString('hex')],
@@ -134,14 +125,53 @@ export class BlobSubmitter {
     }
   }
 
+  fakeExponential(factor: bigint, numerator: bigint, denominator: bigint): bigint {
+    let i = 1n;
+    let output = 0n;
+    let numerator_accum = factor * denominator;
+    while (numerator_accum > 0n) {
+        output += numerator_accum;
+        numerator_accum = (numerator_accum * numerator) / (denominator * i);
+        i += 1n;
+    }
+    return output; // denominator
+  }
+
+  getTotalBlobGas(blobCount: number): bigint {
+    return GAS_PER_BLOB * BigInt(blobCount);
+  }
+
+  getBaseFeePerBlobGas(lastBlockExcessBlobGas: bigint): bigint {
+    return this.fakeExponential(
+        MIN_BASE_FEE_PER_BLOB_GAS,
+        lastBlockExcessBlobGas,
+        BLOB_BASE_FEE_UPDATE_FRACTION
+    );
+  }
+
+  calcBlobFee(blobCount: number, lastBlockExcessBlobGas: bigint): bigint {
+    return this.getTotalBlobGas(blobCount) * this.getBaseFeePerBlobGas(lastBlockExcessBlobGas);
+  }
+
+  calcExcessBlobGas(excessBlobGas: bigint, blobGasUsed: bigint): bigint {
+    if (excessBlobGas + blobGasUsed < TARGET_BLOB_GAS_PER_BLOCK) {
+        return 0n;
+    } else {
+        return excessBlobGas + blobGasUsed - TARGET_BLOB_GAS_PER_BLOCK;
+    }
+  }
+
 
   /**
    * Estimate the cost of submitting a blob
    */
-  async estimateCost(payloadSize: number): Promise<{
+  async estimateCost(blobCount: number): Promise<{
     blobFee: bigint;
     executionFee: bigint;
     total: bigint;
+    maxFeePerBlobGas: bigint;
+    maxFeePerGas: bigint;
+    maxPriorityFeePerGas: bigint;
   }> {
     try {
       // Get current fee data
@@ -152,35 +182,38 @@ export class BlobSubmitter {
         throw new Error('Unable to fetch fee data');
       }
 
-      // Calculate blob gas (1 blob = 131072 gas)
-      const blobGas = BigInt(131072);
+      let maxFeePerGas = feeData.maxFeePerGas
+      let maxPriorityFeePerGas = feeData.maxPriorityFeePerGas || 1000000000n;
 
       // Get actual blob base fee from network (EIP-4844)
-      let blobBaseFee = 1n; // 1 wei minimum
+      let blobFee = 1n; // 1 wei minimum
       const hasBlobFeeFields = (block as unknown as { blobGasUsed?: bigint | null; excessBlobGas?: bigint | null }).blobGasUsed != null
         && (block as unknown as { blobGasUsed?: bigint | null; excessBlobGas?: bigint | null }).excessBlobGas != null;
 
-      if (hasBlobFeeFields) {
-        // Calculate blob base fee from excess blob gas
-        const MIN_BLOB_BASE_FEE = 1n;
-        const BLOB_BASE_FEE_UPDATE_FRACTION = 3338477n;
-        const excess = (block as unknown as { excessBlobGas: bigint }).excessBlobGas;
-        blobBaseFee = excess > 0n ? MIN_BLOB_BASE_FEE + excess / BLOB_BASE_FEE_UPDATE_FRACTION : MIN_BLOB_BASE_FEE;
-      } else {
+      if (block.excessBlobGas === null) {
+        console.warn('Block does not have excessBlobGas field, pre-4844 network?');
+        console.log(`Block data: ${JSON.stringify(block)}`);
         // Pre-4844 or no blob data, use reasonable default
-        blobBaseFee = 1_000_000_000n; // 1 gwei fallback
+        blobFee = 1_000_000_000n * GAS_PER_BLOB; // 1 gwei fallback
+ 
+      } else if (!this.config.eip7918) {
+        blobFee = this.calcBlobFee(blobCount, block.excessBlobGas)
+      }else { // EIP-7918 active
+        blobFee = this.calcBlobFee(blobCount, block.excessBlobGas)
       }
 
-      const blobFee = blobGas * blobBaseFee;
 
       // Estimate execution gas
       const executionGas = BigInt(200000); // Reasonable estimate
-      const executionFee = executionGas * feeData.maxFeePerGas;
+      const executionFee = executionGas * maxFeePerGas + executionGas * maxPriorityFeePerGas;
 
       return {
         blobFee,
         executionFee,
-        total: blobFee + executionFee
+        total: blobFee + executionFee,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+        maxFeePerBlobGas: blobFee
       };
     } catch (error) {
       throw new BlobKitError(

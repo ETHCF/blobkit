@@ -246,7 +246,7 @@ describe('SDK Blob Operations Integration', () => {
       const testData = generateTestBlobData('sequential', 10000);
 
       // Get estimate
-      const estimate = await blobkit.estimateCost(testData);
+      const estimate = await blobkit.estimateCost(1);
 
       // Verify estimate structure
       expect(parseFloat(estimate.blobFee)).toBeGreaterThan(0);
@@ -273,13 +273,13 @@ describe('SDK Blob Operations Integration', () => {
       const testData = generateTestBlobData('sequential', 5000);
 
       // Get initial estimate
-      const estimate1 = await blobkit.estimateCost(testData);
+      const estimate1 = await blobkit.estimateCost(1);
 
       // Mine some blocks to potentially change gas prices
       await env.mineBlocks(10);
 
       // Get second estimate
-      const estimate2 = await blobkit.estimateCost(testData);
+      const estimate2 = await blobkit.estimateCost(1);
 
       // Both should be valid
       expect(parseFloat(estimate1.totalETH)).toBeGreaterThan(0);

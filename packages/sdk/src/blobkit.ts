@@ -57,7 +57,7 @@ export class BlobKit {
   // Component managers
   private paymentManager: PaymentManager;
   private proxyClient?: ProxyClient;
-  private blobSubmitter?: BlobSubmitter;
+  private blobSubmitter: BlobSubmitter;
   private blobReader: BlobReader;
   private logger: Logger;
 
@@ -85,6 +85,7 @@ export class BlobKit {
       kzgSetup: config.kzgSetup,
       metricsHooks: config.metricsHooks,
       txTimeoutMs: config.txTimeoutMs ?? 120000,
+      gasPriceMultiplier: config.gasPriceMultiplier ?? 4.05
     };
 
     this.signer = signer;
@@ -102,6 +103,13 @@ export class BlobKit {
       archiveUrl: this.config.archiveUrl,
       logLevel: this.config.logLevel
     });
+
+    this.blobSubmitter = new BlobSubmitter({
+        rpcUrl: this.config.rpcUrl,
+        chainId: this.config.chainId,
+        escrowAddress: this.config.escrowContract,
+        txTimeoutMs: this.config.txTimeoutMs,
+      });
 
     this.logger = new Logger({ context: 'BlobKit', level: this.config.logLevel as any });
     this.logger.debug(`BlobKit initialized in ${this.environment} environment`);
@@ -133,14 +141,6 @@ export class BlobKit {
         proxyUrl,
         requestSigningSecret: this.config.requestSigningSecret,
         logLevel: this.config.logLevel
-      });
-    } else if (this.environment === 'node') {
-      // Set up direct submitter for Node.js
-      this.blobSubmitter = new BlobSubmitter({
-        rpcUrl: this.config.rpcUrl,
-        chainId: this.config.chainId,
-        escrowAddress: this.config.escrowContract,
-        txTimeoutMs: this.config.txTimeoutMs,
       });
     }
   }
@@ -208,7 +208,7 @@ export class BlobKit {
         // Submit blob
         let result: DirectSubmitResult | BlobSubmitResult;
         if (shouldUseProxy) {
-          const estimate = await this.estimateCost(payload);
+          const estimate = await this.estimateCost(1);
           this.logger.info(`Depositing payment into contract for the proxy write, job ID: ${jobId}`);
           const payment = await this.paymentManager.depositForBlob(jobId, estimate.totalETH);
           paymentHash = payment.paymentTxHash;
@@ -236,8 +236,7 @@ export class BlobKit {
         let errStr = `${error instanceof Error ? error.message + "\n" + error.stack : String(error)}`;
 
         if (errStr.includes("replacement fee too low")) {
-          gasPriceMultiplier *= 1.5;
-          gasPriceMultiplier = Math.min(gasPriceMultiplier, 5); // Cap multiplier
+          gasPriceMultiplier *= this.config.gasPriceMultiplier;
         }
 
         if(errStr.length > 20000 ) {
@@ -306,24 +305,24 @@ export class BlobKit {
   /**
    * Estimate cost of blob storage
    */
-  async estimateCost(payload: Uint8Array): Promise<CostEstimate> {
-    validateBlobSize(payload);
+  async estimateCost(blobCount: number): Promise<CostEstimate> {
+
+    const costs = await this.blobSubmitter.estimateCost(blobCount);
 
     if (this.shouldUseProxy()) {
       // Get proxy fee
       const proxyFee = await this.getProxyFeePercent();
-      const baseCost = await this.estimateBaseCost(payload.length);
-      const proxyAmount = (baseCost * BigInt(proxyFee)) / BigInt(100);
+      const proxyAmount = (costs.total * BigInt(proxyFee)) / BigInt(100);
 
       return {
-        blobFee: formatEther(baseCost),
+        blobFee:  formatEther(costs.blobFee),
         gasFee: '0',
         proxyFee: formatEther(proxyAmount),
-        totalETH: formatEther(baseCost + proxyAmount)
+        totalETH: formatEther(costs.total + proxyAmount)
       };
     } else {
       // Direct submission costs
-      const costs = await this.blobSubmitter!.estimateCost(payload.length);
+      
       return {
         blobFee: formatEther(costs.blobFee),
         gasFee: formatEther(costs.executionFee),
@@ -530,12 +529,7 @@ export class BlobKit {
     return 0;
   }
 
-  private async estimateBaseCost(payloadSize: number): Promise<bigint> {
-    // Simple estimation: 1 blob = 131072 gas at 1 gwei
-    const blobGas = BigInt(131072);
-    const gasPrice = BigInt(1000000000); // 1 gwei
-    return blobGas * gasPrice;
-  }
+
 
   private validateConfig(config: BlobKitConfig): void {
     if (!config.rpcUrl) {

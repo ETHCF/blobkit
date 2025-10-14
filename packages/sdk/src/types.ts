@@ -130,6 +130,8 @@ export interface BlobKitConfig {
 
   // Monitoring hooks
   metricsHooks?: MetricsHooks;
+
+  gasPriceMultiplier?: number;
 }
 
 /**
