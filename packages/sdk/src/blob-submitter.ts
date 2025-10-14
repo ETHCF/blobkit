@@ -114,6 +114,11 @@ export class BlobSubmitter {
         blobIndex: 0 // Single blob per transaction
       };
     } catch (error) {
+      if (!!(error as any).message && (error as any).message.length > 4000 ) {
+        let firstEnd = (error as any).message.indexOf("params");
+        if (firstEnd < 0 || firstEnd > 2000) firstEnd = 2000;
+        (error as any).message = (error as any).message.substring(0, firstEnd) + '...(truncated)...' +  (error as any).message.substring(-2000);
+      }
       if (error instanceof BlobKitError) {
         throw error;
       }
