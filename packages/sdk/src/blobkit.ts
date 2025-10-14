@@ -85,7 +85,7 @@ export class BlobKit {
       kzgSetup: config.kzgSetup,
       metricsHooks: config.metricsHooks,
       txTimeoutMs: config.txTimeoutMs ?? 120000,
-      gasPriceMultiplier: config.gasPriceMultiplier ?? 4.05
+      gasPriceMultiplier: config.gasPriceMultiplier ?? 1.15
     };
 
     this.signer = signer;

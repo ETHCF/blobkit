@@ -69,7 +69,6 @@ export class BlobSubmitter {
       const versionedHash = await commitmentToVersionedHash(commitment);
 
       const cost = await this.estimateCost(1);
-
       // Construct blob transaction
       const tx: TransactionRequest = {
         chainId: this.config.chainId,
@@ -194,17 +193,20 @@ export class BlobSubmitter {
       let blobFee = 1n; // 1 wei minimum
       const hasBlobFeeFields = (block as unknown as { blobGasUsed?: bigint | null; excessBlobGas?: bigint | null }).blobGasUsed != null
         && (block as unknown as { blobGasUsed?: bigint | null; excessBlobGas?: bigint | null }).excessBlobGas != null;
-
+      let maxFeePerBlobGas = 1_000_000_000n; // 1 gwei minimum
       if (block.excessBlobGas === null) {
         console.warn('Block does not have excessBlobGas field, pre-4844 network?');
         console.log(`Block data: ${JSON.stringify(block)}`);
         // Pre-4844 or no blob data, use reasonable default
         blobFee = 1_000_000_000n * GAS_PER_BLOB; // 1 gwei fallback
+        maxFeePerBlobGas = 1_000_000_000n; // 1 gwei fallback
  
       } else if (!this.config.eip7918) {
         blobFee = this.calcBlobFee(blobCount, block.excessBlobGas)
+        maxFeePerBlobGas = this.getBaseFeePerBlobGas(block.excessBlobGas)
       }else { // EIP-7918 active
         blobFee = this.calcBlobFee(blobCount, block.excessBlobGas)
+        maxFeePerBlobGas = this.getBaseFeePerBlobGas(block.excessBlobGas)
       }
 
 
@@ -218,7 +220,7 @@ export class BlobSubmitter {
         total: blobFee + executionFee,
         maxFeePerGas,
         maxPriorityFeePerGas,
-        maxFeePerBlobGas: blobFee
+        maxFeePerBlobGas: maxFeePerBlobGas,
       };
     } catch (error) {
       throw new BlobKitError(
