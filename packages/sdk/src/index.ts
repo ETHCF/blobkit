@@ -33,7 +33,6 @@ export type {
   Provider,
   FeeData,
   ProcessEnv,
-  KzgSetupOptions
 } from './types.js';
 
 // Error handling
@@ -63,10 +62,8 @@ export {
   encodeBlob,
   decodeBlob,
   blobToKzgCommitment,
-  computeKzgProof,
+  computeKzgProofs,
   commitmentToVersionedHash,
-  loadTrustedSetupFromURL,
-  loadTrustedSetupFromFile,
   FIELD_ELEMENTS_PER_BLOB,
   BYTES_PER_FIELD_ELEMENT,
   BLOB_SIZE
@@ -89,13 +86,6 @@ export function createFromEnv(signer?: Signer): BlobKit {
     proxyUrl: env.BLOBKIT_PROXY_URL,
     logLevel: env.BLOBKIT_LOG_LEVEL || 'info'
   };
-
-  // Add KZG setup from environment if available
-  if (env.BLOBKIT_KZG_TRUSTED_SETUP_PATH) {
-    config.kzgSetup = {
-      trustedSetupPath: env.BLOBKIT_KZG_TRUSTED_SETUP_PATH
-    };
-  }
 
   return new BlobKit(config, signer);
 }

@@ -19,7 +19,7 @@ export interface BlobSubmitResult {
   blockNumber: number;
   blobHash: string;
   commitment: string;
-  proof: string;
+  proofs: string[];
   blobIndex: number;
   completionTxHash: string;
 }
@@ -107,7 +107,7 @@ export class ProxyClient {
           blockNumber: result.blockNumber,
           blobHash: result.blobHash,
           commitment: result.commitment,
-          proof: result.proof,
+          proofs: result.proofs,
           blobIndex: result.blobIndex,
           completionTxHash: result.completionTxHash
         };

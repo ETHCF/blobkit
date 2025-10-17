@@ -20,7 +20,6 @@ export type {
   TransactionReceipt,
   Provider,
   FeeData,
-  KzgSetupOptions
 } from './types.js';
 
 export { BlobKit } from './blobkit.js';

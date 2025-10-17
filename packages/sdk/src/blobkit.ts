@@ -39,14 +39,18 @@ import {
 } from './utils.js';
 import { initializeKzg, requireKzg } from './kzg.js';
 
+
+const defaultEIP7594 = (chainId: number): boolean => {
+  const eip7594Chains = [ 11155111 ];
+  return eip7594Chains.includes(chainId);
+}
 /**
  * BlobKit SDK - Main class for blob storage operations
  */
 export class BlobKit {
   private readonly config: Required<
-    Omit<BlobKitConfig, 'kzgSetup' | 'metricsHooks' | 'requestSigningSecret'>
+    Omit<BlobKitConfig, 'metricsHooks' | 'requestSigningSecret'>
   > & {
-    kzgSetup?: import('./types.js').KzgSetupOptions;
     metricsHooks?: import('./types.js').MetricsHooks;
     requestSigningSecret?: string;
   };
@@ -82,10 +86,9 @@ export class BlobKit {
       maxProxyFeePercent: config.maxProxyFeePercent ?? 5,
       callbackUrl: config.callbackUrl ?? '',
       logLevel: config.logLevel ?? 'info',
-      kzgSetup: config.kzgSetup,
       metricsHooks: config.metricsHooks,
       txTimeoutMs: config.txTimeoutMs ?? 120000,
-      gasPriceMultiplier: config.gasPriceMultiplier ?? 1.15
+      eip7594: config.eip7594 ?? defaultEIP7594(config.chainId ?? 1),
     };
 
     this.signer = signer;
@@ -130,7 +133,7 @@ export class BlobKit {
   async initialize(): Promise<void> {
     // Initialize KZG if not already done
     if (!this.kzgInitialized) {
-      await initializeKzg(this.config.kzgSetup);
+      await initializeKzg();
       this.kzgInitialized = true;
     }
 
@@ -193,7 +196,6 @@ export class BlobKit {
     console.log(`Writing blob with job ID: ${jobId}`);
 
     const shouldUseProxy = this.shouldUseProxy();
-    let gasPriceMultiplier = 1;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         // Generate new job ID for each attempt
@@ -214,7 +216,7 @@ export class BlobKit {
           paymentHash = payment.paymentTxHash;
           result = await this.submitViaProxy(jobId, payment.paymentTxHash, payload, fullMeta);
         } else {
-          result = await this.submitDirectly(payload, gasPriceMultiplier);
+          result = await this.submitDirectly(payload);
         }
 
         this.metrics.trackOperation('writeBlob', 'complete', Date.now() - startTime);
@@ -227,7 +229,7 @@ export class BlobKit {
           blockNumber: result.blockNumber,
           blobHash: result.blobHash,
           commitment: result.commitment,
-          proof: result.proof,
+          proofs: result.proofs,
           blobIndex: result.blobIndex,
           meta: fullMeta
         };
@@ -236,7 +238,7 @@ export class BlobKit {
         let errStr = `${error instanceof Error ? error.message + "\n" + error.stack : String(error)}`;
 
         if (errStr.includes("replacement fee too low")) {
-          gasPriceMultiplier *= this.config.gasPriceMultiplier;
+          this.logger.warn("Detected 'replacement fee too low' error, it might be stuck ");
         }
 
         if(errStr.length > 20000 ) {
@@ -461,14 +463,13 @@ export class BlobKit {
   }
 
   private async submitDirectly(
-    payload: Uint8Array,
-    gasPriceMultiplier: number = 1
+    payload: Uint8Array
   ): Promise<DirectSubmitResult & { completionTxHash: string }> {
     if (!this.blobSubmitter || !this.signer) {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Direct submission not available');
     }
 
-    const result = await this.blobSubmitter.submitBlob(this.signer, payload, requireKzg(), gasPriceMultiplier);
+    const result = await this.blobSubmitter.submitBlob(this.signer, payload, requireKzg());
 
     return {
       ...result,

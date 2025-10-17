@@ -32,6 +32,8 @@ export interface TransactionRequest extends EthersTransactionRequest {
   maxFeePerBlobGas?: bigint;
 }
 
+export type BlobVersion = '7594' | '4844';
+
 /**
  * Process environment variables required by BlobKit
  */
@@ -45,13 +47,7 @@ export interface ProcessEnv {
   readonly BLOBKIT_CHAIN_ID?: string;
   readonly BLOBKIT_PROXY_URL?: string;
   readonly BLOBKIT_LOG_LEVEL?: 'debug' | 'info' | 'silent';
-  readonly BLOBKIT_KZG_TRUSTED_SETUP_PATH?: string;
   readonly OVERRIDE_BLOBKIT_ENVIRONMENT?: BlobKitEnvironment;
-}
-
-export interface KzgLibrary {
-  blobToKzgCommitment: (blob: Uint8Array) => Uint8Array;
-  computeBlobKzgProof: (blob: Uint8Array, commitment: Uint8Array) => Uint8Array;
 }
 
 /**
@@ -81,19 +77,6 @@ export interface BlobMeta {
   readonly tags?: string[];
 }
 
-/**
- * KZG setup options for BlobKit initialization
- */
-export interface KzgSetupOptions {
-  /** Pre-loaded trusted setup data as Uint8Array */
-  trustedSetupData?: Uint8Array;
-  /** URL to load trusted setup from (for browser environments) */
-  trustedSetupUrl?: string;
-  /** File path to load trusted setup from (for Node.js environments) */
-  trustedSetupPath?: string;
-  /** Expected hash for integrity verification */
-  expectedHash?: string;
-}
 
 /**
  * Metrics hooks for monitoring
@@ -125,13 +108,10 @@ export interface BlobKitConfig {
   callbackUrl?: string;
   logLevel?: 'debug' | 'info' | 'silent';
 
-  // KZG configuration
-  kzgSetup?: KzgSetupOptions;
-
   // Monitoring hooks
   metricsHooks?: MetricsHooks;
 
-  gasPriceMultiplier?: number;
+  eip7594?: boolean;
 }
 
 /**
@@ -167,7 +147,7 @@ export interface BlobReceipt {
   /** KZG commitment */
   commitment: string;
   /** KZG proof */
-  proof: string;
+  proofs: string[];
   /** Index of blob within transaction */
   blobIndex: number;
   /** Metadata associated with blob */

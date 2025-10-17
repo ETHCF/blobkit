@@ -9,14 +9,14 @@ import { ethers } from 'ethers';
 import {
   Signer,
   TransactionRequest,
-  TransactionResponse,
+  BlobVersion,
   BlobKitError,
   BlobKitErrorCode
 } from './types.js';
 import {
   encodeBlob,
   blobToKzgCommitment,
-  computeKzgProof,
+  computeKzgProofs,
   commitmentToVersionedHash
 } from './kzg.js';
 
@@ -33,7 +33,7 @@ export interface DirectSubmitResult {
   blockNumber: number;
   blobHash: string;
   commitment: string;
-  proof: string;
+  proofs: string[];
   blobIndex: number;
 }
 
@@ -57,7 +57,7 @@ export class BlobSubmitter {
     signer: Signer,
     payload: Uint8Array,
     kzg: ethers.KzgLibraryLike,
-    gasPriceMultiplier: number = 1
+    blobVersion: BlobVersion = '4844'
   ): Promise<DirectSubmitResult> {
     try {
       // Encode blob data
@@ -65,7 +65,7 @@ export class BlobSubmitter {
 
       // Generate KZG commitment and proof
       const commitment = blobToKzgCommitment(blob);
-      const proof = computeKzgProof(blob, commitment);
+      const proofs = computeKzgProofs(blob, commitment, blobVersion);
       const versionedHash = await commitmentToVersionedHash(commitment);
 
       const cost = await this.estimateCost(1);
@@ -81,7 +81,7 @@ export class BlobSubmitter {
         maxFeePerBlobGas: cost.maxFeePerBlobGas,
         blobs: [blob],
         kzgCommitments: ['0x' + Buffer.from(commitment).toString('hex')],
-        kzgProofs: ['0x' + Buffer.from(proof).toString('hex')],
+        kzgProofs: proofs,
         kzg: kzg, // This is necessary for the EIP-4844 transaction, do not remove
       };
 
@@ -109,7 +109,7 @@ export class BlobSubmitter {
         blockNumber: receipt.blockNumber!,
         blobHash: versionedHash,
         commitment: '0x' + Buffer.from(commitment).toString('hex'),
-        proof: '0x' + Buffer.from(proof).toString('hex'),
+        proofs: proofs,
         blobIndex: 0 // Single blob per transaction
       };
     } catch (error) {

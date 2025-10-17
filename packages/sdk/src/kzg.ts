@@ -5,9 +5,10 @@
  * with optimized trusted setup loading and verification
  */
 
-import { loadKZG } from 'kzg-wasm';
-import { BlobKitError, BlobKitErrorCode, KzgLibrary, KzgSetupOptions } from './types.js';
+import { loadKZG } from '@blobkit/kzg-wasm';
+import { BlobKitError, BlobKitErrorCode, BlobVersion } from './types.js';
 import { createHash } from 'crypto';
+import type { TrustedSetup, KZGProofWithCells } from '@blobkit/kzg-wasm';
 
 // Constants
 export const FIELD_ELEMENTS_PER_BLOB = 4096;
@@ -21,36 +22,24 @@ const BYTES_PER_G2 = 96;
 const NUM_G1_POINTS = 4096;
 const NUM_G2_POINTS = 65;
 
-interface TrustedSetup {
-  g1: string;
-  n1: number;
-  g2: string;
-  n2: number;
-}
-
 interface KzgWasmLibrary {
-  loadTrustedSetup: (trustedSetup?: TrustedSetup) => number;
+  loadTrustedSetup: (trustedSetup?: TrustedSetup, precompute?: number) => number;
   freeTrustedSetup: () => void;
-  // kzg-wasm uses uppercase KZG in method names
-  blobToKzgCommitment: (blob: Uint8Array | string) => Uint8Array;
-  computeBlobKzgProof: (blob: Uint8Array | string, commitment: Uint8Array) => Uint8Array;
-  verifyBlobKzgProof: (
-    blob: Uint8Array | string,
-    commitment: Uint8Array,
-    proof: Uint8Array
-  ) => boolean;
-  verifyKzgProof: (
-    commitment: Uint8Array,
-    z: Uint8Array,
-    y: Uint8Array,
-    proof: Uint8Array
-  ) => boolean;
+  blobToKZGCommitment: (blob: string) => string;
+  computeBlobKZGProof: (blob: string, commitment: string) => string;
+  verifyBlobKZGProofBatch: (blobs: string[], commitments: string[], proofs: string[]) => boolean;
+  verifyKZGProof: (commitment: string, z: string, y: string, proof: string) => boolean;
+  verifyBlobKZGProof: (blob: string, commitment: string, proof: string) => boolean;
+  computeCellsAndKZGProofs: (blob: string) => KZGProofWithCells;
+  recoverCellsFromKZGProofs: (cellIndices: number[], partial_cells: string[], numCells: number) => KZGProofWithCells;
+  verifyCellKZGProof: (commitment: string, cells: string[], proofs: string[]) => boolean;
+  verifyCellKZGProofBatch: (commitments: string[], cellIndices: number[], cells: string[], proofs: string[], numCells: number) => boolean;
+  blobToKzgCommitment: (blob: string) => string;
+  computeBlobProof: (blob: string, commitment: string) => string;
 }
-
 
 // Module-level caching
 let cachedKzg: KzgWasmLibrary | undefined;
-let cachedSetupHash: string | undefined;
 let initPromise: Promise<void> | undefined;
 
 /**
@@ -59,7 +48,6 @@ let initPromise: Promise<void> | undefined;
  */
 export function clearKzgCache(): void {
   cachedKzg = undefined;
-  cachedSetupHash = undefined;
   initPromise = undefined;
 }
 
@@ -67,58 +55,33 @@ export function clearKzgCache(): void {
  * Initialize KZG with trusted setup
  * This function is idempotent and caches the setup for efficiency
  */
-export async function initializeKzg(options?: KzgSetupOptions): Promise<void> {
+export async function initializeKzg(): Promise<void> {
   // Return existing initialization if in progress
   if (initPromise) {
     return initPromise;
   }
 
-  // Check if we have a setup source
-  const hasSetupSource =
-    options?.trustedSetupData ||
-    options?.trustedSetupUrl ||
-    options?.trustedSetupPath ||
-    (typeof process !== 'undefined' && process.env?.BLOBKIT_KZG_TRUSTED_SETUP_PATH);
 
   // Return immediately if already initialized with same setup
-  if (cachedKzg && (!options?.expectedHash || cachedSetupHash === options.expectedHash)) {
-    // But only if we had a setup source or are checking cache
-    if (hasSetupSource || !options) {
-      return;
-    }
+  if (cachedKzg) {
+    return;
   }
 
   // Start new initialization
-  initPromise = doInitialize(options).finally(() => {
+  initPromise = doInitialize().finally(() => {
     initPromise = undefined;
   });
 
   return initPromise;
 }
 
-async function doInitialize(options?: KzgSetupOptions): Promise<void> {
+async function doInitialize(): Promise<void> {
   try {
-    // Load trusted setup data
-    const setupData = await loadSetupData(options);
 
-    // Verify integrity if hash provided
-    if (options?.expectedHash) {
-      const actualHash = await computeHash(setupData);
-      if (actualHash !== options.expectedHash) {
-        throw new BlobKitError(
-          BlobKitErrorCode.KZG_ERROR,
-          `Trusted setup integrity check failed. Expected: ${options.expectedHash}, Got: ${actualHash}`
-        );
-      }
-    }
-
-    // Parse and load setup
-    const trustedSetup = await parseTrustedSetup(setupData);
-    const kzg = await loadKZG(trustedSetup);
+    const kzg = await loadKZG(); // Use default configuration
 
     // Cache for future use (cast to our interface)
     cachedKzg = kzg as unknown as KzgWasmLibrary;
-    cachedSetupHash = options?.expectedHash || (await computeHash(setupData));
   } catch (error) {
     if (error instanceof BlobKitError) {
       throw error;
@@ -129,140 +92,6 @@ async function doInitialize(options?: KzgSetupOptions): Promise<void> {
       error instanceof Error ? error : undefined
     );
   }
-}
-
-/**
- * Load trusted setup data based on options
- */
-async function loadSetupData(options?: KzgSetupOptions): Promise<Uint8Array> {
-  // Option 1: Direct data provided
-  if (options?.trustedSetupData) {
-    return options.trustedSetupData;
-  }
-
-  // Option 2: Load from URL
-  if (options?.trustedSetupUrl) {
-    return loadFromUrl(options.trustedSetupUrl);
-  }
-
-  // Option 3: Load from file path
-  if (options?.trustedSetupPath) {
-    return loadFromFile(options.trustedSetupPath);
-  }
-
-  // Option 4: Environment variable path
-  if (typeof process !== 'undefined' && process.env?.BLOBKIT_KZG_TRUSTED_SETUP_PATH) {
-    return loadFromFile(process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH);
-  }
-
-  throw new BlobKitError(
-    BlobKitErrorCode.KZG_ERROR,
-    'No trusted setup source provided. Specify one of: trustedSetupData, trustedSetupUrl, or trustedSetupPath'
-  );
-}
-
-/**
- * Load trusted setup from URL with caching headers support
- */
-async function loadFromUrl(url: string): Promise<Uint8Array> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'Cache-Control': 'max-age=3600' // Cache for 1 hour
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const buffer = await response.arrayBuffer();
-    return new Uint8Array(buffer);
-  } catch (error) {
-    throw new BlobKitError(
-      BlobKitErrorCode.KZG_ERROR,
-      `Failed to load trusted setup from URL: ${url}`,
-      error instanceof Error ? error : undefined
-    );
-  }
-}
-
-/**
- * Load trusted setup from file system
- */
-async function loadFromFile(path: string): Promise<Uint8Array> {
-  try {
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-        return loadFromUrl(path);
-    }
-    const fs = await import('fs');
-    const buffer = await fs.promises.readFile(path);
-    return new Uint8Array(buffer);
-  } catch (error) {
-    throw new BlobKitError(
-      BlobKitErrorCode.KZG_ERROR,
-      `Failed to load trusted setup from file: ${path}`,
-      error instanceof Error ? error : undefined
-    );
-  }
-}
-
-/**
- * Compute SHA-256 hash of data for integrity verification
- */
-async function computeHash(data: Uint8Array): Promise<string> {
-  if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.subtle) {
-    // Browser environment
-    const dataBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-    const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', dataBuffer as ArrayBuffer);
-    const hashArray = new Uint8Array(hashBuffer);
-    return (
-      'sha256:' +
-      Array.from(hashArray)
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('')
-    );
-  }
-
-  // Node.js environment
-  const hash = createHash('sha256');
-  hash.update(data);
-  return 'sha256:' + hash.digest('hex');
-}
-
-/**
- * Parse trusted setup data into format expected by KZG library
- */
-async function parseTrustedSetup(data: Uint8Array): Promise<TrustedSetup> {
-  const content = new TextDecoder('utf-8').decode(data);
-  const lines = content.trim().split(/\s+/);
-
-  if (lines.length < 2) {
-    throw new Error('Invalid trusted setup format');
-  }
-
-  const numG1Points = parseInt(lines[0], 10);
-  const numG2Points = parseInt(lines[1], 10);
-
-  if (numG1Points !== NUM_G1_POINTS || numG2Points !== NUM_G2_POINTS) {
-    throw new Error(`Invalid point counts: G1=${numG1Points}, G2=${numG2Points}`);
-  }
-
-  const dataHex = lines.slice(2).join('').replace(/\s/g, '');
-
-  const g1Length = NUM_G1_POINTS * BYTES_PER_G1 * 2;
-  const g2Length = NUM_G2_POINTS * BYTES_PER_G2 * 2;
-
-  if (dataHex.length < g1Length + g2Length) {
-    throw new Error(`Insufficient data in trusted setup: expected at least ${g1Length + g2Length} bytes, got ${dataHex.length}`);
-  }
-
-  return {
-    g1: dataHex.substring(0, g1Length),
-    n1: NUM_G1_POINTS,
-    g2: dataHex.substring(g1Length, g1Length + g2Length),
-    n2: NUM_G2_POINTS
-  };
 }
 
 /**
@@ -374,7 +203,8 @@ export function blobToKzgCommitment(blob: Uint8Array): Uint8Array {
   try {
     // kzg-wasm expects hex strings
     const hexBlob = '0x' + Buffer.from(blob).toString('hex');
-    return kzg.blobToKzgCommitment(hexBlob);
+    const resultHex = kzg.blobToKzgCommitment(hexBlob);
+    return Uint8Array.from(Buffer.from(resultHex.slice(2), 'hex'));
   } catch (error) {
     throw new BlobKitError(
       BlobKitErrorCode.KZG_ERROR,
@@ -385,9 +215,9 @@ export function blobToKzgCommitment(blob: Uint8Array): Uint8Array {
 }
 
 /**
- * Compute KZG proof for a blob
+ * Compute KZG proofs for a blob, returns array of hex proof strings
  */
-export function computeKzgProof(blob: Uint8Array, commitment: Uint8Array): Uint8Array {
+export function computeKzgProofs(blob: Uint8Array, commitment: Uint8Array, version: BlobVersion = '4844'): string[] {
   const kzg = requireKzg();
 
   if (blob.length !== BLOB_SIZE) {
@@ -397,10 +227,20 @@ export function computeKzgProof(blob: Uint8Array, commitment: Uint8Array): Uint8
     );
   }
 
+  const hexBlob = '0x' + Buffer.from(blob).toString('hex');
+  const hexCommitment = '0x' + Buffer.from(commitment).toString('hex');
+
+  if (version === '7594') {
+    const result = kzg.computeCellsAndKZGProofs(hexBlob);
+    return result.proofs.map(proofHex => proofHex.toLowerCase());
+    // Special handling for version 7594
+  }
+
   try {
     // kzg-wasm expects hex strings
-    const hexBlob = '0x' + Buffer.from(blob).toString('hex');
-    return kzg.computeBlobKzgProof(hexBlob, commitment);
+    
+    const resultHex = kzg.computeBlobKZGProof(hexBlob, hexCommitment);
+    return [resultHex.toLowerCase()];
   } catch (error) {
     throw new BlobKitError(
       BlobKitErrorCode.KZG_ERROR,
@@ -449,27 +289,3 @@ export async function commitmentToVersionedHash(commitment: Uint8Array): Promise
   return '0x' + hashBytes.toString('hex');
 }
 
-/**
- * Export functions for loading setup data (for testing/advanced use)
- */
-export { loadFromUrl as loadTrustedSetupFromURL, loadFromFile as loadTrustedSetupFromFile };
-
-/**
- * Export alias for compatibility
- */
-export { computeKzgProof as computeBlobKzgProof };
-
-/**
- * KZG library implementation for ethers compatibility
- */
-class CachedKzgLibrary implements KzgLibrary {
-  blobToKzgCommitment(blob: Uint8Array): Uint8Array {
-    return blobToKzgCommitment(blob);
-  }
-
-  computeBlobKzgProof(blob: Uint8Array, commitment: Uint8Array): Uint8Array {
-    return computeKzgProof(blob, commitment);
-  }
-}
-
-export const kzgLibrary: KzgLibrary = new CachedKzgLibrary();
