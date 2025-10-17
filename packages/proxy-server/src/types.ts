@@ -19,7 +19,6 @@ export interface ProxyConfig {
   rateLimitWindow: number;
   jobTimeout: number;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
-  kzgTrustedSetupPath: string;
   httpProxyCount: number;
 }
 
@@ -53,7 +52,7 @@ export interface BlobWriteResponse {
   blockNumber: number;
   blobHash: string;
   commitment: string;
-  proof: string;
+  proofs: string[];
   blobIndex: number;
   completionTxHash: string;
   jobId: string;

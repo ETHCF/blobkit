@@ -40,6 +40,7 @@ export class ProxyClient {
     payload: Uint8Array;
     signature: Uint8Array;
     meta: BlobMeta;
+    blobVersion: string;
   }): Promise<BlobSubmitResult> {
     const maxRetries = 3;
     const baseDelay = 1000; // 1 second
@@ -51,7 +52,8 @@ export class ProxyClient {
           paymentTxHash: data.paymentTxHash,
           payload: Buffer.from(data.payload).toString('base64'),
           signature: Buffer.from(data.signature).toString('base64'),
-          meta: data.meta
+          meta: data.meta,
+          blobVersion: data.blobVersion
         };
 
         const headers: Record<string, string> = {

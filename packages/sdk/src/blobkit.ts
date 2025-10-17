@@ -16,7 +16,8 @@ import {
   BlobKitError,
   BlobKitErrorCode,
   TransactionResponse,
-  JobStatus
+  JobStatus,
+  BlobVersion
 } from './types.js';
 import { detectEnvironment, getEnvironmentCapabilities } from './environment.js';
 import { defaultCodecRegistry } from './codecs/index.js';
@@ -67,6 +68,7 @@ export class BlobKit {
 
   private kzgInitialized = false;
   private jobNonce = 0;
+  private blobVersion: BlobVersion;
 
   /**
    * Creates a new BlobKit instance
@@ -88,8 +90,10 @@ export class BlobKit {
       logLevel: config.logLevel ?? 'info',
       metricsHooks: config.metricsHooks,
       txTimeoutMs: config.txTimeoutMs ?? 120000,
-      eip7594: config.eip7594 ?? defaultEIP7594(config.chainId ?? 1),
+      eip7594: config.eip7594 === undefined ? defaultEIP7594(config.chainId ?? 1) : config.eip7594,
     };
+
+    this.blobVersion = this.config.eip7594 ? '7594' : '4844';
 
     this.signer = signer;
     this.metrics = new MetricsCollector(config.metricsHooks);
@@ -453,7 +457,8 @@ export class BlobKit {
       paymentTxHash,
       payload,
       signature: hexToBytes(signature),
-      meta
+      meta,
+      blobVersion: this.blobVersion
     });
 
     // Wait for job completion
@@ -469,7 +474,7 @@ export class BlobKit {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Direct submission not available');
     }
 
-    const result = await this.blobSubmitter.submitBlob(this.signer, payload, requireKzg());
+    const result = await this.blobSubmitter.submitBlob(this.signer, payload, requireKzg(), this.blobVersion);
 
     return {
       ...result,

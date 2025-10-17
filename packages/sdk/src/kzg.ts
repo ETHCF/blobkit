@@ -79,10 +79,11 @@ async function doInitialize(): Promise<void> {
   try {
 
     const kzg = await loadKZG(); // Use default configuration
-
+    kzg.loadTrustedSetup();
     // Cache for future use (cast to our interface)
     cachedKzg = kzg as unknown as KzgWasmLibrary;
   } catch (error) {
+    console.error('KZG initialization failed:', error);
     if (error instanceof BlobKitError) {
       throw error;
     }
@@ -190,7 +191,7 @@ export function decodeBlob(blob: Uint8Array): Uint8Array {
 /**
  * Create KZG commitment for a blob
  */
-export function blobToKzgCommitment(blob: Uint8Array): Uint8Array {
+export function blobToKzgCommitment(blob: Uint8Array): string {
   const kzg = requireKzg();
 
   if (blob.length !== BLOB_SIZE) {
@@ -204,7 +205,7 @@ export function blobToKzgCommitment(blob: Uint8Array): Uint8Array {
     // kzg-wasm expects hex strings
     const hexBlob = '0x' + Buffer.from(blob).toString('hex');
     const resultHex = kzg.blobToKzgCommitment(hexBlob);
-    return Uint8Array.from(Buffer.from(resultHex.slice(2), 'hex'));
+    return resultHex.toLowerCase();
   } catch (error) {
     throw new BlobKitError(
       BlobKitErrorCode.KZG_ERROR,
@@ -217,7 +218,7 @@ export function blobToKzgCommitment(blob: Uint8Array): Uint8Array {
 /**
  * Compute KZG proofs for a blob, returns array of hex proof strings
  */
-export function computeKzgProofs(blob: Uint8Array, commitment: Uint8Array, version: BlobVersion = '4844'): string[] {
+export function computeKzgProofs(blob: Uint8Array, commitmentHex: string, version: BlobVersion = '4844'): string[] {
   const kzg = requireKzg();
 
   if (blob.length !== BLOB_SIZE) {
@@ -228,23 +229,23 @@ export function computeKzgProofs(blob: Uint8Array, commitment: Uint8Array, versi
   }
 
   const hexBlob = '0x' + Buffer.from(blob).toString('hex');
-  const hexCommitment = '0x' + Buffer.from(commitment).toString('hex');
+  
 
   if (version === '7594') {
+    // Special handling for version 7594
     const result = kzg.computeCellsAndKZGProofs(hexBlob);
     return result.proofs.map(proofHex => proofHex.toLowerCase());
-    // Special handling for version 7594
+    
   }
 
   try {
     // kzg-wasm expects hex strings
-    
-    const resultHex = kzg.computeBlobKZGProof(hexBlob, hexCommitment);
+    const resultHex = kzg.computeBlobKZGProof(hexBlob, commitmentHex);
     return [resultHex.toLowerCase()];
   } catch (error) {
     throw new BlobKitError(
       BlobKitErrorCode.KZG_ERROR,
-      'Failed to compute KZG proof',
+      'Failed to compute KZG proof: ' + (error instanceof Error ? error.message : String(error)),
       error instanceof Error ? error : undefined
     );
   }
@@ -253,7 +254,8 @@ export function computeKzgProofs(blob: Uint8Array, commitment: Uint8Array, versi
 /**
  * Convert KZG commitment to versioned hash
  */
-export async function commitmentToVersionedHash(commitment: Uint8Array): Promise<string> {
+export async function commitmentToVersionedHash(commitmentHex: string): Promise<string> {
+  const commitment = Buffer.from(commitmentHex.slice(2), 'hex');
   if (commitment.length !== 48) {
     throw new BlobKitError(
       BlobKitErrorCode.INVALID_PAYLOAD,

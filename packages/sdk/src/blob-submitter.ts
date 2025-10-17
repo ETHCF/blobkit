@@ -5,13 +5,14 @@
  * without going through the proxy server
  */
 
-import { ethers } from 'ethers';
+import { ethers, Transaction, Signature, ZeroAddress } from 'ethers';
 import {
   Signer,
   TransactionRequest,
   BlobVersion,
   BlobKitError,
-  BlobKitErrorCode
+  BlobKitErrorCode,
+  BlobTxData
 } from './types.js';
 import {
   encodeBlob,
@@ -19,6 +20,7 @@ import {
   computeKzgProofs,
   commitmentToVersionedHash
 } from './kzg.js';
+import { SerializeEIP7495 } from './serialize.js';
 
 export interface BlobSubmitterConfig {
   rpcUrl: string;
@@ -64,10 +66,9 @@ export class BlobSubmitter {
       const blob = encodeBlob(payload);
 
       // Generate KZG commitment and proof
-      const commitment = blobToKzgCommitment(blob);
-      const proofs = computeKzgProofs(blob, commitment, blobVersion);
-      const versionedHash = await commitmentToVersionedHash(commitment);
-
+      const commitmentHex = blobToKzgCommitment(blob);
+      const proofs = computeKzgProofs(blob, commitmentHex, blobVersion);
+      const versionedHash = await commitmentToVersionedHash(commitmentHex);
       const cost = await this.estimateCost(1);
       // Construct blob transaction
       const tx: TransactionRequest = {
@@ -80,10 +81,25 @@ export class BlobSubmitter {
         maxPriorityFeePerGas: cost.maxPriorityFeePerGas,
         maxFeePerBlobGas: cost.maxFeePerBlobGas,
         blobs: [blob],
-        kzgCommitments: ['0x' + Buffer.from(commitment).toString('hex')],
+        kzgCommitments: [commitmentHex],
         kzgProofs: proofs,
         kzg: kzg, // This is necessary for the EIP-4844 transaction, do not remove
+        blobVersionedHashes: [versionedHash],
       };
+      if(blobVersion === '7594') {
+        const blobs: BlobTxData[] = [
+          {
+            blob: '0x' + Buffer.from(blob).toString('hex'),
+            commitment: commitmentHex,
+            proofs,
+            versionedHash
+          }
+        ]
+        const unsignedSerializedTX = SerializeEIP7495(tx, null, blobs);
+        signer
+      }
+
+      
 
       // Estimate gas
       try {
@@ -108,7 +124,7 @@ export class BlobSubmitter {
         blobTxHash: receipt.hash,
         blockNumber: receipt.blockNumber!,
         blobHash: versionedHash,
-        commitment: '0x' + Buffer.from(commitment).toString('hex'),
+        commitment: commitmentHex,
         proofs: proofs,
         blobIndex: 0 // Single blob per transaction
       };

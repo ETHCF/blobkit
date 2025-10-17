@@ -12,11 +12,13 @@ import type {
   TransactionRequest as EthersTransactionRequest,
   TransactionResponse as EthersTransactionResponse,
   TransactionReceipt as EthersTransactionReceipt,
-  FeeData as EthersFeeData
+  FeeData as EthersFeeData,
+  BytesLike,
+  Signature
 } from 'ethers';
 
 // Re-export ethers types
-export type Signer = EthersSigner;
+export type Signer = EthersSigner & { signRawTransaction(rawTx: BytesLike): Promise<Signature> };
 export type Provider = EthersProvider;
 export type FeeData = EthersFeeData;
 export type TransactionResponse = EthersTransactionResponse;
@@ -30,7 +32,15 @@ export interface TransactionRequest extends EthersTransactionRequest {
   kzgCommitments?: string[];
   kzgProofs?: string[];
   maxFeePerBlobGas?: bigint;
+  wrapperVersion?: number;
 }
+
+export type BlobTxData = {
+  blob: string;
+  commitment: string;
+  proofs: string[];
+  versionedHash: string;
+};
 
 export type BlobVersion = '7594' | '4844';
 

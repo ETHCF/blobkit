@@ -83,5 +83,5 @@ export const createWithMetaMask = async (config: BlobKitConfig) => {
   const { BlobKit } = await import('./blobkit.js');
   const signer = await connectMetaMask();
   // Signer from ethers is now directly compatible
-  return new BlobKit(config, signer);
+  return new BlobKit(config, signer as any);
 };
