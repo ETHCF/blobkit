@@ -49,7 +49,7 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "@blobkit/kzg-wasm": "2.2.19",
+    "@blobkit/kzg-wasm": "2.2.21",
     "ethers": "^6.15.0"
   },
   "devDependencies": {
