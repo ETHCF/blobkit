@@ -1,4 +1,4 @@
-import { ethers, copyRequest, BytesLike, Signature, getBytes, hexlify } from 'ethers';
+import { ethers, copyRequest, BytesLike, Signature, getBytes, hexlify, keccak256 } from 'ethers';
 import { createLogger } from '../utils/logger.js';
 import { Signer } from '@blobkit/sdk';
 const logger = createLogger('SecureSigner');
@@ -146,7 +146,7 @@ class EnvSigner extends ethers.AbstractSigner implements SecureSigner, ethers.Si
 
   async signRawTransaction(rawTx: BytesLike): Promise<Signature> {
     const bytesToSign = getBytes(rawTx);
-    return this.signer.signingKey.sign(bytesToSign);
+    return this.signer.signingKey.sign(keccak256(bytesToSign));
   }
 
   connect(provider: null | ethers.Provider): ethers.Signer {
@@ -246,7 +246,7 @@ class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers
 
   async signRawTransaction(rawTx: BytesLike): Promise<Signature> {
     const bytesToSign = hexlify(rawTx);
-    return Signature.from(await this.signDigest(bytesToSign));
+    return Signature.from(await this.signDigest(keccak256(bytesToSign)));
   }
 
   private async signDigest(digest: string): Promise<string> {
@@ -351,7 +351,7 @@ export class GcpKmsSigner extends ethers.AbstractSigner implements SecureSigner,
 
   async signRawTransaction(rawTx: BytesLike): Promise<Signature> {
     const bytesToSign = hexlify(rawTx);
-    return Signature.from(await this.signDigest(bytesToSign));
+    return Signature.from(await this.signDigest(keccak256(bytesToSign)));
   }
 
   connect(provider: ethers.Provider| null): ethers.Signer {

@@ -12,7 +12,7 @@ const BN_MAX_UINT = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffff
 const BLOB_SIZE = 4096 * 32;
 
 function formatNumber(_value: BigNumberish, name: string): Uint8Array {
-    const value = getBigInt(_value, "value");
+    const value = getBigInt(_value, name);
     const result = toBeArray(value);
     assertArgument(result.length <= 32, `value too large`, `tx.${ name }`, value);
     return result;
@@ -58,7 +58,7 @@ export function SerializeEIP7495(tx: TransactionRequest, sig: null | Signature, 
         formatHashes(tx.blobVersionedHashes || [ ], "blobVersionedHashes")
     ];
 
-    if (sig) {
+    if (!!sig) {
         fields.push(formatNumber(sig.yParity, "yParity"));
         fields.push(toBeArray(sig.r));
         fields.push(toBeArray(sig.s));
@@ -71,8 +71,8 @@ export function SerializeEIP7495(tx: TransactionRequest, sig: null | Signature, 
                     fields,
                     formatNumber(tx.wrapperVersion || 1, "wrapperVersion"),
                     blobs.map((b) => b.blob),
-                    blobs.map((b) => (b as any).commitment),
-                    blobs.map((b) => (b as any).proof),
+                    blobs.map((b) => b.commitment),
+                    blobs.reduce((acc, b) => acc.concat(b.proofs), [] as Array<string>),
                 ])
             ]);
         }

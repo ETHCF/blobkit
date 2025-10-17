@@ -70,13 +70,17 @@ export class BlobSubmitter {
       const proofs = computeKzgProofs(blob, commitmentHex, blobVersion);
       const versionedHash = await commitmentToVersionedHash(commitmentHex);
       const cost = await this.estimateCost(1);
+      const fromAddr = await signer.getAddress();
+      const nonce = await this.provider.getTransactionCount(fromAddr);
       // Construct blob transaction
       const tx: TransactionRequest = {
         chainId: this.config.chainId,
         type: 3, // EIP-4844 blob transaction
         to: '0x0000000000000000000000000000000000000000', // must be 0
-        from: await signer.getAddress(),
+        from: fromAddr,
         data: '0x',
+        value: 0n,
+        nonce: nonce,
         maxFeePerGas: cost.maxFeePerGas,
         maxPriorityFeePerGas: cost.maxPriorityFeePerGas,
         maxFeePerBlobGas: cost.maxFeePerBlobGas,
@@ -86,6 +90,18 @@ export class BlobSubmitter {
         kzg: kzg, // This is necessary for the EIP-4844 transaction, do not remove
         blobVersionedHashes: [versionedHash],
       };
+
+       // Estimate gas
+      try {
+        const gasLimit = await this.provider.estimateGas(tx);
+        tx.gasLimit = (gasLimit * BigInt(110)) / BigInt(100); // Add 10% buffer
+      } catch (error) {
+        // If estimation fails, use a reasonable default
+        tx.gasLimit = BigInt(200000);
+      }
+
+      let txResponse: ethers.TransactionResponse;
+      let receipt: ethers.TransactionReceipt | null = null;
       if(blobVersion === '7594') {
         const blobs: BlobTxData[] = [
           {
@@ -96,26 +112,18 @@ export class BlobSubmitter {
           }
         ]
         const unsignedSerializedTX = SerializeEIP7495(tx, null, blobs);
-        signer
+        const signature = await signer.signRawTransaction(unsignedSerializedTX)
+        const serializedTX = SerializeEIP7495(tx, signature, blobs);
+        const txHash = await this.provider._perform({
+            method: "broadcastTransaction",
+            signedTransaction: serializedTX
+        })
+        receipt = await this.provider.waitForTransaction(txHash, undefined, this.config.txTimeoutMs);
+      }else{
+        txResponse = await signer.sendTransaction(tx)
+        receipt = await txResponse.wait(undefined, this.config.txTimeoutMs);
       }
-
-      
-
-      // Estimate gas
-      try {
-        const gasLimit = await this.provider.estimateGas(tx);
-        tx.gasLimit = (gasLimit * BigInt(110)) / BigInt(100); // Add 10% buffer
-      } catch (error) {
-        // If estimation fails, use a reasonable default
-        tx.gasLimit = BigInt(200000);
-      }
-
-      // Submit transaction
-      const txResponse = await signer.sendTransaction(tx);
-
-      // Wait for confirmation
-      const receipt = await txResponse.wait(undefined, this.config.txTimeoutMs);
-
+    
       if (!receipt || receipt.status !== 1) {
         throw new BlobKitError(BlobKitErrorCode.TRANSACTION_FAILED, 'Blob transaction failed');
       }
