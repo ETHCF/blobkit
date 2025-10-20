@@ -1,6 +1,6 @@
 {
   "name": "@blobkit/sdk",
-  "version": "2.0.6",
+  "version": "2.3.0",
   "description": "TypeScript SDK for blob storage with EIP-4844 support and browser compatibility",
   "type": "module",
   "main": "dist/index.js",
@@ -49,8 +49,8 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "ethers": "^6.15.0",
-    "kzg-wasm": "0.4.0"
+    "@blobkit/kzg-wasm": "2.2.21",
+    "ethers": "^6.15.0"
   },
   "devDependencies": {
     "@jest/globals": "^30.0.5",

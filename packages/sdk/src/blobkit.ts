@@ -16,7 +16,8 @@ import {
   BlobKitError,
   BlobKitErrorCode,
   TransactionResponse,
-  JobStatus
+  JobStatus,
+  BlobVersion
 } from './types.js';
 import { detectEnvironment, getEnvironmentCapabilities } from './environment.js';
 import { defaultCodecRegistry } from './codecs/index.js';
@@ -39,14 +40,18 @@ import {
 } from './utils.js';
 import { initializeKzg, requireKzg } from './kzg.js';
 
+
+const defaultEIP7594 = (chainId: number): boolean => {
+  const eip7594Chains = [ 11155111 ];
+  return eip7594Chains.includes(chainId);
+}
 /**
  * BlobKit SDK - Main class for blob storage operations
  */
 export class BlobKit {
   private readonly config: Required<
-    Omit<BlobKitConfig, 'kzgSetup' | 'metricsHooks' | 'requestSigningSecret'>
+    Omit<BlobKitConfig, 'metricsHooks' | 'requestSigningSecret'>
   > & {
-    kzgSetup?: import('./types.js').KzgSetupOptions;
     metricsHooks?: import('./types.js').MetricsHooks;
     requestSigningSecret?: string;
   };
@@ -57,12 +62,13 @@ export class BlobKit {
   // Component managers
   private paymentManager: PaymentManager;
   private proxyClient?: ProxyClient;
-  private blobSubmitter?: BlobSubmitter;
+  private blobSubmitter: BlobSubmitter;
   private blobReader: BlobReader;
   private logger: Logger;
 
   private kzgInitialized = false;
   private jobNonce = 0;
+  private blobVersion: BlobVersion;
 
   /**
    * Creates a new BlobKit instance
@@ -82,10 +88,12 @@ export class BlobKit {
       maxProxyFeePercent: config.maxProxyFeePercent ?? 5,
       callbackUrl: config.callbackUrl ?? '',
       logLevel: config.logLevel ?? 'info',
-      kzgSetup: config.kzgSetup,
       metricsHooks: config.metricsHooks,
       txTimeoutMs: config.txTimeoutMs ?? 120000,
+      eip7594: config.eip7594 === undefined ? defaultEIP7594(config.chainId ?? 1) : config.eip7594,
     };
+
+    this.blobVersion = this.config.eip7594 ? '7594' : '4844';
 
     this.signer = signer;
     this.metrics = new MetricsCollector(config.metricsHooks);
@@ -102,6 +110,13 @@ export class BlobKit {
       archiveUrl: this.config.archiveUrl,
       logLevel: this.config.logLevel
     });
+
+    this.blobSubmitter = new BlobSubmitter({
+        rpcUrl: this.config.rpcUrl,
+        chainId: this.config.chainId,
+        escrowAddress: this.config.escrowContract,
+        txTimeoutMs: this.config.txTimeoutMs,
+      });
 
     this.logger = new Logger({ context: 'BlobKit', level: this.config.logLevel as any });
     this.logger.debug(`BlobKit initialized in ${this.environment} environment`);
@@ -122,7 +137,7 @@ export class BlobKit {
   async initialize(): Promise<void> {
     // Initialize KZG if not already done
     if (!this.kzgInitialized) {
-      await initializeKzg(this.config.kzgSetup);
+      await initializeKzg();
       this.kzgInitialized = true;
     }
 
@@ -133,14 +148,6 @@ export class BlobKit {
         proxyUrl,
         requestSigningSecret: this.config.requestSigningSecret,
         logLevel: this.config.logLevel
-      });
-    } else if (this.environment === 'node') {
-      // Set up direct submitter for Node.js
-      this.blobSubmitter = new BlobSubmitter({
-        rpcUrl: this.config.rpcUrl,
-        chainId: this.config.chainId,
-        escrowAddress: this.config.escrowContract,
-        txTimeoutMs: this.config.txTimeoutMs,
       });
     }
   }
@@ -193,7 +200,6 @@ export class BlobKit {
     console.log(`Writing blob with job ID: ${jobId}`);
 
     const shouldUseProxy = this.shouldUseProxy();
-    let gasPriceMultiplier = 1;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         // Generate new job ID for each attempt
@@ -208,13 +214,13 @@ export class BlobKit {
         // Submit blob
         let result: DirectSubmitResult | BlobSubmitResult;
         if (shouldUseProxy) {
-          const estimate = await this.estimateCost(payload);
+          const estimate = await this.estimateCost(1);
           this.logger.info(`Depositing payment into contract for the proxy write, job ID: ${jobId}`);
           const payment = await this.paymentManager.depositForBlob(jobId, estimate.totalETH);
           paymentHash = payment.paymentTxHash;
           result = await this.submitViaProxy(jobId, payment.paymentTxHash, payload, fullMeta);
         } else {
-          result = await this.submitDirectly(payload, gasPriceMultiplier);
+          result = await this.submitDirectly(payload);
         }
 
         this.metrics.trackOperation('writeBlob', 'complete', Date.now() - startTime);
@@ -227,7 +233,7 @@ export class BlobKit {
           blockNumber: result.blockNumber,
           blobHash: result.blobHash,
           commitment: result.commitment,
-          proof: result.proof,
+          proofs: result.proofs,
           blobIndex: result.blobIndex,
           meta: fullMeta
         };
@@ -236,8 +242,7 @@ export class BlobKit {
         let errStr = `${error instanceof Error ? error.message + "\n" + error.stack : String(error)}`;
 
         if (errStr.includes("replacement fee too low")) {
-          gasPriceMultiplier *= 1.5;
-          gasPriceMultiplier = Math.min(gasPriceMultiplier, 5); // Cap multiplier
+          this.logger.warn("Detected 'replacement fee too low' error, it might be stuck ");
         }
 
         if(errStr.length > 20000 ) {
@@ -306,24 +311,24 @@ export class BlobKit {
   /**
    * Estimate cost of blob storage
    */
-  async estimateCost(payload: Uint8Array): Promise<CostEstimate> {
-    validateBlobSize(payload);
+  async estimateCost(blobCount: number): Promise<CostEstimate> {
+
+    const costs = await this.blobSubmitter.estimateCost(blobCount);
 
     if (this.shouldUseProxy()) {
       // Get proxy fee
       const proxyFee = await this.getProxyFeePercent();
-      const baseCost = await this.estimateBaseCost(payload.length);
-      const proxyAmount = (baseCost * BigInt(proxyFee)) / BigInt(100);
+      const proxyAmount = (costs.total * BigInt(proxyFee)) / BigInt(100);
 
       return {
-        blobFee: formatEther(baseCost),
+        blobFee:  formatEther(costs.blobFee),
         gasFee: '0',
         proxyFee: formatEther(proxyAmount),
-        totalETH: formatEther(baseCost + proxyAmount)
+        totalETH: formatEther(costs.total + proxyAmount)
       };
     } else {
       // Direct submission costs
-      const costs = await this.blobSubmitter!.estimateCost(payload.length);
+      
       return {
         blobFee: formatEther(costs.blobFee),
         gasFee: formatEther(costs.executionFee),
@@ -452,7 +457,8 @@ export class BlobKit {
       paymentTxHash,
       payload,
       signature: hexToBytes(signature),
-      meta
+      meta,
+      blobVersion: this.blobVersion
     });
 
     // Wait for job completion
@@ -462,14 +468,13 @@ export class BlobKit {
   }
 
   private async submitDirectly(
-    payload: Uint8Array,
-    gasPriceMultiplier: number = 1
+    payload: Uint8Array
   ): Promise<DirectSubmitResult & { completionTxHash: string }> {
     if (!this.blobSubmitter || !this.signer) {
       throw new BlobKitError(BlobKitErrorCode.INVALID_CONFIG, 'Direct submission not available');
     }
 
-    const result = await this.blobSubmitter.submitBlob(this.signer, payload, requireKzg(), gasPriceMultiplier);
+    const result = await this.blobSubmitter.submitBlob(this.signer, payload, requireKzg(), this.blobVersion);
 
     return {
       ...result,
@@ -530,12 +535,7 @@ export class BlobKit {
     return 0;
   }
 
-  private async estimateBaseCost(payloadSize: number): Promise<bigint> {
-    // Simple estimation: 1 blob = 131072 gas at 1 gwei
-    const blobGas = BigInt(131072);
-    const gasPrice = BigInt(1000000000); // 1 gwei
-    return blobGas * gasPrice;
-  }
+
 
   private validateConfig(config: BlobKitConfig): void {
     if (!config.rpcUrl) {

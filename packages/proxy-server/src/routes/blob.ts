@@ -36,7 +36,7 @@ async function executeCallback(
         blockNumber: response.blockNumber,
         blobHash: response.blobHash,
         commitment: response.commitment,
-        proof: response.proof,
+        proofs: response.proofs,
         blobIndex: response.blobIndex,
         completionTxHash: response.completionTxHash,
         timestamp: Date.now()
@@ -216,7 +216,7 @@ export const createBlobRouter = (
           blockNumber: blobResult.blockNumber,
           blobHash: blobResult.blobHash,
           commitment: blobResult.commitment,
-          proof: blobResult.proof,
+          proofs: blobResult.proofs,
           blobIndex: blobResult.blobIndex,
           completionTxHash,
           jobId

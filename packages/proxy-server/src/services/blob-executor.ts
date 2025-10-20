@@ -1,5 +1,4 @@
-import { BlobKit } from '@blobkit/sdk';
-import type { KzgSetupOptions } from "@blobkit/sdk/dist/types.js";
+import { BlobKit, Signer } from '@blobkit/sdk';
 import { ethers } from 'ethers';
 import { BlobJob, ProxyError, ProxyErrorCode } from '../types.js';
 import { createLogger } from '../utils/logger.js';
@@ -14,16 +13,12 @@ const tracingService = new TracingService('blobkit-blob-executor');
  */
 export class BlobExecutor {
   private blobkit: BlobKit | null = null;
-  private config: { rpcUrl: string; chainId: number; kzgConfig: KzgSetupOptions };
-  private signer: ethers.Signer;
+  private config: { rpcUrl: string; chainId: number };
+  private signer: Signer;
   private logger = createLogger('BlobExecutor');
 
-  constructor(rpcUrl: string, chainId: number, signer: ethers.Signer, kzgConfig: KzgSetupOptions | string) {
-    if (typeof kzgConfig === 'string') {
-      this.config = { rpcUrl, chainId, kzgConfig: { trustedSetupPath: kzgConfig } };
-    } else {
-      this.config = { rpcUrl, chainId, kzgConfig };
-    }
+  constructor(rpcUrl: string, chainId: number, signer: Signer) {
+    this.config = { rpcUrl, chainId };
     this.signer = signer;
   }
 
@@ -38,7 +33,6 @@ export class BlobExecutor {
           rpcUrl: this.config.rpcUrl,
           chainId: this.config.chainId,
           logLevel: 'info',
-          kzgSetup: this.config.kzgConfig
         },
         this.signer
       );
@@ -58,7 +52,7 @@ export class BlobExecutor {
     blockNumber: number;
     blobHash: string;
     commitment: string;
-    proof: string;
+    proofs: string[];
     blobIndex: number;
   }> {
     const span = tracingService.startSpan('blob.execute', traceContext);
@@ -126,7 +120,7 @@ export class BlobExecutor {
         blockNumber: result.blockNumber,
         blobHash: result.blobHash,
         commitment: result.commitment,
-        proof: result.proof,
+        proofs: result.proofs,
         blobIndex: result.blobIndex
       };
     } catch (error) {
@@ -167,7 +161,7 @@ export class BlobExecutor {
     blockNumber: number;
     blobHash: string;
     commitment: string;
-    proof: string;
+    proofs: string[];
     blobIndex: number;
   }> {
     // Use the initialized BlobKit instance
@@ -182,7 +176,7 @@ export class BlobExecutor {
         blockNumber: result.blockNumber,
         blobHash: result.blobHash,
         commitment: result.commitment,
-        proof: result.proof,
+        proofs: result.proofs,
         blobIndex: result.blobIndex
       };
     } catch (error) {

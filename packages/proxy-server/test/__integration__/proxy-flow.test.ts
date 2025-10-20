@@ -121,7 +121,7 @@ describe('Proxy Server Integration', () => {
         Date.now()
       );
 
-      const estimate = await userBlobKit.estimateCost(testData);
+      const estimate = await userBlobKit.estimateCost(1);
       const paymentAmount = ethers.parseEther(estimate.totalETH);
 
       // Step 2: Deposit to escrow

@@ -17,10 +17,6 @@ export const loadConfig = (): ProxyConfig => {
     throw new Error('ESCROW_CONTRACT environment variable is required');
   }
 
-  const kzgTrustedSetupPath = process.env.KZG_TRUSTED_SETUP_PATH;
-  if (!kzgTrustedSetupPath) {
-    throw new Error('KZG_TRUSTED_SETUP_PATH environment variable is required');
-  }
 
   const httpProxyCount = parseInt(process.env.HTTP_PROXY_COUNT || '0');
 
@@ -37,7 +33,6 @@ export const loadConfig = (): ProxyConfig => {
     rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW || '60000'), // 60 seconds in milliseconds
     jobTimeout: parseInt(process.env.JOB_TIMEOUT || '300000'), // 5 minutes in milliseconds
     logLevel: (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info',
-    kzgTrustedSetupPath,
     httpProxyCount
   };
 };

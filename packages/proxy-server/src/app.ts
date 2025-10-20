@@ -94,7 +94,6 @@ export const createApp = async (config: ProxyConfig): Promise<AppContext> => {
     config.rpcUrl,
     config.chainId,
     signer,
-    config.kzgTrustedSetupPath
   );
   await blobExecutor.ensureBlobKit()
   const jobCache = new JobCache()

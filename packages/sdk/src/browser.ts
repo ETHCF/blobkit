@@ -20,7 +20,6 @@ export type {
   TransactionReceipt,
   Provider,
   FeeData,
-  KzgSetupOptions
 } from './types.js';
 
 export { BlobKit } from './blobkit.js';
@@ -84,5 +83,5 @@ export const createWithMetaMask = async (config: BlobKitConfig) => {
   const { BlobKit } = await import('./blobkit.js');
   const signer = await connectMetaMask();
   // Signer from ethers is now directly compatible
-  return new BlobKit(config, signer);
+  return new BlobKit(config, signer as any);
 };

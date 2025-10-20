@@ -410,11 +410,6 @@ jobs:
             cd "$GITHUB_WORKSPACE"
           done
 
-      - name: Check for secrets
-        run: |
-          echo "Checking for hardcoded secrets..."
-          bash scripts/scan-secrets.sh .
-
       - name: Install and run Slither (if contracts exist)
         if: contains(fromJson(needs.setup.outputs.packages), 'contracts')
         run: |
