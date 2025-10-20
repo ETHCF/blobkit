@@ -27,6 +27,7 @@ export interface BlobSubmitterConfig {
   chainId: number;
   escrowAddress: string;
   txTimeoutMs?: number; // Optional timeout for transactions
+
   eip7918?: boolean; // Whether to use EIP-7918 for fee payment, active after Fukasa upgrade
 }
 
@@ -162,7 +163,7 @@ export class BlobSubmitter {
         numerator_accum = (numerator_accum * numerator) / (denominator * i);
         i += 1n;
     }
-    return output; // denominator
+    return output / denominator;
   }
 
   getTotalBlobGas(blobCount: number): bigint {
@@ -178,6 +179,7 @@ export class BlobSubmitter {
   }
 
   calcBlobFee(blobCount: number, lastBlockExcessBlobGas: bigint): bigint {
+
     return this.getTotalBlobGas(blobCount) * this.getBaseFeePerBlobGas(lastBlockExcessBlobGas);
   }
 
@@ -215,20 +217,21 @@ export class BlobSubmitter {
 
       // Get actual blob base fee from network (EIP-4844)
       let blobFee = 1n; // 1 wei minimum
-      const hasBlobFeeFields = (block as unknown as { blobGasUsed?: bigint | null; excessBlobGas?: bigint | null }).blobGasUsed != null
-        && (block as unknown as { blobGasUsed?: bigint | null; excessBlobGas?: bigint | null }).excessBlobGas != null;
       let maxFeePerBlobGas = 1_000_000_000n; // 1 gwei minimum
-      if (block.excessBlobGas === null) {
+      if (block.excessBlobGas === null || block.excessBlobGas === undefined) {
         console.warn('Block does not have excessBlobGas field, pre-4844 network?');
         console.log(`Block data: ${JSON.stringify(block)}`);
         // Pre-4844 or no blob data, use reasonable default
         blobFee = 1_000_000_000n * GAS_PER_BLOB; // 1 gwei fallback
         maxFeePerBlobGas = 1_000_000_000n; // 1 gwei fallback
  
-      } else if (!this.config.eip7918) {
-        blobFee = this.calcBlobFee(blobCount, block.excessBlobGas)
-        maxFeePerBlobGas = this.getBaseFeePerBlobGas(block.excessBlobGas)
-      }else { // EIP-7918 active
+      } else if(this.config.eip7918) {
+        const feeHistory = await this.provider.send("eth_feeHistory", [5, "latest", []]);
+        const latestBlobFees: bigint[] = feeHistory.baseFeePerBlobGas.map((amountHex:string) => BigInt(amountHex));
+        const maxFee = latestBlobFees.reduce((a, b) => a > b ? a : b, 0n);
+        maxFeePerBlobGas = maxFee;
+        blobFee = maxFee * this.getTotalBlobGas(blobCount);
+      } else { 
         blobFee = this.calcBlobFee(blobCount, block.excessBlobGas)
         maxFeePerBlobGas = this.getBaseFeePerBlobGas(block.excessBlobGas)
       }
