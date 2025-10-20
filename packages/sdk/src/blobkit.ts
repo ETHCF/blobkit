@@ -45,6 +45,11 @@ const defaultEIP7594 = (chainId: number): boolean => {
   const eip7594Chains = [ 11155111 ];
   return eip7594Chains.includes(chainId);
 }
+
+const defaultEIP7918 = (chainId: number): boolean => {
+  const eip7918Chains = [ 11155111 ];
+  return eip7918Chains.includes(chainId);
+}
 /**
  * BlobKit SDK - Main class for blob storage operations
  */
@@ -116,6 +121,7 @@ export class BlobKit {
         chainId: this.config.chainId,
         escrowAddress: this.config.escrowContract,
         txTimeoutMs: this.config.txTimeoutMs,
+        eip7918: defaultEIP7918(this.config.chainId)
       });
 
     this.logger = new Logger({ context: 'BlobKit', level: this.config.logLevel as any });

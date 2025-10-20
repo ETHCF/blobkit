@@ -93,4 +93,4 @@ export function createFromEnv(signer?: Signer): BlobKit {
 /**
  * Package version
  */
-export const VERSION = '2.0.6';
+export const VERSION = '2.3.5';

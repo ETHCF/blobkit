@@ -27,6 +27,7 @@ export interface BlobSubmitterConfig {
   chainId: number;
   escrowAddress: string;
   txTimeoutMs?: number; // Optional timeout for transactions
+
   eip7918?: boolean; // Whether to use EIP-7918 for fee payment, active after Fukasa upgrade
 }
 
@@ -178,6 +179,7 @@ export class BlobSubmitter {
   }
 
   calcBlobFee(blobCount: number, lastBlockExcessBlobGas: bigint): bigint {
+
     return this.getTotalBlobGas(blobCount) * this.getBaseFeePerBlobGas(lastBlockExcessBlobGas);
   }
 
@@ -223,10 +225,13 @@ export class BlobSubmitter {
         blobFee = 1_000_000_000n * GAS_PER_BLOB; // 1 gwei fallback
         maxFeePerBlobGas = 1_000_000_000n; // 1 gwei fallback
  
-      } else if (!this.config.eip7918) {
-        blobFee = this.calcBlobFee(blobCount, block.excessBlobGas)
-        maxFeePerBlobGas = this.getBaseFeePerBlobGas(block.excessBlobGas)
-      }else { // EIP-7918 active
+      } else if(this.config.eip7918) {
+        const feeHistory = await this.provider.send("eth_feeHistory", [5, "latest", []]);
+        const latestBlobFees: bigint[] = feeHistory.baseFeePerBlobGas.map((amountHex:string) => BigInt(amountHex));
+        const maxFee = latestBlobFees.reduce((a, b) => a > b ? a : b, 0n);
+        maxFeePerBlobGas = maxFee;
+        blobFee = maxFee * this.getTotalBlobGas(blobCount);
+      } else { 
         blobFee = this.calcBlobFee(blobCount, block.excessBlobGas)
         maxFeePerBlobGas = this.getBaseFeePerBlobGas(block.excessBlobGas)
       }
