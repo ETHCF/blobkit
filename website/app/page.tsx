@@ -2583,7 +2583,6 @@ process.env.BLOBKIT_ARCHIVE_URL = 'https://api.blobscan.com';
 process.env.BLOBKIT_CHAIN_ID = '1';
 process.env.BLOBKIT_PROXY_URL = 'https://proxy.blobkit.org';
 process.env.BLOBKIT_LOG_LEVEL = 'debug';
-process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH = './trusted_setup.txt';
 
 // Create BlobKit instance
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY);
@@ -2599,7 +2598,6 @@ const blobkit = createFromEnv(wallet);`}
                       <li><strong className="text-yellow-400">BLOBKIT_CHAIN_ID:</strong> <span className="text-cyan-400">Chain ID number (default: 31337)</span></li>
                       <li><strong className="text-yellow-400">BLOBKIT_PROXY_URL:</strong> <span className="text-cyan-400">Proxy server URL</span></li>
                       <li><strong className="text-yellow-400">BLOBKIT_LOG_LEVEL:</strong> <span className="text-cyan-400">Log level (default: 'info')</span></li>
-                      <li><strong className="text-yellow-400">BLOBKIT_KZG_TRUSTED_SETUP_PATH:</strong> <span className="text-cyan-400">Path to KZG trusted setup file</span></li>
                     </ul>
                   </div>
                 </div>

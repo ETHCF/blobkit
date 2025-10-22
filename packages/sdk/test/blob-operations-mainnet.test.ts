@@ -16,7 +16,7 @@ import {
   encodeBlob,
   decodeBlob,
   blobToKzgCommitment,
-  computeKzgProof,
+  computeKzgProofs,
   commitmentToVersionedHash,
   FIELD_ELEMENTS_PER_BLOB,
   BYTES_PER_FIELD_ELEMENT,
@@ -29,8 +29,6 @@ import * as fs from 'fs';
 // Configuration - reads from environment variables
 const MAINNET_RPC_URL = process.env.BLOBKIT_RPC_URL || process.env.RPC_URL || 'http://localhost:8545';
 const BLOBSCAN_API_URL = process.env.BLOBSCAN_API_URL || 'https://api.blobscan.com';
-const TRUSTED_SETUP_URL = 'https://raw.githubusercontent.com/ethereum/c-kzg-4844/main/src/trusted_setup.txt';
-const TRUSTED_SETUP_PATH = process.env.BLOBKIT_KZG_TRUSTED_SETUP_PATH || '/tmp/trusted_setup.txt';
 
 // Known mainnet blob transaction for reliable testing
 const KNOWN_BLOB_TX = '0xb8c08b7f2355a5d9a4522de061556aaf16e8670a015aec9149e0157f83c7be8f';
@@ -50,16 +48,8 @@ describe('BlobKit SDK Mainnet Integration', () => {
     // Initialize provider
     provider = new ethers.JsonRpcProvider(MAINNET_RPC_URL);
     
-    // Ensure trusted setup is available
-    if (!fs.existsSync(TRUSTED_SETUP_PATH)) {
-      console.log('Downloading KZG trusted setup...');
-      const response = await fetch(TRUSTED_SETUP_URL);
-      const data = await response.text();
-      fs.writeFileSync(TRUSTED_SETUP_PATH, data);
-    }
-    
     // Initialize KZG
-    await initializeKzg({ trustedSetupPath: TRUSTED_SETUP_PATH });
+    await initializeKzg();
     
     // Initialize BlobReader
     blobReader = new BlobReader({
@@ -147,12 +137,12 @@ describe('BlobKit SDK Mainnet Integration', () => {
       const blob = encodeBlob(testData);
       
       const commitment = blobToKzgCommitment(blob);
-      expect(commitment).toBeInstanceOf(Uint8Array);
-      expect(commitment.length).toBe(48);
+      expect(commitment).toBeInstanceOf(String);
+      expect(commitment.length).toBe(98);
       
-      const proof = computeKzgProof(blob, commitment);
-      expect(proof).toBeInstanceOf(Uint8Array);
-      expect(proof.length).toBe(48);
+      const proofs = computeKzgProofs(blob, commitment);
+      expect(proofs).toBeInstanceOf(Array);
+      expect(proofs[0].length).toBe(98);
     });
 
     test('should generate versioned hash', async () => {
@@ -231,7 +221,7 @@ describe('BlobKit SDK Mainnet Integration', () => {
         
         const blob = encodeBlob(payload);
         const commitment = blobToKzgCommitment(blob);
-        const proof = computeKzgProof(blob, commitment);
+        const proofs = computeKzgProofs(blob, commitment);
         const versionedHash = await commitmentToVersionedHash(commitment);
         
         return {
@@ -242,7 +232,7 @@ describe('BlobKit SDK Mainnet Integration', () => {
           blockNumber: 19000000,
           blobHash: versionedHash,
           commitment: '0x' + Buffer.from(commitment).toString('hex'),
-          proof: '0x' + Buffer.from(proof).toString('hex'),
+          proofs: proofs,
           blobIndex: 0,
           meta: {
             appId: meta?.appId || 'test',
@@ -258,7 +248,7 @@ describe('BlobKit SDK Mainnet Integration', () => {
       expect(result.success).toBe(true);
       expect(result.blobHash).toMatch(/^0x01[a-f0-9]{62}$/);
       expect(result.commitment).toMatch(/^0x[a-f0-9]{96}$/);
-      expect(result.proof).toMatch(/^0x[a-f0-9]{96}$/);
+      expect(result.proofs[0]).toMatch(/^0x[a-f0-9]{96}$/);
     });
   });
 

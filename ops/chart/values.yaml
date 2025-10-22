@@ -86,10 +86,6 @@ verbosity: DEBUG
 
 # Shared environment variables
 environment:
-- name: BLOBKIT_KZG_TRUSTED_SETUP_PATH
-  value: https://raw.githubusercontent.com/ethereum/c-kzg-4844/refs/heads/main/src/trusted_setup.txt
-- name: KZG_TRUSTED_SETUP_PATH
-  value: https://raw.githubusercontent.com/ethereum/c-kzg-4844/refs/heads/main/src/trusted_setup.txt
 - name: PORT
   value: "8080"
 - name: HTTP_PROXY_COUNT
