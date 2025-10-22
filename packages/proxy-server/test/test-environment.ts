@@ -221,7 +221,6 @@ export class ProxyServerManager {
         PROXY_FEE_PERCENT: '0',
         LOG_LEVEL: 'debug',  // Changed from silent to debug to see startup messages
         NODE_ENV: 'test',
-        KZG_TRUSTED_SETUP_PATH: './test/shrek-trusted-setup.txt',
         REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379'
       };
 
@@ -231,7 +230,6 @@ export class ProxyServerManager {
         chainId: this.config.chainId,
         escrowContract: this.config.escrowContract,
         privateKey: this.config.privateKey.substring(0, 10) + '...',
-        kzgPath: env.KZG_TRUSTED_SETUP_PATH,
         redisUrl: env.REDIS_URL
       });
 

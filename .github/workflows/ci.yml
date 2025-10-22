@@ -349,12 +349,6 @@ jobs:
           name: build-proxy-server
           path: packages/proxy-server/dist/
 
-      - name: Download trusted setup file
-        run: |
-          # Download the official KZG trusted setup for testing
-          curl -L https://github.com/ethereum/c-kzg-4844/raw/main/src/trusted_setup.txt -o trusted-setup.txt
-          export BLOBKIT_KZG_TRUSTED_SETUP_PATH="$PWD/trusted-setup.txt"
-
       - name: Start local blockchain (Anvil)
         run: |
           anvil --host 0.0.0.0 --port 8545 &
