@@ -1,0 +1,7 @@
+* Added support for EIP 7594 Blob Transactions
+* EIP 7918 support by using fee history RPC
+* EIP 4844 Blobs -  Gas Estimate Correction and reduced expensive calculations
+* Removed superflous configuration variables
+* Deleted unused code
+* No longer required to pass in kzg configuration values 
+* Significant reduction in execution time
