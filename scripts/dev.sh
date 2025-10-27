@@ -109,9 +109,6 @@ RATE_LIMIT_REQUESTS=100
 RATE_LIMIT_WINDOW=900000
 JOB_TIMEOUT=3600
 
-# KZG Trusted Setup
-KZG_TRUSTED_SETUP_PATH=./trusted_setup.txt
-
 # AWS KMS (optional - for production)
 # AWS_KMS_KEY_ID=
 # AWS_REGION=us-east-1

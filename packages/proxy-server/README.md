@@ -34,7 +34,6 @@ npx blobkit-proxy
 | ------------------------ | -------- | ---------------------- | -------------------------------- |
 | `RPC_URL`                | Yes      | -                      | Ethereum RPC endpoint            |
 | `ESCROW_CONTRACT`        | Yes      | -                      | Escrow contract address          |
-| `KZG_TRUSTED_SETUP_PATH` | Yes      | -                      | Path to KZG trusted setup file   |
 | `REQUEST_SIGNING_SECRET` | Yes      | -                      | HMAC secret (min 32 chars)       |
 | `PRIVATE_KEY`            | No\*     | -                      | Private key for dev (see below)  |
 | `AWS_KMS_KEY_ID`         | No\*     | -                      | AWS KMS key ARN for production   |
@@ -47,18 +46,6 @@ npx blobkit-proxy
 
 \*One key management option required (PRIVATE_KEY for development, AWS_KMS_KEY_ID for production)
 
-## KZG Trusted Setup
-
-The proxy server requires a KZG trusted setup for creating blob commitments and proofs:
-
-- **Default**: Uses the built-in Ethereum mainnet trusted setup
-- **Custom**: Specify a path with `KZG_TRUSTED_SETUP_PATH` environment variable
-
-```bash
-# Use custom trusted setup
-export KZG_TRUSTED_SETUP_PATH=/path/to/trusted_setup.txt
-npx blobkit-proxy
-```
 
 The trusted setup file should be in the standard Ethereum KZG ceremony format. Download from [ceremony.ethereum.org](https://ceremony.ethereum.org/).
 

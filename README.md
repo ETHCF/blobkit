@@ -81,7 +81,7 @@ import { Wallet } from 'ethers';
 const signer = new Wallet(process.env.PRIVATE_KEY);
 const blobkit = await BlobKit.init(
   {
-     rpcUrl: process.env.BLOBKIT_RPC_URL!, // Recommended: blob-compatible RPC
+    rpcUrl: process.env.BLOBKIT_RPC_URL!, // Recommended: blob-compatible RPC
     chainId: 1
     // Escrow contract auto-configured for mainnet
   },
@@ -100,7 +100,7 @@ import { BlobKit } from '@blobkit/sdk/browser';
 
 const blobkit = await BlobKit.init(
   {
-     rpcUrl: process.env.BLOBKIT_RPC_URL!, // Recommended: blob-compatible RPC
+    rpcUrl: process.env.BLOBKIT_RPC_URL!, // Recommended: blob-compatible RPC
     chainId: 1,
     proxyUrl: 'https://proxy.blobkit.org' // Your proxy server URL
   },
@@ -188,7 +188,6 @@ interface BlobKitConfig {
 # Required for Proxy Server
 RPC_URL=https://rpc.flashbots.net  # Use blob-compatible RPC
 ESCROW_CONTRACT=0x2e8e414bc5c6B0b8339853CEDf965B4A28FB4838  # Mainnet escrow
-KZG_TRUSTED_SETUP_PATH=./trusted_setup.txt
 
 # Optional Configuration
 CHAIN_ID=1
