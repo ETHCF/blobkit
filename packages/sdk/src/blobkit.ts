@@ -96,6 +96,7 @@ export class BlobKit {
       metricsHooks: config.metricsHooks,
       txTimeoutMs: config.txTimeoutMs ?? 120000,
       eip7594: config.eip7594 === undefined ? defaultEIP7594(config.chainId ?? 1) : config.eip7594,
+      fastGas: !!config.fastGas,
     };
 
     this.blobVersion = this.config.eip7594 ? '7594' : '4844';
@@ -121,7 +122,8 @@ export class BlobKit {
         chainId: this.config.chainId,
         escrowAddress: this.config.escrowContract,
         txTimeoutMs: this.config.txTimeoutMs,
-        eip7918: defaultEIP7918(this.config.chainId)
+        eip7918: defaultEIP7918(this.config.chainId),
+        fastGas: this.config.fastGas
       });
 
     this.logger = new Logger({ context: 'BlobKit', level: this.config.logLevel as any });

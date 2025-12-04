@@ -122,6 +122,7 @@ export interface BlobKitConfig {
   metricsHooks?: MetricsHooks;
 
   eip7594?: boolean;
+  fastGas?: boolean;
 }
 
 /**

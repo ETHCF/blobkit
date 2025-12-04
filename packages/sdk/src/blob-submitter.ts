@@ -29,6 +29,7 @@ export interface BlobSubmitterConfig {
   txTimeoutMs?: number; // Optional timeout for transactions
 
   eip7918?: boolean; // Whether to use EIP-7918 for fee payment, active after Fukasa upgrade
+  fastGas?: boolean; // Whether to fast the gas estimates for blob transactions
 }
 
 export interface DirectSubmitResult {
@@ -246,9 +247,9 @@ export class BlobSubmitter {
         blobFee,
         executionFee,
         total: blobFee + executionFee,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
-        maxFeePerBlobGas: maxFeePerBlobGas,
+        maxFeePerGas: this.config.fastGas ? maxFeePerGas * 8n : maxFeePerGas,
+        maxPriorityFeePerGas: this.config.fastGas ? maxPriorityFeePerGas * 8n : maxPriorityFeePerGas,
+        maxFeePerBlobGas: this.config.fastGas ? maxFeePerBlobGas *8n : maxFeePerBlobGas,
       };
     } catch (error) {
       throw new BlobKitError(
