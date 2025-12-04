@@ -119,6 +119,7 @@ export class BlobSubmitter {
             method: "broadcastTransaction",
             signedTransaction: serializedTX
         })
+        console.log(`Submitted EIP-7594 blob transaction: ${txHash}`);
         receipt = await this.provider.waitForTransaction(txHash, undefined, this.config.txTimeoutMs);
       }else{
         txResponse = await signer.sendTransaction(tx)

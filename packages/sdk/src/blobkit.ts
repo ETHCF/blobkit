@@ -42,7 +42,7 @@ import { initializeKzg, requireKzg } from './kzg.js';
 
 
 const defaultEIP7594 = (chainId: number): boolean => {
-  const eip7594Chains = [ /*1,*/ 11155111 ];
+  const eip7594Chains = [ 1, 11155111 ];
   return eip7594Chains.includes(chainId);
 }
 
