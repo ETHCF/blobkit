@@ -21,6 +21,8 @@ metadata:
     {{- end }}
 spec:
   replicas: {{ default 1 .replicas}}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ $serviceName }}

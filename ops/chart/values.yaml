@@ -15,8 +15,6 @@ services:
     paths:
     - /
     healthPath: /api/v1/health
-    maxReplicas: 3
-    targetCPUUtil: 70
     ingress:
       domain: proxy.blobkit.org
       tlsSecret: blobkit-tls
@@ -45,13 +43,11 @@ services:
     args: ["packages/proxy-server/dist/index.js"]
     serviceAccountName: blobkit-proxy-sepolia
     resources:
-      cpu: 500m
+      cpu: 250m
       memory: 512Mi
     paths:
     - /
     healthPath: /api/v1/health
-    maxReplicas: 1
-    targetCPUUtil: 70
 
     ingress:
       domain: proxy-sepolia.blobkit.org
