@@ -21,6 +21,7 @@ import {
   commitmentToVersionedHash
 } from './kzg.js';
 import { SerializeEIP7495 } from './serialize.js';
+import { signBlobTransaction } from './sign-blob-transaction.js';
 
 export interface BlobSubmitterConfig {
   rpcUrl: string;
@@ -113,7 +114,7 @@ export class BlobSubmitter {
           }
         ]
         const unsignedSerializedTX = SerializeEIP7495(tx, null, blobs);
-        const signature = await signer.signRawTransaction(unsignedSerializedTX)
+        const signature = await signBlobTransaction(signer, unsignedSerializedTX);
         const serializedTX = SerializeEIP7495(tx, signature, blobs);
         const txHash = await this.provider._perform({
             method: "broadcastTransaction",
