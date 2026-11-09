@@ -18,7 +18,7 @@ import type {
 } from 'ethers';
 
 // Re-export ethers types
-export type Signer = EthersSigner & { signRawTransaction(rawTx: BytesLike): Promise<Signature> };
+export type Signer = EthersSigner & { signRawTransaction?: (rawTx: BytesLike) => Promise<Signature> };
 export type Provider = EthersProvider;
 export type FeeData = EthersFeeData;
 export type TransactionResponse = EthersTransactionResponse;
