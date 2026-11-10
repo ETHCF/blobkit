@@ -196,7 +196,9 @@ class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers
       return this.address;
     } catch (error) {
       if (error instanceof Error && error.message.includes('Cannot find module')) {
-        throw new Error('AWS KMS signer requires @aws-sdk/client-kms to be installed');
+        throw new Error('AWS KMS signer requires @aws-sdk/client-kms to be installed', {
+          cause: error
+        });
       }
       throw error;
     }
@@ -273,7 +275,9 @@ class AwsKmsSigner extends ethers.AbstractSigner implements SecureSigner, ethers
       return ethers.concat([`0x${rHex}`, `0x${sHex}`, ethers.hexlify(new Uint8Array([v]))]);
     } catch (error) {
       if (error instanceof Error && error.message.includes('Cannot find module')) {
-        throw new Error('AWS KMS signer requires @aws-sdk/client-kms to be installed');
+        throw new Error('AWS KMS signer requires @aws-sdk/client-kms to be installed', {
+          cause: error
+        });
       }
       throw error;
     }

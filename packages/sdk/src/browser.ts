@@ -69,7 +69,8 @@ export const connectMetaMask = async (): Promise<Signer> => {
     return signer;
   } catch (error) {
     throw new Error(
-      `Failed to connect to MetaMask: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to connect to MetaMask: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      { cause: error }
     );
   }
 };

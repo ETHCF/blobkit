@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2020", "ES2022.Error", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": false,
@@ -39,8 +39,7 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
 
-    // Path mapping
-    "baseUrl": ".",
+    // Path mapping (resolved relative to this file)
     "paths": {
       "@blobkit/sdk": ["./packages/sdk/src"],
       "@blobkit/contracts": ["./packages/contracts/src"],
