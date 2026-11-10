@@ -229,7 +229,7 @@ AWS_KMS_KEY_ID=arn:aws:kms:region:account:key/id   # Production
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22.12+
 - Foundry (for contracts)
 - Redis (for proxy server)
 

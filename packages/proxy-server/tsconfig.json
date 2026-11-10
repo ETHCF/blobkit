@@ -7,11 +7,9 @@
     "declarationMap": true,
     "types": ["node", "jest"],
     "skipLibCheck": true,
-    "moduleResolution": "node",
-    "paths": {
-      "@blobkit/sdk": ["../sdk/dist/index.d.ts"],
-      "@blobkit/sdk/*": ["../sdk/dist/*"]
-    }
+    // Resolve @blobkit/sdk from node_modules (the published package this
+    // server depends on) instead of the workspace source mapped in the base config.
+    "paths": {}
   },
   "include": ["src/**/*"],
   "exclude": ["**/*.test.ts", "**/*.spec.ts", "dist", "../sdk/src/**/*"]

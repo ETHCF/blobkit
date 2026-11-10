@@ -10,7 +10,7 @@ npm install @blobkit/proxy-server
 
 ## Requirements
 
-- Node.js v18 or later
+- Node.js v22.12 or later
 - Redis 6.0 or later (for persistent job queue)
 
 ## Usage

@@ -55,7 +55,8 @@ async function verifyProxyAuthorization(config: ProxyConfig): Promise<void> {
     if (error instanceof Error && error.message.includes('Circuit breaker')) {
       logger.error('CRITICAL: Cannot verify escrow contract - circuit breaker is OPEN');
       throw new Error(
-        'Escrow contract is unreachable. Check RPC connection and contract deployment.'
+        'Escrow contract is unreachable. Check RPC connection and contract deployment.',
+        { cause: error }
       );
     }
     // Contract might not be deployed or have different interface

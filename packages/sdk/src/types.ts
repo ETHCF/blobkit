@@ -228,7 +228,7 @@ export enum BlobKitErrorCode {
  */
 export class BlobKitError extends Error {
   public readonly code: BlobKitErrorCode;
-  public readonly cause?: Error;
+  public override readonly cause?: Error;
 
   constructor(code: BlobKitErrorCode, message: string, cause?: Error) {
     super(message);
