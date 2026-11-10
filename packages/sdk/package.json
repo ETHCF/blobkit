@@ -49,23 +49,23 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "@blobkit/kzg-wasm": "2.2.21",
-    "ethers": "^6.15.0"
+    "@blobkit/kzg-wasm": "2.3.0",
+    "ethers": "^6.17.0"
   },
   "devDependencies": {
     "@jest/globals": "^30.0.5",
-    "@rollup/plugin-commonjs": "^28.0.6",
-    "@rollup/plugin-node-resolve": "^16.0.1",
-    "@rollup/plugin-typescript": "^12.1.4",
+    "@rollup/plugin-commonjs": "^28.0.9",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.1",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.2.1",
+    "@types/node": "^24.19.2",
     "eslint": "^9.33.0",
-    "jest": "^30.0.5",
-    "rollup": "^4.46.2",
-    "rollup-plugin-dts": "^6.2.1",
-    "ts-jest": "^29.4.1",
-    "typedoc": "^0.28.10",
-    "typedoc-plugin-markdown": "^4.8.1",
+    "jest": "^30.5.2",
+    "rollup": "^4.68.2",
+    "rollup-plugin-dts": "^6.5.1",
+    "ts-jest": "^29.4.15",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.14.1",
     "typescript": "^5.9.2"
   },
   "repository": {

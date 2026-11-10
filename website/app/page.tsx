@@ -55,8 +55,289 @@ const QUICK_REFERENCE = {
   }
 }
 
+const sections = [
+  { 
+    id: 'introduction', 
+    title: 'Introduction', 
+    icon: '🌟',
+    subsections: [
+      { id: 'what-are-blobs', title: 'What Are Blobs?' },
+      { id: 'why-blobkit', title: 'Why BlobKit?' },
+      { id: 'use-cases', title: 'Use Cases' },
+    ]
+  },
+  { 
+    id: 'quickstart', 
+    title: 'Quickstart', 
+    icon: '🚀',
+    subsections: [
+      { id: 'prerequisites', title: 'Prerequisites' },
+      { id: 'first-blob', title: 'Your First Blob' },
+    ]
+  },
+  { 
+    id: 'architecture', 
+    title: 'How It Works', 
+    icon: '🔧',
+    subsections: [
+      { id: 'blob-transactions', title: 'Blob Transactions' },
+      { id: 'wallet-problem', title: 'The Wallet Problem' },
+      { id: 'proxy-solution', title: 'The Proxy Solution' },
+      { id: 'escrow-system', title: 'Escrow System' },
+    ]
+  },
+  { 
+    id: 'installation', 
+    title: 'Installation', 
+    icon: '📦',
+    subsections: [
+      { id: 'package-install', title: 'Package Install' },
+      { id: 'environment-setup', title: 'Environment Setup' },
+    ]
+  },
+  { 
+    id: 'usage', 
+    title: 'Basic Usage', 
+    icon: '💻',
+    subsections: [
+      { id: 'initialization', title: 'Initialization' },
+      { id: 'writing-data', title: 'Writing Data' },
+      { id: 'reading-data', title: 'Reading Data' },
+      { id: 'cost-management', title: 'Cost Management' },
+    ]
+  },
+  { 
+    id: 'proxy', 
+    title: 'Proxy System', 
+    icon: '🔄',
+    subsections: [
+      { id: 'hosted-proxy', title: 'Using Hosted Proxy' },
+      { id: 'escrow-management', title: 'Escrow Management' },
+      { id: 'deploy-proxy', title: 'Deploy Your Own' },
+    ]
+  },
+  { 
+    id: 'production', 
+    title: 'Production Guide', 
+    icon: '🚀',
+    subsections: [
+      { id: 'production-checklist', title: 'Checklist' },
+      { id: 'monitoring', title: 'Monitoring' },
+      { id: 'cost-optimization', title: 'Cost Optimization' },
+    ]
+  },
+  { 
+    id: 'examples', 
+    title: 'Examples', 
+    icon: '📝',
+    subsections: [
+      { id: 'complete-app', title: 'Complete App' },
+      { id: 'error-handling', title: 'Error Handling' },
+    ]
+  },
+  { 
+    id: 'troubleshooting', 
+    title: 'Troubleshooting', 
+    icon: '❓',
+    subsections: [
+      { id: 'error-index', title: 'Error Index' },
+      { id: 'common-issues', title: 'Common Issues' }
+    ]
+  },
+  {
+    id: 'advanced-config',
+    title: 'Advanced Config',
+    icon: '⚙️',
+    subsections: [
+      { id: 'all-config-options', title: 'All Configuration Options' },
+      { id: 'env-setup', title: 'Environment-Based Setup' },
+      { id: 'compression', title: 'Compression Settings' }
+    ]
+  },
+  {
+    id: 'metrics',
+    title: 'Metrics',
+    icon: '📊',
+    subsections: [
+      { id: 'metrics-hooks', title: 'Metrics Hooks' }
+    ]
+  },
+  {
+    id: 'codecs',
+    title: 'Codecs',
+    icon: '🔄',
+    subsections: [
+      { id: 'built-in-codecs', title: 'Built-in Codecs' }
+    ]
+  },
+  {
+    id: 'utilities',
+    title: 'Utilities',
+    icon: '🔧',
+    subsections: [
+      { id: 'data-conversion', title: 'Data Conversion' },
+      { id: 'validation', title: 'Validation Functions' },
+      { id: 'job-management', title: 'Job Management' },
+      { id: 'constants', title: 'Constants' }
+    ]
+  },
+  {
+    id: 'api-reference',
+    title: 'API Reference',
+    icon: '📖',
+    subsections: [
+      { id: 'blobkit-class', title: 'BlobKit Class' },
+      { id: 'write-methods', title: 'Write Methods' },
+      { id: 'read-methods', title: 'Read Methods' },
+      { id: 'payment-methods', title: 'Payment Methods' },
+      { id: 'direct-components', title: 'Direct Components' },
+      { id: 'kzg-functions', title: 'KZG Functions' }
+    ]
+  },
+  {
+    id: 'limitations',
+    title: 'Limitations',
+    icon: '⚠️',
+  },
+  {
+    id: 'faq',
+    title: 'FAQ',
+    icon: '💬',
+  },
+]
+
+// FAQ data
+const faqs = [
+  {
+    id: 'faq-1',
+    question: 'Why do I need a proxy server?',
+    answer: 'MetaMask and most wallets don\'t support EIP-4844 blob transactions yet. The proxy handles the complex KZG cryptography and Type 3 transaction format that wallets can\'t process.'
+  },
+  {
+    id: 'faq-2', 
+    question: 'How much does it cost to store data?',
+    answer: 'Blob storage costs 10-100x less than regular Ethereum storage. Expect to pay $0.01-$1 for ~124KB of data, depending on network congestion.'
+  },
+  {
+    id: 'faq-3',
+    question: 'How long is my data available?',
+    answer: 'Blob data is guaranteed available for 18 days. After that, nodes may delete it. Use an archive service like Blobscan for permanent storage.'
+  },
+  {
+    id: 'faq-4',
+    question: 'What\'s the maximum data size?',
+    answer: 'Each blob can hold ~124KB of usable data after encoding overhead. You can submit up to 6 blobs in a single transaction for ~744KB total.'
+  },
+  {
+    id: 'faq-5',
+    question: 'Is the hosted proxy really free?',
+    answer: 'Yes! The hosted proxy at proxy.blobkit.org has no fees. You only pay the Ethereum blob gas costs. Self-hosted proxies can configure their own fees.'
+  }
+]
+
+async function copyToClipboard(text: string) {
+  try {
+    // Try using the modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      // Fallback for non-secure contexts or older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-999999px'
+      textArea.style.top = '-999999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      document.execCommand('copy')
+      textArea.remove()
+    }
+  } catch (err) {
+    console.error('Failed to copy text: ', err)
+  }
+}
+
+function CodeBlock({
+  code, 
+  language = 'typescript',
+  showLineNumbers = false,
+  filename = ''
+}: { 
+  code: string
+  language?: string
+  showLineNumbers?: boolean
+  filename?: string
+}) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await copyToClipboard(code)
+    // Show feedback even if the copy failed (errors are logged)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  
+  return (
+    <div className="relative group my-4">
+      <div className="border border-green-400/20 rounded-lg overflow-x-auto bg-black/50">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-green-400/20 bg-black/70">
+          <div className="text-xs">
+            {filename ? (
+              <span className="text-yellow-400">{filename}</span>
+            ) : (
+              <span className="text-green-400/70">{language.toUpperCase()}</span>
+            )}
+          </div>
+          <button 
+            onClick={handleCopy}
+            className={`text-xs px-2 py-1 border rounded transition-all ${
+              copied 
+                ? 'border-green-400 bg-green-400/20 text-green-400' 
+                : 'border-green-400/50 hover:border-green-400 hover:bg-green-400/10'
+            }`}
+          >
+            <span className="flex items-center gap-1">
+              {copied ? (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                  COPIED
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  COPY
+                </>
+              )}
+            </span>
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <SyntaxHighlighter
+            language={language}
+            style={customTheme}
+            showLineNumbers={showLineNumbers}
+            customStyle={{
+              margin: 0,
+              padding: '12px',
+              background: 'transparent',
+              fontSize: '0.75rem',
+            }}
+            wrapLongLines={false}
+          >
+            {code}
+          </SyntaxHighlighter>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
-  const [copied, setCopied] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string>('introduction')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   
@@ -112,7 +393,6 @@ export default function Home() {
           
           // Calculate how much of the element is in the viewport
           const viewportTop = scrollPosition + offset
-          const viewportBottom = scrollPosition + window.innerHeight
           const viewportMiddle = scrollPosition + window.innerHeight / 2
           
           // Score based on how centered the element is in the viewport
@@ -172,41 +452,6 @@ export default function Home() {
     }
   }, [activeSection])
 
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+K or Ctrl+K for search
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setSearchOpen(true)
-      }
-      // Escape to close modals
-      if (e.key === 'Escape') {
-        if (searchOpen) {
-          setSearchOpen(false)
-          setSearchQuery('')
-          setSearchResults([])
-        }
-        if (showQuickRef) setShowQuickRef(false)
-        if (showToc) setShowToc(false)
-      }
-      // Arrow keys for navigation (when not in input)
-      if (!searchOpen && document.activeElement?.tagName !== 'INPUT') {
-        if (e.key === 'ArrowLeft' && currentSectionIndex > 0) {
-          e.preventDefault()
-          scrollToSection(sections[currentSectionIndex - 1].id)
-        }
-        if (e.key === 'ArrowRight' && currentSectionIndex < sections.length - 1) {
-          e.preventDefault()
-          scrollToSection(sections[currentSectionIndex + 1].id)
-        }
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [searchOpen, showQuickRef, showToc, currentSectionIndex])
-
   // Search functionality
   const performSearch = useCallback((query: string) => {
     if (!query.trim()) {
@@ -264,35 +509,7 @@ export default function Home() {
     setSearchResults(results.slice(0, 10)) // Limit to 10 results
   }, [])
 
-  const copyToClipboard = async (text: string, id: string) => {
-    try {
-      // Try using the modern clipboard API first
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text)
-      } else {
-        // Fallback for non-secure contexts or older browsers
-        const textArea = document.createElement('textarea')
-        textArea.value = text
-        textArea.style.position = 'fixed'
-        textArea.style.left = '-999999px'
-        textArea.style.top = '-999999px'
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        document.execCommand('copy')
-        textArea.remove()
-      }
-      setCopied(id)
-      setTimeout(() => setCopied(null), 2000)
-    } catch (err) {
-      console.error('Failed to copy text: ', err)
-      // Still show feedback even if copy failed
-      setCopied(id)
-      setTimeout(() => setCopied(null), 2000)
-    }
-  }
-
-  const scrollToSection = (id: string) => {
+  const scrollToSection = useCallback((id: string) => {
     const element = document.getElementById(id)
     if (element) {
       const offset = 100
@@ -335,266 +552,42 @@ export default function Home() {
         setSearchResults([])
       }
     }
-  }
+  }, [searchOpen])
 
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    })
-  }
-
-  const CodeBlock = ({ 
-    code, 
-    language = 'typescript',
-    showLineNumbers = false,
-    filename = ''
-  }: { 
-    code: string
-    language?: string
-    showLineNumbers?: boolean
-    filename?: string
-  }) => {
-    const id = Math.random().toString(36).substring(7)
-    
-    return (
-      <div className="relative group my-4">
-        <div className="border border-green-400/20 rounded-lg overflow-x-auto bg-black/50">
-          <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-green-400/20 bg-black/70">
-            <div className="text-xs">
-              {filename ? (
-                <span className="text-yellow-400">{filename}</span>
-              ) : (
-                <span className="text-green-400/70">{language.toUpperCase()}</span>
-              )}
-            </div>
-            <button 
-              onClick={() => copyToClipboard(code, id)}
-              className={`text-xs px-2 py-1 border rounded transition-all ${
-                copied === id 
-                  ? 'border-green-400 bg-green-400/20 text-green-400' 
-                  : 'border-green-400/50 hover:border-green-400 hover:bg-green-400/10'
-              }`}
-            >
-              <span className="flex items-center gap-1">
-                {copied === id ? (
-                  <>
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                    COPIED
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    COPY
-                  </>
-                )}
-              </span>
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <SyntaxHighlighter
-              language={language}
-              style={customTheme}
-              showLineNumbers={showLineNumbers}
-              customStyle={{
-                margin: 0,
-                padding: '12px',
-                background: 'transparent',
-                fontSize: '0.75rem',
-              }}
-              wrapLongLines={false}
-            >
-              {code}
-            </SyntaxHighlighter>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const sections = [
-    { 
-      id: 'introduction', 
-      title: 'Introduction', 
-      icon: '🌟',
-      subsections: [
-        { id: 'what-are-blobs', title: 'What Are Blobs?' },
-        { id: 'why-blobkit', title: 'Why BlobKit?' },
-        { id: 'use-cases', title: 'Use Cases' },
-      ]
-    },
-    { 
-      id: 'quickstart', 
-      title: 'Quickstart', 
-      icon: '🚀',
-      subsections: [
-        { id: 'prerequisites', title: 'Prerequisites' },
-        { id: 'first-blob', title: 'Your First Blob' },
-      ]
-    },
-    { 
-      id: 'architecture', 
-      title: 'How It Works', 
-      icon: '🔧',
-      subsections: [
-        { id: 'blob-transactions', title: 'Blob Transactions' },
-        { id: 'wallet-problem', title: 'The Wallet Problem' },
-        { id: 'proxy-solution', title: 'The Proxy Solution' },
-        { id: 'escrow-system', title: 'Escrow System' },
-      ]
-    },
-    { 
-      id: 'installation', 
-      title: 'Installation', 
-      icon: '📦',
-      subsections: [
-        { id: 'package-install', title: 'Package Install' },
-        { id: 'environment-setup', title: 'Environment Setup' },
-      ]
-    },
-    { 
-      id: 'usage', 
-      title: 'Basic Usage', 
-      icon: '💻',
-      subsections: [
-        { id: 'initialization', title: 'Initialization' },
-        { id: 'writing-data', title: 'Writing Data' },
-        { id: 'reading-data', title: 'Reading Data' },
-        { id: 'cost-management', title: 'Cost Management' },
-      ]
-    },
-    { 
-      id: 'proxy', 
-      title: 'Proxy System', 
-      icon: '🔄',
-      subsections: [
-        { id: 'hosted-proxy', title: 'Using Hosted Proxy' },
-        { id: 'escrow-management', title: 'Escrow Management' },
-        { id: 'deploy-proxy', title: 'Deploy Your Own' },
-      ]
-    },
-    { 
-      id: 'production', 
-      title: 'Production Guide', 
-      icon: '🚀',
-      subsections: [
-        { id: 'production-checklist', title: 'Checklist' },
-        { id: 'monitoring', title: 'Monitoring' },
-        { id: 'cost-optimization', title: 'Cost Optimization' },
-      ]
-    },
-    { 
-      id: 'examples', 
-      title: 'Examples', 
-      icon: '📝',
-      subsections: [
-        { id: 'complete-app', title: 'Complete App' },
-        { id: 'error-handling', title: 'Error Handling' },
-      ]
-    },
-    { 
-      id: 'troubleshooting', 
-      title: 'Troubleshooting', 
-      icon: '❓',
-      subsections: [
-        { id: 'error-index', title: 'Error Index' },
-        { id: 'common-issues', title: 'Common Issues' }
-      ]
-    },
-    {
-      id: 'advanced-config',
-      title: 'Advanced Config',
-      icon: '⚙️',
-      subsections: [
-        { id: 'all-config-options', title: 'All Configuration Options' },
-        { id: 'env-setup', title: 'Environment-Based Setup' },
-        { id: 'compression', title: 'Compression Settings' }
-      ]
-    },
-    {
-      id: 'metrics',
-      title: 'Metrics',
-      icon: '📊',
-      subsections: [
-        { id: 'metrics-hooks', title: 'Metrics Hooks' }
-      ]
-    },
-    {
-      id: 'codecs',
-      title: 'Codecs',
-      icon: '🔄',
-      subsections: [
-        { id: 'built-in-codecs', title: 'Built-in Codecs' }
-      ]
-    },
-    {
-      id: 'utilities',
-      title: 'Utilities',
-      icon: '🔧',
-      subsections: [
-        { id: 'data-conversion', title: 'Data Conversion' },
-        { id: 'validation', title: 'Validation Functions' },
-        { id: 'job-management', title: 'Job Management' },
-        { id: 'constants', title: 'Constants' }
-      ]
-    },
-    {
-      id: 'api-reference',
-      title: 'API Reference',
-      icon: '📖',
-      subsections: [
-        { id: 'blobkit-class', title: 'BlobKit Class' },
-        { id: 'write-methods', title: 'Write Methods' },
-        { id: 'read-methods', title: 'Read Methods' },
-        { id: 'payment-methods', title: 'Payment Methods' },
-        { id: 'direct-components', title: 'Direct Components' },
-        { id: 'kzg-functions', title: 'KZG Functions' }
-      ]
-    },
-    {
-      id: 'limitations',
-      title: 'Limitations',
-      icon: '⚠️',
-    },
-    {
-      id: 'faq',
-      title: 'FAQ',
-      icon: '💬',
-    },
-  ]
-
-  // FAQ data
-  const faqs = [
-    {
-      id: 'faq-1',
-      question: 'Why do I need a proxy server?',
-      answer: 'MetaMask and most wallets don\'t support EIP-4844 blob transactions yet. The proxy handles the complex KZG cryptography and Type 3 transaction format that wallets can\'t process.'
-    },
-    {
-      id: 'faq-2', 
-      question: 'How much does it cost to store data?',
-      answer: 'Blob storage costs 10-100x less than regular Ethereum storage. Expect to pay $0.01-$1 for ~124KB of data, depending on network congestion.'
-    },
-    {
-      id: 'faq-3',
-      question: 'How long is my data available?',
-      answer: 'Blob data is guaranteed available for 18 days. After that, nodes may delete it. Use an archive service like Blobscan for permanent storage.'
-    },
-    {
-      id: 'faq-4',
-      question: 'What\'s the maximum data size?',
-      answer: 'Each blob can hold ~124KB of usable data after encoding overhead. You can submit up to 6 blobs in a single transaction for ~744KB total.'
-    },
-    {
-      id: 'faq-5',
-      question: 'Is the hosted proxy really free?',
-      answer: 'Yes! The hosted proxy at proxy.blobkit.org has no fees. You only pay the Ethereum blob gas costs. Self-hosted proxies can configure their own fees.'
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+K or Ctrl+K for search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+      // Escape to close modals
+      if (e.key === 'Escape') {
+        if (searchOpen) {
+          setSearchOpen(false)
+          setSearchQuery('')
+          setSearchResults([])
+        }
+        if (showQuickRef) setShowQuickRef(false)
+        if (showToc) setShowToc(false)
+      }
+      // Arrow keys for navigation (when not in input)
+      if (!searchOpen && document.activeElement?.tagName !== 'INPUT') {
+        if (e.key === 'ArrowLeft' && currentSectionIndex > 0) {
+          e.preventDefault()
+          scrollToSection(sections[currentSectionIndex - 1].id)
+        }
+        if (e.key === 'ArrowRight' && currentSectionIndex < sections.length - 1) {
+          e.preventDefault()
+          scrollToSection(sections[currentSectionIndex + 1].id)
+        }
+      }
     }
-  ]
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [searchOpen, showQuickRef, showToc, currentSectionIndex, scrollToSection])
 
   return (
     <div className="min-h-screen bg-black text-green-400">
@@ -650,7 +643,7 @@ export default function Home() {
             )}
             {searchQuery && searchResults.length === 0 && (
               <div className="p-8 text-center text-green-400/60">
-                No results found for "{searchQuery}"
+                No results found for &quot;{searchQuery}&quot;
               </div>
             )}
           </div>
@@ -964,7 +957,7 @@ export default function Home() {
                 <h3 className="text-xl font-bold text-cyan-400 mb-3">10-100x Cheaper Ethereum Storage</h3>
                 <p className="text-sm mb-4">
                   EIP-4844 introduced blob space to Ethereum. This is a new type of data storage that costs 10-100x less than regular transactions. 
-                  BlobKit makes it easy to use this new storage layer, even though wallets don't support it yet.
+                  BlobKit makes it easy to use this new storage layer, even though wallets don&apos;t support it yet.
                 </p>
                 <p className="text-sm">
                   <strong className="text-yellow-400">The numbers:</strong> Store ~124KB of data for $0.01-$1. 
@@ -984,10 +977,10 @@ export default function Home() {
                     <h4 className="text-cyan-400 mb-2">How Blobs Are Different</h4>
                     <ul className="space-y-2 text-sm">
                       <li><strong className="text-yellow-400">Size:</strong> <span className="text-green-400">Each blob is 128KB (131,072 bytes), but usable capacity is ~124KB after encoding overhead</span></li>
-                      <li><strong className="text-yellow-400">Cost:</strong> <span className="text-green-400">Uses separate gas pricing that's much cheaper than regular gas</span></li>
+                      <li><strong className="text-yellow-400">Cost:</strong> <span className="text-green-400">Uses separate gas pricing that&apos;s much cheaper than regular gas</span></li>
                       <li><strong className="text-yellow-400">Storage:</strong> <span className="text-green-400">Data is guaranteed available for 18 days, then nodes can delete it</span></li>
                       <li><strong className="text-yellow-400">Commitment:</strong> <span className="text-green-400">Uses KZG cryptography to prove data availability without storing it forever</span></li>
-                      <li><strong className="text-yellow-400">Access:</strong> <span className="text-green-400">Can't be accessed from smart contracts, only from consensus layer</span></li>
+                      <li><strong className="text-yellow-400">Access:</strong> <span className="text-green-400">Can&apos;t be accessed from smart contracts, only from consensus layer</span></li>
                     </ul>
                   </div>
 
@@ -1006,7 +999,7 @@ export default function Home() {
                 <div className="space-y-4">
                   <p className="text-sm">
                     Blob transactions are powerful but complex. They require special cryptography (KZG commitments) and a new transaction format 
-                    that wallets like MetaMask don't support yet. BlobKit solves these problems.
+                    that wallets like MetaMask don&apos;t support yet. BlobKit solves these problems.
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1015,7 +1008,7 @@ export default function Home() {
                       <ul className="space-y-1 text-sm text-green-400/70">
                         <li>❌ Implement KZG cryptography yourself</li>
                         <li>❌ Build custom transaction encoding</li>
-                        <li>❌ Can't use MetaMask or other wallets</li>
+                        <li>❌ Can&apos;t use MetaMask or other wallets</li>
                         <li>❌ Handle blob gas pricing manually</li>
                         <li>❌ Write custom archival logic</li>
                       </ul>
@@ -1079,7 +1072,7 @@ export default function Home() {
               
               <div className="bg-green-400/10 border border-green-400/30 rounded-lg p-6 mb-8">
                 <p className="text-sm">
-                  Get your first blob on Ethereum in 5 minutes. We'll use the Sepolia testnet so it's free to try.
+                  Get your first blob on Ethereum in 5 minutes. We&apos;ll use the Sepolia testnet so it&apos;s free to try.
                 </p>
               </div>
 
@@ -1186,7 +1179,7 @@ main().catch(console.error);`}
               
               <div className="bg-blue-400/10 border border-blue-400/30 rounded-lg p-6 mb-8">
                 <p className="text-sm">
-                  Understanding how BlobKit works helps you use it effectively. Let's break down the architecture.
+                  Understanding how BlobKit works helps you use it effectively. Let&apos;s break down the architecture.
                 </p>
               </div>
 
@@ -1195,7 +1188,7 @@ main().catch(console.error);`}
                 
                 <div className="space-y-4">
                   <p className="text-sm">
-                    Blob transactions (Type 3) are special Ethereum transactions that carry blob data. They're different from regular transactions:
+                    Blob transactions (Type 3) are special Ethereum transactions that carry blob data. They&apos;re different from regular transactions:
                   </p>
 
                   <div className="border border-green-400/20 rounded-lg p-4">
@@ -1230,7 +1223,7 @@ main().catch(console.error);`}
                   </div>
 
                   <p className="text-sm">
-                    The blob data isn't stored in blocks. Only the commitment (a cryptographic hash) goes on-chain. 
+                    The blob data isn&apos;t stored in blocks. Only the commitment (a cryptographic hash) goes on-chain. 
                     The actual blob data is shared separately and nodes keep it for 18 days.
                   </p>
                 </div>
@@ -1241,9 +1234,9 @@ main().catch(console.error);`}
                 
                 <div className="space-y-4">
                   <div className="bg-red-400/10 border border-red-400/30 rounded-lg p-4">
-                    <h4 className="text-red-400 mb-2">Why Wallets Can't Send Blobs</h4>
+                    <h4 className="text-red-400 mb-2">Why Wallets Can&apos;t Send Blobs</h4>
                     <p className="text-sm">
-                      MetaMask, Rainbow, and other wallets don't support Type 3 transactions yet. They can't:
+                      MetaMask, Rainbow, and other wallets don&apos;t support Type 3 transactions yet. They can&apos;t:
                     </p>
                     <ul className="space-y-1 text-sm mt-2">
                       <li>• Generate KZG commitments and proofs</li>
@@ -1254,8 +1247,8 @@ main().catch(console.error);`}
                   </div>
 
                   <p className="text-sm">
-                    This is a chicken-and-egg problem. Wallets won't add support until there are apps using blobs, 
-                    but apps can't use blobs without wallet support. BlobKit solves this with a proxy system.
+                    This is a chicken-and-egg problem. Wallets won&apos;t add support until there are apps using blobs, 
+                    but apps can&apos;t use blobs without wallet support. BlobKit solves this with a proxy system.
                   </p>
                 </div>
               </div>
@@ -1265,7 +1258,7 @@ main().catch(console.error);`}
                 
                 <div className="space-y-4">
                   <p className="text-sm">
-                    Since wallets can't send blob transactions, BlobKit uses a proxy server that can. Here's how it works:
+                    Since wallets can&apos;t send blob transactions, BlobKit uses a proxy server that can. Here&apos;s how it works:
                   </p>
 
                   <div className="border border-green-400/20 rounded-lg p-4">
@@ -1398,7 +1391,7 @@ pnpm add @blobkit/sdk ethers`}
                   <div className="bg-blue-400/10 border border-blue-400/30 rounded-lg p-4">
                     <p className="text-sm">
                       <strong>Note:</strong> ethers.js is a peer dependency. BlobKit uses it for Ethereum interactions 
-                      but doesn't bundle it to avoid version conflicts with your app.
+                      but doesn&apos;t bundle it to avoid version conflicts with your app.
                     </p>
                   </div>
                 </div>
@@ -1553,7 +1546,7 @@ await blobkit.writeBlob(data);`}
               
               <div className="bg-cyan-400/10 border border-cyan-400/30 rounded-lg p-6 mb-8">
                 <p className="text-sm">
-                  The proxy system is essential because wallets can't send blob transactions. 
+                  The proxy system is essential because wallets can&apos;t send blob transactions. 
                   You can use the hosted proxy or deploy your own for full control.
                 </p>
               </div>
@@ -2593,11 +2586,11 @@ const blobkit = createFromEnv(wallet);`}
                   <div className="border border-green-400/20 rounded-lg p-4 mt-4">
                     <h4 className="text-cyan-400 mb-2">Environment Variables</h4>
                     <ul className="space-y-2 text-sm">
-                      <li><strong className="text-yellow-400">BLOBKIT_RPC_URL:</strong> <span className="text-cyan-400">Ethereum RPC endpoint (default: 'http://localhost:8545')</span></li>
-                      <li><strong className="text-yellow-400">BLOBKIT_ARCHIVE_URL:</strong> <span className="text-cyan-400">Archive service URL (default: 'https://api.blobscan.com')</span></li>
+                      <li><strong className="text-yellow-400">BLOBKIT_RPC_URL:</strong> <span className="text-cyan-400">Ethereum RPC endpoint (default: &apos;http://localhost:8545&apos;)</span></li>
+                      <li><strong className="text-yellow-400">BLOBKIT_ARCHIVE_URL:</strong> <span className="text-cyan-400">Archive service URL (default: &apos;https://api.blobscan.com&apos;)</span></li>
                       <li><strong className="text-yellow-400">BLOBKIT_CHAIN_ID:</strong> <span className="text-cyan-400">Chain ID number (default: 31337)</span></li>
                       <li><strong className="text-yellow-400">BLOBKIT_PROXY_URL:</strong> <span className="text-cyan-400">Proxy server URL</span></li>
-                      <li><strong className="text-yellow-400">BLOBKIT_LOG_LEVEL:</strong> <span className="text-cyan-400">Log level (default: 'info')</span></li>
+                      <li><strong className="text-yellow-400">BLOBKIT_LOG_LEVEL:</strong> <span className="text-cyan-400">Log level (default: &apos;info&apos;)</span></li>
                     </ul>
                   </div>
                 </div>
@@ -3249,7 +3242,7 @@ await blobkit.writeBlob(data2);
                 <div className="border border-yellow-400/30 rounded-lg p-4">
                   <h3 className="text-yellow-400 font-bold mb-2">Smart Contract Access</h3>
                   <p className="text-sm">
-                    Blob data cannot be accessed from within smart contracts. It's only available to external applications.
+                    Blob data cannot be accessed from within smart contracts. It&apos;s only available to external applications.
                   </p>
                 </div>
               </div>
